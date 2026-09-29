@@ -1,0 +1,579 @@
+{
+  "$defs": {
+    "AudioCue": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "t": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "t",
+        "kind",
+        "name"
+      ],
+      "type": "object"
+    },
+    "AudioPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "cues": {
+          "items": {
+            "$ref": "#/$defs/AudioCue"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "cues"
+      ],
+      "type": "object"
+    },
+    "Camera": {
+      "additionalProperties": false,
+      "properties": {
+        "focal_mm": {
+          "type": "integer"
+        },
+        "movement": {
+          "type": "string"
+        },
+        "shot_type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shot_type",
+        "movement",
+        "focal_mm"
+      ],
+      "type": "object"
+    },
+    "Canvas": {
+      "additionalProperties": false,
+      "properties": {
+        "fps": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "width": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "fps"
+      ],
+      "type": "object"
+    },
+    "CharacterLock": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "identity_lock": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "voice_asset_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "wardrobe_lock": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "asset_id",
+        "identity_lock",
+        "wardrobe_lock"
+      ],
+      "type": "object"
+    },
+    "CompilerRef": {
+      "additionalProperties": false,
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "hash"
+      ],
+      "type": "object"
+    },
+    "ContinuityLocks": {
+      "additionalProperties": false,
+      "properties": {
+        "characters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CharacterLock"
+          },
+          "type": "object"
+        },
+        "locations": {
+          "additionalProperties": {
+            "$ref": "#/$defs/LocationLock"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "characters",
+        "locations"
+      ],
+      "type": "object"
+    },
+    "Episode": {
+      "additionalProperties": false,
+      "properties": {
+        "end_seconds": {
+          "type": "number"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "recap": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "title_seconds": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "title",
+        "recap",
+        "hook",
+        "title_seconds",
+        "end_seconds"
+      ],
+      "type": "object"
+    },
+    "Lighting": {
+      "additionalProperties": false,
+      "properties": {
+        "time_of_day": {
+          "type": "string"
+        },
+        "weather": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "time_of_day",
+        "weather"
+      ],
+      "type": "object"
+    },
+    "LocationLock": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id",
+        "description"
+      ],
+      "type": "object"
+    },
+    "Place": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "ProductionPacket": {
+      "additionalProperties": false,
+      "properties": {
+        "audio_plan": {
+          "$ref": "#/$defs/AudioPlan"
+        },
+        "canvas": {
+          "$ref": "#/$defs/Canvas"
+        },
+        "compiler": {
+          "$ref": "#/$defs/CompilerRef"
+        },
+        "continuity_locks": {
+          "$ref": "#/$defs/ContinuityLocks"
+        },
+        "episode": {
+          "$ref": "#/$defs/Episode"
+        },
+        "map": {
+          "$ref": "#/$defs/WorldMap"
+        },
+        "packet_hash": {
+          "type": "string"
+        },
+        "qa": {
+          "$ref": "#/$defs/QARequirements"
+        },
+        "scene_hash": {
+          "type": "string"
+        },
+        "shots": {
+          "items": {
+            "$ref": "#/$defs/Shot"
+          },
+          "type": "array"
+        },
+        "stylepack": {
+          "$ref": "#/$defs/StylePackRef"
+        },
+        "subtitle_plan": {
+          "items": {
+            "$ref": "#/$defs/SubtitleCue"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "scene_hash",
+        "stylepack",
+        "compiler",
+        "episode",
+        "canvas",
+        "map",
+        "continuity_locks",
+        "shots",
+        "audio_plan",
+        "subtitle_plan",
+        "qa"
+      ],
+      "type": "object"
+    },
+    "Prop": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "asset_id"
+      ],
+      "type": "object"
+    },
+    "QARequirements": {
+      "additionalProperties": false,
+      "properties": {
+        "fps": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "require_audio": {
+          "type": "boolean"
+        },
+        "required_asset_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "total_seconds": {
+          "type": "number"
+        },
+        "width": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "fps",
+        "total_seconds",
+        "required_asset_ids",
+        "require_audio"
+      ],
+      "type": "object"
+    },
+    "Shot": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "camera": {
+          "$ref": "#/$defs/Camera"
+        },
+        "caption": {
+          "type": "string"
+        },
+        "characters": {
+          "items": {
+            "$ref": "#/$defs/ShotCharacter"
+          },
+          "type": "array"
+        },
+        "clock": {
+          "type": "string"
+        },
+        "continuity_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "continuity_refs": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "day": {
+          "type": "integer"
+        },
+        "duration_seconds": {
+          "type": "integer"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "lighting": {
+          "$ref": "#/$defs/Lighting"
+        },
+        "location": {
+          "$ref": "#/$defs/Place"
+        },
+        "props": {
+          "items": {
+            "$ref": "#/$defs/Prop"
+          },
+          "type": "array"
+        },
+        "render_backend": {
+          "type": "string"
+        },
+        "route_reason": {
+          "type": "string"
+        },
+        "shot_id": {
+          "type": "string"
+        },
+        "start_seconds": {
+          "type": "number"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "thought": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trust_flipped": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "shot_id",
+        "event_id",
+        "intent",
+        "subject",
+        "action",
+        "environment",
+        "camera",
+        "lighting",
+        "start_seconds",
+        "duration_seconds",
+        "caption",
+        "thought",
+        "characters",
+        "props",
+        "location",
+        "day",
+        "clock",
+        "render_backend",
+        "route_reason",
+        "continuity_refs",
+        "continuity_note",
+        "trust_flipped"
+      ],
+      "type": "object"
+    },
+    "ShotCharacter": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "asset_id": {
+          "type": "string"
+        },
+        "emotion": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "position": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "asset_id",
+        "role",
+        "position",
+        "action",
+        "emotion"
+      ],
+      "type": "object"
+    },
+    "StylePackRef": {
+      "additionalProperties": false,
+      "properties": {
+        "hash": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "hash"
+      ],
+      "type": "object"
+    },
+    "SubtitleCue": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "type": "number"
+        },
+        "start": {
+          "type": "number"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "text"
+      ],
+      "type": "object"
+    },
+    "WorldMap": {
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "locations": {
+          "items": {
+            "$ref": "#/$defs/Place"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "locations",
+        "edges"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/ProductionPacket",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

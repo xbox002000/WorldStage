@@ -1,0 +1,316 @@
+{
+  "$defs": {
+    "Beat": {
+      "additionalProperties": false,
+      "properties": {
+        "clock": {
+          "type": "string"
+        },
+        "day": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "event_type": {
+          "type": "string"
+        },
+        "importance": {
+          "type": "number"
+        },
+        "location": {
+          "$ref": "#/$defs/Place"
+        },
+        "motivation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "participants": {
+          "items": {
+            "$ref": "#/$defs/Participant"
+          },
+          "type": "array"
+        },
+        "prop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Prop"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "thoughts": {
+          "items": {
+            "$ref": "#/$defs/Thought"
+          },
+          "type": "array"
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "trust_flipped": {
+          "type": "boolean"
+        },
+        "weather": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "event_type",
+        "tone",
+        "location",
+        "day",
+        "clock",
+        "weather",
+        "participants",
+        "prop",
+        "thoughts",
+        "motivation",
+        "trust_flipped",
+        "importance"
+      ],
+      "type": "object"
+    },
+    "Participant": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "role"
+      ],
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "persona": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "asset_id"
+      ],
+      "type": "object"
+    },
+    "Place": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    },
+    "Prop": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "asset_id"
+      ],
+      "type": "object"
+    },
+    "SceneSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/Beat"
+          },
+          "type": "array"
+        },
+        "characters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Person"
+          },
+          "type": "object"
+        },
+        "map": {
+          "$ref": "#/$defs/WorldMap"
+        },
+        "peak_event_id": {
+          "type": "integer"
+        },
+        "scene_hash": {
+          "type": "string"
+        },
+        "scene_id": {
+          "type": "string"
+        },
+        "score": {
+          "type": "number"
+        },
+        "score_breakdown": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "title": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "scene_id",
+        "title",
+        "score",
+        "score_breakdown",
+        "peak_event_id",
+        "source",
+        "characters",
+        "map",
+        "beats"
+      ],
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "history_hash": {
+          "type": "string"
+        },
+        "ruleset_hash": {
+          "type": "string"
+        },
+        "simulation_toolchain_hash": {
+          "type": "string"
+        },
+        "source_event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "world_revision": {
+          "type": "integer"
+        },
+        "world_snapshot_hash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "world_revision",
+        "world_snapshot_hash",
+        "history_hash",
+        "ruleset_hash",
+        "simulation_toolchain_hash",
+        "source_event_ids"
+      ],
+      "type": "object"
+    },
+    "Thought": {
+      "additionalProperties": false,
+      "properties": {
+        "belief": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "person": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "person",
+        "belief",
+        "confidence"
+      ],
+      "type": "object"
+    },
+    "WorldMap": {
+      "additionalProperties": false,
+      "properties": {
+        "edges": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "locations": {
+          "items": {
+            "$ref": "#/$defs/Place"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "locations",
+        "edges"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/SceneSpec",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

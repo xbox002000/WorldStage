@@ -1,0 +1,37 @@
+{
+  "$defs": {
+    "TellIntent": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "source_claim_id": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "string"
+        },
+        "withheld_claim_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "actor",
+        "target",
+        "mode",
+        "source_claim_id",
+        "withheld_claim_ids"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/TellIntent",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

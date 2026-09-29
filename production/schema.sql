@@ -1,0 +1,103 @@
+-- production.db: how episodes get made. It is NOT world truth and never writes to world.db.
+-- Every artifact row is addressed by the hash of what it was made from (see contracts/*).
+
+CREATE TABLE IF NOT EXISTS meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS scene_specs (
+  scene_hash     TEXT PRIMARY KEY,
+  world_revision INTEGER NOT NULL,
+  history_hash   TEXT NOT NULL,
+  spec_json      TEXT NOT NULL CHECK (json_valid(spec_json)),
+  created_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS packets (
+  packet_hash TEXT PRIMARY KEY,
+  scene_hash  TEXT NOT NULL REFERENCES scene_specs(scene_hash),
+  packet_json TEXT NOT NULL CHECK (json_valid(packet_json)),
+  created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS render_requests (
+  request_hash TEXT PRIMARY KEY,
+  packet_hash  TEXT NOT NULL REFERENCES packets(packet_hash),
+  request_json TEXT NOT NULL CHECK (json_valid(request_json)),
+  created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS takes (
+  take_id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_hash     TEXT NOT NULL REFERENCES render_requests(request_hash),
+  status           TEXT NOT NULL CHECK (status IN
+    ('queued','submitted','generating','ready','failed','selected','rejected','needs_reconciliation')),
+  artifact_path    TEXT,
+  artifact_hash    TEXT,
+  provider_job_id  TEXT,
+  error            TEXT,
+  created_at       INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS qa_results (
+  qa_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  take_id   INTEGER NOT NULL REFERENCES takes(take_id),
+  layer     TEXT NOT NULL CHECK (layer IN ('deterministic','visual')),
+  passed    INTEGER NOT NULL CHECK (passed IN (0,1)),
+  status    TEXT NOT NULL,
+  detail_json TEXT NOT NULL CHECK (json_valid(detail_json)),
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS episodes (
+  episode_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+  scene_hash  TEXT NOT NULL REFERENCES scene_specs(scene_hash),
+  take_id     INTEGER REFERENCES takes(take_id),
+  title       TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'draft',
+  created_at  INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS budget_ledger (
+  entry_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_hash TEXT NOT NULL,
+  backend      TEXT NOT NULL,
+  currency     TEXT NOT NULL,
+  amount       REAL NOT NULL,
+  note         TEXT NOT NULL,
+  created_at   INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS publications (
+  publication_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  episode_id     INTEGER NOT NULL REFERENCES episodes(episode_id),
+  publisher      TEXT NOT NULL,
+  reference      TEXT NOT NULL,
+  created_at     INTEGER NOT NULL
+);
+
+-- Audience claims are never world truth; they can only become rumour events via the world validator.
+CREATE TABLE IF NOT EXISTS audience_claims (
+  audience_claim_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_ref        TEXT NOT NULL,
+  claim_json        TEXT NOT NULL CHECK (json_valid(claim_json)),
+  created_at        INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS experiments (
+  experiment_id TEXT PRIMARY KEY,
+  config_json   TEXT NOT NULL CHECK (json_valid(config_json)),
+  config_hash   TEXT NOT NULL,
+  created_at    INTEGER NOT NULL
+);
+
+-- Content-addressed rows never change once written.
+CREATE TRIGGER IF NOT EXISTS scene_specs_immutable BEFORE UPDATE ON scene_specs
+BEGIN SELECT RAISE(ABORT, 'scene_specs are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS packets_immutable BEFORE UPDATE ON packets
+BEGIN SELECT RAISE(ABORT, 'packets are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS render_requests_immutable BEFORE UPDATE ON render_requests
+BEGIN SELECT RAISE(ABORT, 'render_requests are immutable'); END;
+CREATE TRIGGER IF NOT EXISTS experiments_immutable BEFORE UPDATE ON experiments
+BEGIN SELECT RAISE(ABORT, 'experiments are immutable'); END;

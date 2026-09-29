@@ -14,7 +14,7 @@ RULESET_FILES = (
 RULESET_GLOBS = ("world/migrations/*.sql", "contracts/*.py")
 
 
-def _file_hash(path: Path) -> str:
+def file_hash(path: Path) -> str:
     # Normalise line endings so a CRLF checkout hashes the same as LF.
     data = path.read_bytes().replace(b"\r\n", b"\n")
     return "sha256:" + hashlib.sha256(data).hexdigest()
@@ -26,7 +26,7 @@ def ruleset_manifest() -> dict:
         files += sorted(ROOT.glob(pattern))
     return {
         "kernel_version": KERNEL_VERSION,
-        "files": {p.relative_to(ROOT).as_posix(): _file_hash(p) for p in sorted(set(files))},
+        "files": {p.relative_to(ROOT).as_posix(): file_hash(p) for p in sorted(set(files))},
     }
 
 

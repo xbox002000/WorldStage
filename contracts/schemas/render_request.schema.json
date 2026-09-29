@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "RenderRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_hashes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "backend": {
+          "type": "string"
+        },
+        "backend_version": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "packet_hash": {
+          "type": "string"
+        },
+        "parameters": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "request_hash": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "toolchain": {
+          "$ref": "#/$defs/Toolchain"
+        },
+        "toolchain_hash": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "kind",
+        "backend",
+        "backend_version",
+        "parameters",
+        "packet_hash",
+        "seed",
+        "asset_hashes",
+        "toolchain",
+        "toolchain_hash"
+      ],
+      "type": "object"
+    },
+    "Toolchain": {
+      "additionalProperties": false,
+      "properties": {
+        "chrome": {
+          "type": "string"
+        },
+        "encoder": {
+          "type": "string"
+        },
+        "ffmpeg": {
+          "type": "string"
+        },
+        "hyperframes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "hyperframes",
+        "ffmpeg",
+        "chrome",
+        "encoder"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/RenderRequest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,46 @@
+{
+  "$defs": {
+    "StylePack": {
+      "additionalProperties": false,
+      "properties": {
+        "camera_bias": {
+          "type": "string"
+        },
+        "duration_scale": {
+          "type": "number"
+        },
+        "end_seconds": {
+          "type": "number"
+        },
+        "ending": {
+          "type": "string"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "title_seconds": {
+          "type": "number"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "hook",
+        "ending",
+        "duration_scale",
+        "title_seconds",
+        "end_seconds",
+        "camera_bias"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/StylePack",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "Take": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifact_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider_job_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_hash": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "submitted",
+            "generating",
+            "ready",
+            "failed",
+            "selected",
+            "rejected",
+            "needs_reconciliation"
+          ]
+        },
+        "take_id": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "request_hash",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/Take",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

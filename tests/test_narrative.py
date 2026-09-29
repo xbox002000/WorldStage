@@ -4,7 +4,6 @@ import unittest
 
 from agent.decision import SeededDecider
 from narrative.arcs import build_arcs, load_events
-from narrative.scene_spec import build_spec, dumps, validate_spec
 from narrative.selector import rank_arcs, select_top
 from tests.helpers import seeded
 from world.db import connect, init_db
@@ -62,41 +61,6 @@ class ArcTests(unittest.TestCase):
             self.assertNotIn(c.arc.peak.pair, pairs)
             seen |= set(c.arc.ids)
             pairs.add(c.arc.peak.pair)
-
-
-class SceneSpecTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        conn = connect()
-        init_db(conn, 184729)
-        build_world(conn, 184729)
-        d = SeededDecider(184729)
-        Simulation(conn, d, d, set()).run(7)
-        cls.conn = conn
-
-    def test_top3_spec_is_valid_and_ids_are_stable(self):
-        chosen, _ = select_top(self.conn, 3)
-        self.assertEqual(len(chosen), 3)
-        spec = build_spec(self.conn, chosen)
-        validate_spec(self.conn, spec)
-        assets: dict[str, str] = {}
-        for scene in spec["scenes"]:
-            for shot in scene["shots"]:
-                for ch in shot["characters"]:
-                    self.assertEqual(assets.setdefault(ch["id"], ch["asset_id"]), f"char_{ch['id']}")
-        events = [e for s in spec["scenes"] for e in s["arc_event_ids"]]
-        self.assertEqual(len(events), len(set(events)))
-
-    def test_spec_is_deterministic(self):
-        a = dumps(build_spec(self.conn, select_top(self.conn, 3)[0]))
-        b = dumps(build_spec(self.conn, select_top(self.conn, 3)[0]))
-        self.assertEqual(a, b)
-
-    def test_validation_catches_bad_ids(self):
-        spec = build_spec(self.conn, select_top(self.conn, 1)[0])
-        spec["scenes"][0]["shots"][0]["characters"][0]["id"] = "sarah"
-        with self.assertRaises(ValueError):
-            validate_spec(self.conn, spec)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ import json
 import sqlite3
 import unicodedata
 
-from world.db import schema_version
+from world.db import SCHEMA_VERSION, schema_version
 from world.ruleset import KERNEL_VERSION, ruleset_hash
 
 # table -> ORDER BY (primary-key order)
@@ -66,10 +66,38 @@ def table_hash(conn: sqlite3.Connection, table: str) -> str:
     return _sha(_canonical([{c: _value(c, row[c]) for c in columns} for row in rows]))
 
 
+# Immutable history tables and how to cut them at revision N. Current-state tables cannot be cut, so a
+# snapshot hash is only recomputable while the world is still at that revision; history_hash always is.
+HISTORY_CUTS: dict[str, str] = {
+    "events": "event_id <= :n",
+    "event_participants": "event_id <= :n",
+    "event_deltas": "event_id <= :n",
+    "event_claims": "event_id <= :n",
+    "memories": "event_id <= :n",
+    "memory_sources": "memory_id IN (SELECT memory_id FROM memories WHERE event_id <= :n)",
+    "claims": "claim_id IN (SELECT claim_id FROM event_claims WHERE event_id <= :n "
+              "UNION SELECT claim_id FROM memories WHERE event_id <= :n AND claim_id IS NOT NULL)",
+}
+
+
+def history_hash(conn: sqlite3.Connection, revision: int) -> str:
+    """Hash of everything the world had recorded up to `revision`. Stays valid however far the world moves on."""
+    tables = {}
+    for table, cut in HISTORY_CUTS.items():
+        columns = sorted(r["name"] for r in conn.execute(f"PRAGMA table_info({table})"))
+        rows = conn.execute(
+            f"SELECT {', '.join(columns)} FROM {table} WHERE {cut} ORDER BY {TABLES[table]}", {"n": revision}).fetchall()
+        tables[table] = _sha(_canonical([{c: _value(c, row[c]) for c in columns} for row in rows]))
+    return _sha(_canonical({"revision": revision, "tables": tables}))
+
+
 def snapshot_manifest(conn: sqlite3.Connection) -> dict:
+    version = schema_version(conn)
+    if version != SCHEMA_VERSION:
+        raise RuntimeError(f"world database is schema v{version}, expected v{SCHEMA_VERSION}: run world.db.migrate first")
     seed = conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
     return {
-        "schema_version": schema_version(conn),
+        "schema_version": version,
         "kernel_version": KERNEL_VERSION,
         "ruleset_hash": ruleset_hash(),
         "world_seed": seed,
