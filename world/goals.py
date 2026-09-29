@@ -25,7 +25,7 @@ CLOSED = ("abandoned", "revised", "completed", "transformed")
 TEXT = {
     "recover": "找回{o}", "expose": "讓{t}承認拿了{o}", "revenge": "報復{t}", "clear_name": "向{t}證明自己的清白",
     "make_amends": "彌補{t}", "repay": "還清欠{t}的錢", "save": "存到{o}元", "reconcile": "和{t}和好",
-    "befriend": "和{t}成為朋友", "keep_secret": "守住秘密", "outshine": "壓過{t}",
+    "befriend": "和{t}成為朋友", "keep_secret": "守住秘密", "outshine": "壓過{t}", "surpass": "有一天打贏{t}",
 }
 # initial goals from the personas: person -> (kind, target, object, priority)
 INITIAL = {
@@ -40,12 +40,13 @@ REVENGE_COOLS_DAYS = 5
 SOFT_GOAL_DAYS = 4
 
 
-def initial_rows(people: list[str]) -> list[tuple]:
+def initial_rows(people: list[str], initial: dict | None = None) -> list[tuple]:
+    initial = INITIAL if initial is None else initial
     rows = []
     for pid in people:
         for slot in range(SLOTS):
-            if slot == 0 and pid in INITIAL:
-                kind, target, obj, prio = INITIAL[pid]
+            if slot == 0 and pid in initial:
+                kind, target, obj, prio = initial[pid]
                 rows.append((pid, slot, kind, target, obj, "active", prio, 0, 0, ""))
             else:
                 rows.append((pid, slot, "", "", "", "empty", 0.0, 0, 0, ""))
@@ -236,6 +237,22 @@ def after_event(conn: sqlite3.Connection, event_id: int) -> list[EventSpec]:
             w.form(b, "clear_name", a, "", 0.5, day, "謊話被拆穿，想挽回")
     elif kind == "lend":
         w.form(b, "repay", a, "", 0.5, day, "借了錢，要還")
+    elif kind == "duel":
+        winner, loser = t["winner"], t["loser"]
+        g = find(conn, winner, "surpass", loser)
+        if g is not None:
+            w.status(g, "completed", "終於贏了", day)
+        g = find(conn, loser, "surpass", winner)
+        if g is not None:
+            w.setback(g, "又輸了", day)
+        elif _traits(conn, loser).get("temper", 0.5) >= 0.7:
+            w.form(loser, "revenge", winner, "", 0.6, day, "當眾輸了，嚥不下這口氣")
+        else:
+            w.form(loser, "surpass", winner, "", 0.6, day, "輸了，要練到打贏他")
+        if t.get("returned"):
+            for g in goals_of(conn, winner):
+                if g["kind"] in ("recover", "expose") and g["object"] == t["returned"]:
+                    w.status(g, "completed", "以武論理，東西回來了", day)
     elif kind == "repay":
         left = conn.execute("SELECT debt_cents FROM relationships WHERE actor_id = ? AND target_id = ?", (a, b)).fetchone()[0]
         g = find(conn, a, "repay", b)
@@ -278,6 +295,11 @@ def overnight(conn: sqlite3.Connection, day: int, now: int) -> list[EventSpec]:
                 continue
             if kind in ("clear_name", "make_amends") and age >= SOFT_GOAL_DAYS:
                 w.status(g, "abandoned", "算了", day)
+                continue
+        if kind == "surpass" and conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'world_vars'").fetchone():
+            from world.jianghu import skill
+            if skill(conn, pid) > skill(conn, g["target"]) + 0.05:
+                w.status(g, "completed", "已經比他強了", day)
                 continue
         if kind == "revenge":
             if age >= REVENGE_COOLS_DAYS:

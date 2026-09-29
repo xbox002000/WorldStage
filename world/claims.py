@@ -76,6 +76,7 @@ PHRASE: dict[str, tuple[str, str]] = {
     "owe": ("欠{o}錢", "沒有欠{o}錢"),
     "accuse": ("指控了{o}", "沒有指控{o}"),
     "threaten": ("寫紙條威脅{o}", "沒有寫紙條威脅{o}"),
+    "defeat": ("擊敗了{o}", "沒有擊敗{o}"),
 }
 
 

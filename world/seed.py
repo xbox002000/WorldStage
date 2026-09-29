@@ -90,8 +90,12 @@ ANIMALS = [
 
 def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v1") -> None:
     """Fill an initialised database: 5 places, 10 people, their things, props offstage, and one old secret."""
-    from world.recipes import compiled
+    from world.recipes import compiled, load_recipe
     compiled(recipe)  # refuses a recipe that does not compile
+    content = load_recipe(recipe).content
+    if content != "town_v1":
+        from world.content import build_content_world, content_module
+        return build_content_world(conn, world_seed, recipe, content_module(content))
     conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('recipe', ?)", (recipe,))
     rng = make_rng(world_seed, 0, "world", "seed_world")
     for lid, name, x, y, cap, tags in LOCATIONS:

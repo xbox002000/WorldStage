@@ -48,7 +48,7 @@ class CompilerTests(unittest.TestCase):
 
     def test_a_primitive_without_code_is_refused(self):
         with self.assertRaises(RecipeError):
-            compile_recipe(recipe(pillars=["items.ownership", "duel"]))
+            compile_recipe(recipe(pillars=["items.ownership", "cultivation"]))
 
     def test_a_missing_requirement_is_refused(self):
         with self.assertRaises(RecipeError):

@@ -128,6 +128,8 @@ def beat_functions(i: int, b: Beat, spec: SceneSpec, knowledge: AudienceKnowledg
         f += ["payoff"]
     elif t in ("lend", "repay"):
         f += ["connect"]
+    elif t == "duel":
+        f += ["escalate", "payoff"]
     elif t == "parrot_speaks":
         f += ["contrast", "reveal"]
     elif t == "seed":

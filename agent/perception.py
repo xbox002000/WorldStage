@@ -110,7 +110,7 @@ def concerns(conn: sqlite3.Connection, actor: str, obj: str) -> bool:
 def item_options(conn: sqlite3.Connection, actor: str, here: str, here_ids: list[str], names: dict[str, str]) -> dict:
     """World C options: things lying here, things to give back, money to lend or repay, people to accuse."""
     if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() is None:
-        return {"take": [], "give": [], "lend": [], "repay": [], "accuse": []}
+        return {"take": [], "give": [], "lend": [], "repay": [], "accuse": [], "challenge": [], "train": []}
     take = [{"target": r["id"], "object": r["name"], "value_cents": r["value_cents"], "rightful": r["rightful_owner_id"]}
             for r in conn.execute("SELECT * FROM objects WHERE location_id = ? AND status = 'normal' "
                                   "AND tags NOT LIKE '%\"fixed\"%' ORDER BY id", (here,))]
@@ -134,7 +134,19 @@ def item_options(conn: sqlite3.Connection, actor: str, here: str, here_ids: list
             accuse.append({"memory_id": r["memory_id"], "target": r["subject"], "confidence": r["confidence"],
                            "act": r["act"], "object": r["object"],
                            "text": describe_claim(Claim(r["subject"], r["act"], r["object"]), names)})
-    return {"take": take, "give": give, "lend": lend, "repay": repay, "accuse": accuse}
+    from world.recipes import enabled
+    challenge = train = []
+    if enabled(conn, "duel"):
+        from world.jianghu import DUEL_ENERGY, recent_duel
+        now = conn.execute("SELECT COALESCE(MAX(timestamp), 0) FROM events").fetchone()[0]
+        me = conn.execute("SELECT energy FROM people WHERE id = ?", (actor,)).fetchone()[0]
+        challenge = [{"target": p} for p in here_ids if me >= DUEL_ENERGY
+                     and conn.execute("SELECT energy FROM people WHERE id = ?", (p,)).fetchone()[0] >= DUEL_ENERGY
+                     and not recent_duel(conn, actor, p, now)]
+    if enabled(conn, "martial_arts"):
+        tags = conn.execute("SELECT tags FROM locations WHERE id = ?", (here,)).fetchone()[0]
+        train = [{"here": here}] if '"training"' in tags else []
+    return {"take": take, "give": give, "lend": lend, "repay": repay, "accuse": accuse, "challenge": challenge, "train": train}
 
 
 def candidates(conn: sqlite3.Connection, actor: str) -> list[dict]:

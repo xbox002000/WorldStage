@@ -20,6 +20,7 @@ from contracts.thread import StoryThread
 from world.claims import evaluate, labels
 
 ITEM_EVENTS = ("misplace", "take", "find", "give", "steal", "notice_missing", "accuse", "seed", "cash_prize", "backstory")
+DUEL_ITEM = "returned"  # a duel that settles who holds a thing joins that thing's thread
 RUMOR_EVENTS = ("tell", "confront", "parrot_speaks")
 PRINCIPAL_ROLES = ("actor", "target", "victim", "suspect", "receiver", "addressee")
 DECISION = "decision"
@@ -72,8 +73,8 @@ def _incident(e: Row, rows: dict[int, Row]) -> int | None:
 
 def thread_keys(e: Row, rows: dict[int, Row], items: set[str]) -> set[str]:
     keys = set()
-    obj = e.truth.get("object")
-    if e.type in ITEM_EVENTS and obj in items:
+    obj = e.truth.get("object") or (e.truth.get(DUEL_ITEM) if e.type == "duel" else None)
+    if (e.type in ITEM_EVENTS or (e.type == "duel" and obj)) and obj in items:
         keys.add(f"item:{obj}")
     cobj = _claim_object(e)
     if cobj in items and e.type in RUMOR_EVENTS + ("accuse",):
@@ -83,7 +84,7 @@ def thread_keys(e: Row, rows: dict[int, Row], items: set[str]) -> set[str]:
     if e.type in ("lend", "repay"):
         keys.add("debt:" + ":".join(sorted(e.principals[:2])))
     clash = (e.type == "talk" and e.truth.get("tone") in ("cold", "hostile")) or (
-        e.type == "accuse" and e.truth.get("outcome") == "false")
+        e.type == "accuse" and e.truth.get("outcome") == "false") or e.type == "duel"
     if clash and len(e.principals) >= 2:
         keys.add("feud:" + ":".join(sorted(e.principals[:2])))
     return keys

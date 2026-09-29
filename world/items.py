@@ -175,7 +175,9 @@ def suspect_for(conn: sqlite3.Connection, owner: str, loss: sqlite3.Row | None) 
     around = [p for p in around if p != owner]
     if not around:
         return None
-    scored = sorted((rel(conn, owner, p, "trust") - 0.5 * rel(conn, owner, p, "rivalry"), p) for p in around)
+    from world.recipes import enabled
+    standing = (lambda p: 0.4 * (var(conn, f"rep.{p}", 0.5) - 0.5)) if enabled(conn, "reputation") else (lambda p: 0.0)
+    scored = sorted((rel(conn, owner, p, "trust") - 0.5 * rel(conn, owner, p, "rivalry") + standing(p), p) for p in around)
     score, suspect = scored[0]
     from world.psyche import trait
     confidence = round(min(0.8, max(0.3, 0.35 - 0.4 * score + 0.3 * (trait(conn, owner, "vigilance") - 0.2))), 2)

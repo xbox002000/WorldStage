@@ -55,7 +55,60 @@ the spatial plan and production.
 - **The simulation now runs only the primitives the recipe enables.** A test turns off rent, the parrot and outside
   events and shows that their rules stop while everything else keeps running.
 
-## Next: the second recipe proves the abstraction
+## The second recipe: jianghu (built 2026-09-30)
+
+`world/recipes/jianghu_v1.json`, content `world/content/jianghu_v1.py`, rules `world/jianghu.py`, tests
+`tests/test_jianghu.py`.
+
+- **Recipe**: core martial_arts; pillars reputation, duel and sect_factions; accent gossip drift. It has no rent, no
+  outside feed and no props.
+- **Content**:
+  - Two rival sects (青雲門, 鐵劍山莊), an inn, a market and a mountain road.
+  - Ten people: a master and his disciples, a manor lord and his son, a retainer, an innkeeper, a storyteller and a
+    wanderer.
+  - The starting secret: years ago the senior disciple 陸青 stole the sect's 《青雲劍譜》.
+- **Primitives** (each runs only when the recipe enables it):
+  - **martial_arts**: skill that training raises, slowly and with diminishing returns. A manual doubles the gain.
+  - **reputation**: public standing. It moves with spectacles: caught, a lie exposed, a false accusation, a duel.
+    Beating someone better known proves more; bullying the weak costs standing. It colours belief: a respected
+    teller is believed more, and a disreputable person is suspected more.
+  - **duel**: settled by the skill gap plus luck. Non-fighters are never involved, and the same pair cannot fight
+    again within three days. The loser forms "surpass" (or "revenge", if hot-tempered). If the winner is the
+    rightful owner of something the loser holds, it goes back: settled by the sword.
+  - **sect_factions**: warmer within a sect, sharper across rival sects. A sect-mate beaten or wrongly accused in
+    front of you breeds a grudge against whoever did it.
+- **Thirty days, seed 1:**
+  - 26 duels, and a recurring rivalry between the two sect heads that goes back and forth.
+  - The manor lord's son keeps losing to the senior disciple he wants to beat.
+  - A retainer steals the young lord's sword and is caught the next day.
+  - On day 4 the manor lord picked up the lost manual unseen, and on day 6 lost a duel to its rightful owner, so it
+    went back. Nobody wrote that.
+  - 38 threads (25 long), cross-thread rate 0.74, no flat days, clean audit, exact replay.
+  - Three rendered episodes through the same daily job (`daily.py --world-c --feed none --recipe jianghu_v1`).
+
+### The red line: what the shared core had to change for a second world
+
+| Change | Why |
+|---|---|
+| Night-time home from the content (`world/content.home_of`) instead of the literal `apartment` in five places | the town's home was hardcoded |
+| Initial goals passed in by the content | they were the town's dict |
+| A layout alias per place (`LAYOUTS` in the content) | the spatial plan only knew the town's five places |
+| `build_world` dispatches to a content builder | the town was the only builder |
+| The narrative vocabulary learned `duel` and `train` (shot table, event summaries, beat functions, a claim act `defeat`) | new events need words and shots |
+
+Nothing else changed: story threads, the story director, knowledge, the DirectorPlan, SceneSpec, the SpatialPlan,
+the packet compiler, the render pipeline, goals, psyche and mechanics. The first four rows were town assumptions
+leaking into the core, and they are fixed for every future recipe. The last row is the expected cost of a new
+primitive.
+
+## Next
+
+- Cultivation and magic, one at a time. Each needs a power primitive, and an adapter if the two are mixed.
+- Build the NarrativeMechanicPack from the recipe's `narrative` list, so there is one source.
+- The town's content still lives in `world/seed.py`. Moving it into `world/content/town_v1.py` would make the two
+  recipes symmetric. That needs care, because the town's snapshot hashes must not change.
+
+## Before jianghu: the plan that was tested
 
 "Jianghu" needs three new primitives:
 - **reputation**: public standing that acts raise or ruin, readable by everyone;

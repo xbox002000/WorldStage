@@ -50,6 +50,8 @@ BEATS = {
     ("repay", None): ("hand_over", "receive", "calm", "calm", "two_shot", "static", 3),
     ("parrot_speaks", None): ("squawk", "startled", "calm", "shocked", "medium", "static", 4),
     ("seed", None): ("establish", "unaware", "calm", "calm", "wide", "static", 3),
+    ("duel", None): ("strike", "parry", "fierce", "fierce", "wide", "slow_push_in", 6),
+    ("train", None): ("practise", "watch", "focused", "calm", "medium", "static", 3),
 }
 FOCAL_MM = {"wide": 24, "two_shot": 35, "medium": 35, "close_up": 85, "insert": 50}
 CANVAS = {"portrait": (1080, 1920), "landscape": (1920, 1080)}
@@ -108,7 +110,7 @@ def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePac
           previous: Beat | None, last: bool) -> Shot:
     key = (beat.event_type, beat.variant if beat.event_type not in ("steal", "take", "misplace", "find", "give",
                                                                     "notice_missing", "lend", "repay", "parrot_speaks",
-                                                                    "seed") else None)
+                                                                    "seed", "duel", "train") else None)
     a_act, t_act, a_emo, t_emo, shot_type, movement, seconds = BEATS.get(key, BEATS[("talk", "neutral")])
     shot_type = _tighten(shot_type, style.camera_bias)
     duration = max(1, round(seconds * style.duration_scale)) + (2 if beat.trust_flipped else 0)

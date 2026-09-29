@@ -33,6 +33,7 @@ def main() -> int:
     ap.add_argument("--world-c", action="store_true",
                     help="rule motives, the story director (threads) and a spatial plan per episode")
     ap.add_argument("--feed", default="synthetic_v1", help="outside-event feed for --world-c ('none' for a closed town)")
+    ap.add_argument("--recipe", default="town_v1", help="world recipe for a new world (world/recipes/*.json)")
     args = ap.parse_args()
 
     cfg = DailyConfig(
@@ -40,7 +41,7 @@ def main() -> int:
         use_llm=args.llm, model=args.model, max_calls=args.max_calls, min_interval=args.min_interval,
         use_openrouter=not args.no_fallback, active_ids=tuple(args.active.split(",")), experiment=args.experiment,
         orientation="landscape" if args.landscape else "portrait", quality=args.quality, render=not args.dry_run,
-        world_c=args.world_c, feed=None if args.feed == "none" else args.feed)
+        world_c=args.world_c, feed=None if args.feed == "none" else args.feed, recipe=args.recipe)
     def show(r) -> None:
         e = r.episode
         print(f"day {r.sim_day + 1}: {r.status}" + (f" | {e.title} | qa={e.qa_status} | {e.video}" if e else "")

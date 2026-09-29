@@ -54,6 +54,11 @@ def trait(conn: sqlite3.Connection, pid: str, key: str) -> float:
     return var(conn, f"psy.{pid}.{key}", default)
 
 
+def _home(conn: sqlite3.Connection, pid: str) -> str:
+    from world.content import home_of
+    return home_of(conn, pid)
+
+
 # -- appraisal: what a day meant to someone, from what they know ----------------------------------------------------
 def appraise(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, float], list[int]]:
     """Experiences of `pid` on `day`, only from events they took part in or noticed."""
@@ -176,7 +181,7 @@ def reflect(conn: sqlite3.Connection, pid: str, day: int, now: int) -> EventSpec
     if not changes:
         return None
     return EventSpec(
-        timestamp=now, type="reflection", trigger_type="rule", location_id="apartment",
+        timestamp=now, type="reflection", trigger_type="rule", location_id=_home(conn, pid),
         importance=0.2 + (0.4 if formed else 0.0) + min(0.3, sum(abs(v) for v in shifted.values())),
         truth={"actor": pid, "day": day, "experiences": {k: round(v, 3) for k, v in today.items() if v},
                "shifted": shifted, "self_model": formed, "cites": sorted(set(cited)), "depends_on": sorted(set(cited))},

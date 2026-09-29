@@ -46,6 +46,12 @@ def _summary(row: sqlite3.Row, truth: dict, names: dict[str, str]) -> str:
         return f"{who}{tone.get(truth.get('tone'), '')}對{other}說話"
     if kind == "misplace":
         return f"{who}把{thing}{'丟' if truth.get('dropped') else '忘'}在{place}"
+    if kind == "duel":
+        win, lose = names.get(truth.get("winner"), ""), names.get(truth.get("loser"), "")
+        back = f"，{names.get(truth['returned'], '東西')}物歸原主" if truth.get("returned") else ""
+        return f"{who}向{other}挑戰，{win}擊敗了{lose}{back}"
+    if kind == "train":
+        return f"{who}練功" + ("（照著劍譜）" if truth.get("with_manual") else "")
     if kind == "bark":
         return truth.get("text", f"{who}在叫")
     if kind == "take":

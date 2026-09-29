@@ -48,6 +48,11 @@ OUTCOME_EFFECT: dict[str, tuple[float, float, float, float, str, str, float]] = 
 EXPOSED_DECEPTION = {"lie_exposed": "deceive", "distortion_exposed": "deceive", "concealment_exposed": "conceal"}
 
 
+def var_or(conn: sqlite3.Connection, key: str, default: float) -> float:
+    from world.attention import var
+    return var(conn, key, default)
+
+
 def belief_effect(claim: Claim) -> float:
     return BELIEF_EFFECT.get((claim.act, claim.polarity), 0.0)
 
@@ -85,8 +90,10 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
     here = person(conn, a)["location_id"]
     from world.psyche import trait
     # someone who has learned not to trust believes less of what they are told
+    from world.recipes import enabled
+    standing = 0.2 * (var_or(conn, f"rep.{a}", 0.5) - 0.5) if enabled(conn, "reputation") else 0.0
     confidence = round(min(0.95, max(0.10, listener_confidence(rel(conn, b, a, "trust"))
-                                     + 0.4 * (trait(conn, b, "trust_default") - 0.5))), 2)
+                                     + 0.4 * (trait(conn, b, "trust_default") - 0.5) + standing)), 2)
 
     verdict = evaluate(conn, asserted, about)
     deceived = t.mode in ("lie", "distortion") and verdict in (FALSE, PARTIAL)

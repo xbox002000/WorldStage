@@ -66,6 +66,14 @@ def blocker(a: list[float], b: list[float], objects: list[SpatialObject]) -> str
     return ""
 
 
+def template_for(location_id: str) -> str:
+    """The white-box layout that stages a place: its own, the one its content names, or the cafe."""
+    if location_id in LAYOUTS:
+        return location_id
+    from world.content import layout_alias
+    return layout_alias(location_id) or "cafe"
+
+
 def _anchor(loc: str, name: str) -> tuple[float, float, float]:
     return LAYOUTS[loc]["anchors"][name]
 
@@ -90,7 +98,7 @@ ANIMAL_HEIGHT = 0.5
 
 
 def stage_beat(index: int, beat: Beat, animals: set[str] = frozenset()) -> BeatStaging:
-    loc = beat.location.id if beat.location.id in LAYOUTS else "cafe"
+    loc = template_for(beat.location.id)
     principals = [p.id for p in beat.participants if p.role in PRINCIPAL_ROLES][:2]
     witnesses = [p.id for p in beat.participants if p.role in ("witness", "sensed") and p.id not in principals]
     loud = beat.event_type in LOUD or beat.variant == "hostile"
@@ -149,7 +157,7 @@ def stage_beat(index: int, beat: Beat, animals: set[str] = frozenset()) -> BeatS
             p = next(pl for pl in placements if pl.id == s)
             b = blocker(cam.position, _chest(p) if p.height > 0.5 else p.position, objects)
             checks.append(SightCheck(f"camera:{i}", s, True, not b, b))
-    return BeatStaging(index, beat.event_id, loc, f"{loc}.v1", placements, cameras, checks)
+    return BeatStaging(index, beat.event_id, beat.location.id, f"{loc}.v1", placements, cameras, checks)
 
 
 def _inside(loc: str, p: list[float], margin: float = 0.4) -> bool:
@@ -212,6 +220,6 @@ def compile_spatial(spec: SceneSpec) -> SpatialPlan:
     beats = [stage_beat(i, b, animals) for i, b in enumerate(spec.beats)]
     problems = [f"beat {s.beat_index}: {c.observer} cannot see {c.subject} (blocked by {c.blocked_by})"
                 for s in beats for c in s.checks if c.required and not c.visible]
-    locations = sorted({s.location for s in beats})
-    return finalize(SpatialPlan(1, spec.scene_id, spec.scene_hash, COMPILER_VERSION, [layout_ref(l) for l in locations],
+    templates = sorted({s.layout_id.removesuffix(".v1") for s in beats})
+    return finalize(SpatialPlan(1, spec.scene_id, spec.scene_hash, COMPILER_VERSION, [layout_ref(l) for l in templates],
                                 beats, not problems, problems))

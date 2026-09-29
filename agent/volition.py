@@ -143,6 +143,10 @@ def goal_bias(conn: sqlite3.Connection, actor: str, scored: list) -> list:
                     score += w * 0.6
                 elif k == "save" and a == "lend":
                     score -= w * 0.5
+                elif k == "surpass" and a == "train":
+                    score += w * 0.8
+                elif k in ("surpass", "revenge", "outshine") and a == "challenge" and it.target == tgt:
+                    score += w * 0.6
         out.append((score, it))
     # an option a goal pushed up carries that goal in its reason, so the event it becomes can be traced to the goal
     return [(sc, it if it is None or sc == base or it.reason.startswith("goal:") else replace(it, reason=f"goal:{_lead(conn, actor, it)}"))
@@ -276,6 +280,21 @@ class VolitionDecider:
             out.append((a["confidence"] * (0.6 + t["temper"]) + angry - 0.4 * max(0.0, r["fear"]) - 0.2 * r["affection"]
                         + 0.4 * (trait(conn, actor, "vigilance") - 0.2),
                         Intent(actor, "accuse", a["target"], memory_id=a["memory_id"], reason="volition")))
+        for ch in opts.get("challenge", []):
+            from world.jianghu import rep, sect, skill
+            r = rel(conn, actor, ch["target"])
+            if skill(conn, actor) < 0.2 or skill(conn, ch["target"]) < 0.2:
+                continue  # not fighters
+            gap = skill(conn, actor) - skill(conn, ch["target"])
+            rival_sect = sect(conn, actor) and sect(conn, ch["target"]) and sect(conn, actor) != sect(conn, ch["target"])
+            glory = max(0.0, rep(conn, ch["target"]) - rep(conn, actor) + 0.2)
+            risk, bully = max(0.0, -gap - 0.1), max(0.0, gap - 0.2)
+            # a duel is for a grudge or for a name: never to bully the weak, rarely against a master
+            score = (0.7 * t["temper"] * max(0.0, r["rivalry"]) + 0.5 * glory * t["temper"] + 0.2 * bool(rival_sect)
+                     - 1.5 * bully - 1.2 * risk - 0.5 * max(0.0, r["fear"]) - 0.3 * max(0.0, r["affection"]) - 0.45)
+            out.append((score, Intent(actor, "challenge", ch["target"], reason="volition")))
+        for _ in opts.get("train", []):
+            out.append((0.1, Intent(actor, "train", reason="volition")))
         return out
 
     def decide(self, conn: sqlite3.Connection, actor: str, now: int) -> Intent | None:

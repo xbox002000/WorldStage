@@ -19,6 +19,7 @@ from world.claims import describe_claim, labels
 from world.events import EventSpec, MemorySpec, apply_event
 from world.intent import Intent
 from world.mechanics.base import Mechanic, record_pack
+from world.content import home_of
 from world.snapshot import snapshot_hash
 
 AWAKEN_SLOT = 400  # before the dawn seeds (420) and the first schedule (480)
@@ -68,7 +69,7 @@ def awaken(b: sqlite3.Connection, a: sqlite3.Connection, who: str, fork_day: int
                                    source_type="external_rumor", source_id=tag))
     return apply_event(b, EventSpec(
         timestamp=fork_day * 1440 + AWAKEN_SLOT, type="awakening", trigger_type="mechanic", importance=0.9,
-        location_id="apartment",
+        location_id=home_of(b, who),
         truth={"mechanic": "rebirth", "actor": who, "fork_day": fork_day, "parent_timeline": parent,
                "known": known, "opportunities": chances},
         participants=[(who, "actor")], memories=memories))

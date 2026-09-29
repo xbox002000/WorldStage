@@ -1,0 +1,13 @@
+{
+  "recipe_id": "jianghu_v1",
+  "title": "江湖：兩個門派、一本失竊的劍譜",
+  "content": "jianghu_v1",
+  "core": "martial_arts",
+  "pillars": ["reputation", "duel", "sect_factions"],
+  "accents": ["gossip.drift"],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "名聲、比武與門派恩怨：一本失竊多年的劍譜，一個心虛的大師兄",
+  "director_prefers": {"feud": 0.08, "item": 0.04},
+  "base": ["events", "claims", "attention", "schedule", "volition", "goals", "psyche", "items.ownership", "items.accusation"]
+}

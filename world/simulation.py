@@ -147,6 +147,9 @@ class Simulation:
         if intent.action == "move" and "items.ownership" in self.primitives:
             self._maybe_misplace(intent.actor, now)
         spec = resolve(self.conn, intent, now, trigger)
+        if self.primitives & {"reputation", "sect_factions"}:
+            from world.jianghu import with_jianghu_effects
+            spec = with_jianghu_effects(self.conn, spec, self.primitives)
         if self.animals:
             from world.animals import with_senses
             spec = with_senses(self.conn, spec)
@@ -191,8 +194,10 @@ class Simulation:
                 continue  # an animal sleeps where it is; hunger and rent are people's business
             p = self.conn.execute("SELECT * FROM people WHERE id = ?", (pid,)).fetchone()
             changes = []
-            if p["location_id"] != "apartment":
-                changes.append(Change("person", pid, "location_id", value="apartment"))
+            from world.content import home_of
+            home = home_of(self.conn, pid)
+            if p["location_id"] != home:
+                changes.append(Change("person", pid, "location_id", value=home))
             if p["energy"] < 100:
                 changes.append(Change("person", pid, "energy", delta=min(60, 100 - p["energy"])))
             if p["hunger"] < 100:
@@ -202,7 +207,7 @@ class Simulation:
                 changes += rent_changes(self.conn, pid)
             if changes:
                 apply_event(self.conn, EventSpec(
-                    timestamp=now, type="upkeep", trigger_type="rule", location_id="apartment",
+                    timestamp=now, type="upkeep", trigger_type="rule", location_id=home,
                     importance=0.0, truth={"actor": pid}, participants=[(pid, "actor")], changes=changes,
                 ))
         if not self.economy:

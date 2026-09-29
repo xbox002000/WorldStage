@@ -61,6 +61,7 @@ class DailyConfig:
     # director (threads) instead of the arc selector. A spatial plan is written next to each episode.
     world_c: bool = False
     feed: str | None = None
+    recipe: str = "town_v1"  # which world recipe a new world is built from (world/recipes/*.json)
 
 
 @dataclass(frozen=True)
@@ -77,10 +78,10 @@ class LLMUnavailable(RuntimeError):
     pass
 
 
-def create_world(path: str | Path, seed: int) -> None:
+def create_world(path: str | Path, seed: int, recipe: str = "town_v1") -> None:
     conn = connect(path)
     init_db(conn, seed)
-    build_world(conn, seed)
+    build_world(conn, seed, recipe)
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     conn.close()
 
@@ -127,7 +128,7 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
         if not cfg.init:
             raise FileNotFoundError(f"{live} does not exist (use init to create a new world)")
         live.parent.mkdir(parents=True, exist_ok=True)
-        create_world(live, cfg.seed)
+        create_world(live, cfg.seed, cfg.recipe)
     Path(cfg.prod_db).parent.mkdir(parents=True, exist_ok=True)
     conn = prod.open_production_db(cfg.prod_db)
     try:

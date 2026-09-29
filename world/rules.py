@@ -81,6 +81,9 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
                        truth={**misplace(conn, it.actor, it.target, now).truth, "reason": it.reason, "dropped": True})
     if it.action == "bark":
         return _bark(conn, it, base)
+    if it.action in ("train", "challenge"):
+        from world import jianghu
+        return (jianghu.resolve_train if it.action == "train" else jianghu.resolve_challenge)(conn, it, now, trigger)
     if it.action in ("take", "give", "accuse"):
         from world import items
         return {"take": items.resolve_take, "give": items.resolve_give, "accuse": items.resolve_accuse}[it.action](

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from world.state import WorldError
 
 ACTIONS = ("move", "eat", "work", "rest", "talk", "steal", "tell", "confront",
-           "take", "give", "lend", "repay", "accuse", "drop", "bark")
+           "take", "give", "lend", "repay", "accuse", "drop", "bark", "train", "challenge")
 ANIMAL_ACTIONS = ("move", "rest", "take", "drop", "bark")  # no words, no money, no accusations
 TONES = ("warm", "neutral", "cold", "hostile")
 
@@ -199,6 +199,14 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
             raise WorldError("the actor does not hold that")
     elif it.action == "bark":
         _present_person(conn, it.actor, it.target, here)
+    elif it.action == "train":
+        from world.jianghu import validate_train
+        validate_train(conn, actor, tags_of(conn, here))
+    elif it.action == "challenge":
+        from world.jianghu import validate_challenge
+        if is_animal(conn, it.target or ""):
+            raise WorldError("nobody duels an animal")
+        validate_challenge(conn, it, actor)
 
 
 def _present_person(conn: sqlite3.Connection, actor: str, target: str | None, here: str) -> None:

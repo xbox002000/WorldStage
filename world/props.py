@@ -16,6 +16,11 @@ from world.events import Change, ClaimSpec, EventSpec, MemorySpec
 DOG_FOOD_CENTS = 300
 
 
+def _home(conn: sqlite3.Connection, pid: str) -> str:
+    from world.content import home_of
+    return home_of(conn, pid)
+
+
 def parrot_events(conn: sqlite3.Connection, now: int) -> list[EventSpec]:
     out = []
     for obj in conn.execute("SELECT * FROM objects WHERE status = 'normal' AND location_id IS NOT NULL "
@@ -79,14 +84,14 @@ def overnight(conn: sqlite3.Connection, pid: str, now: int) -> list[EventSpec]:
         money = conn.execute("SELECT money_cents FROM people WHERE id = ?", (pid,)).fetchone()[0]
         if obj["id"] == "dog" and money > 0:
             out.append(EventSpec(
-                timestamp=now, type="feed_pet", trigger_type="rule", location_id="apartment", importance=0.05,
+                timestamp=now, type="feed_pet", trigger_type="rule", location_id=_home(conn, pid), importance=0.05,
                 truth={"actor": pid, "object": "dog", "cost_cents": min(money, DOG_FOOD_CENTS)},
                 participants=[(pid, "actor")],
                 changes=[Change("person", pid, "money_cents", delta=-min(money, DOG_FOOD_CENTS))]))
         elif obj["id"] == "ticket" and obj["value_cents"] > 0:
             won = Claim(pid, "win", "ticket")
             out.append(EventSpec(
-                timestamp=now, type="cash_prize", trigger_type="rule", location_id="apartment", importance=0.8,
+                timestamp=now, type="cash_prize", trigger_type="rule", location_id=_home(conn, pid), importance=0.8,
                 parent_event_id=conn.execute("SELECT MAX(event_id) FROM events WHERE json_extract(truth, '$.object') = 'ticket'").fetchone()[0],
                 truth={"actor": pid, "object": "ticket", "amount_cents": obj["value_cents"]},
                 participants=[(pid, "actor")],
