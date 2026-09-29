@@ -12,6 +12,10 @@ from contracts.render_request import RenderRequest, Take
 from contracts.scene_spec import SceneSpec
 
 SCHEMA = Path(__file__).with_name("schema.sql")
+SCHEMA_VERSION = 2
+# v1 -> v2: episodes gained series bookkeeping columns
+V2_COLUMNS = (("sim_day", "INTEGER"), ("arc_kind", "TEXT"), ("score", "REAL"), ("continuity_json", "TEXT"),
+              ("qa_status", "TEXT"), ("recap", "TEXT NOT NULL DEFAULT ''"))
 
 
 def open_production_db(path: str | Path = ":memory:") -> sqlite3.Connection:
@@ -19,7 +23,14 @@ def open_production_db(path: str | Path = ":memory:") -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA.read_text(encoding="utf-8"))
-    conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', '1')")
+    row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    version = int(row[0]) if row else SCHEMA_VERSION
+    if version < 2:
+        have = {r["name"] for r in conn.execute("PRAGMA table_info(episodes)")}
+        for name, decl in V2_COLUMNS:
+            if name not in have:
+                conn.execute(f"ALTER TABLE episodes ADD COLUMN {name} {decl}")
+    conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),))
     conn.commit()
     return conn
 
@@ -70,6 +81,20 @@ def record_qa(conn: sqlite3.Connection, take_id: int, layer: str, passed: bool, 
     conn.execute("INSERT INTO qa_results(take_id, layer, passed, status, detail_json, created_at) VALUES (?,?,?,?,?,?)",
                  (take_id, layer, int(passed), status, canonical_json(detail), _now()))
     conn.commit()
+
+
+def load_scene_spec(conn: sqlite3.Connection, scene_hash: str) -> SceneSpec:
+    """Read a stored scene spec, bringing older contract versions up to the current one."""
+    import json
+    from contracts.migrate import migrate_scene_spec
+    from contracts.scene_spec import finalize
+    row = conn.execute("SELECT spec_json FROM scene_specs WHERE scene_hash = ?", (scene_hash,)).fetchone()
+    if row is None:
+        raise KeyError(scene_hash)
+    data = json.loads(row[0])
+    if data.get("version") != 3:
+        return finalize(from_dict(SceneSpec, migrate_scene_spec(data)))
+    return from_dict(SceneSpec, data)
 
 
 def load_packet(conn: sqlite3.Connection, packet_hash: str) -> ProductionPacket:

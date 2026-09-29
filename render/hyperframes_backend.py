@@ -5,6 +5,7 @@ against the Chrome that hyperframes manages itself (pinned), never the auto-upda
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -12,6 +13,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
+from audio.backend import SynthAudioBackend
 from contracts.backends import Capabilities, CostEstimate
 from contracts.base import content_hash
 from contracts.packet import ProductionPacket
@@ -49,6 +51,7 @@ class HyperFramesBackend:
         self.workdir = workdir or RENDER_DIR / "projects"
         self._toolchain: Toolchain | None = None
         self._chrome: str | None = None
+        self.audio = SynthAudioBackend(packet_lookup)
 
     # -- toolchain ---------------------------------------------------------------------------------------------
     def chrome_path(self) -> str:
@@ -65,7 +68,8 @@ class HyperFramesBackend:
             pkg = json.loads((RENDER_DIR / "node_modules" / "hyperframes" / "package.json").read_text(encoding="utf-8"))
             ffmpeg = _run([str(FFMPEG_DIR / "ffmpeg"), "-version"]).splitlines()[0]
             chrome = _run([self.chrome_path(), "--version"]).strip()
-            self._toolchain = Toolchain(hyperframes=pkg["version"], ffmpeg=ffmpeg, chrome=chrome, encoder="libx264")
+            self._toolchain = Toolchain(hyperframes=pkg["version"], ffmpeg=ffmpeg, chrome=chrome, encoder="libx264",
+                                        audio=self.audio.toolchain())
         return self._toolchain
 
     # -- VisualBackend -----------------------------------------------------------------------------------------
@@ -82,10 +86,14 @@ class HyperFramesBackend:
             assets[lock.asset_id] = content_hash(lock)
         for lid, lock in packet.continuity_locks.locations.items():
             assets[lock.asset_id] = content_hash(lock)
+        parameters = {"width": str(packet.canvas.width), "height": str(packet.canvas.height),
+                      "fps": str(packet.canvas.fps), "quality": quality}
+        if packet.audio_plan.cues:  # the soundtrack is part of the request: its bytes are pinned by hash
+            assets["score"] = "sha256:" + hashlib.sha256(self.audio.score_bytes(packet, seed)).hexdigest()
+            parameters["score"] = "synth"
         return make_request(
             kind="episode_master", backend=self.name, backend_version=self.toolchain().hyperframes,
-            parameters={"width": str(packet.canvas.width), "height": str(packet.canvas.height),
-                        "fps": str(packet.canvas.fps), "quality": quality},
+            parameters=parameters,
             packet_hash=packet.packet_hash, seed=seed, asset_hashes=assets, toolchain=self.toolchain())
 
     def _paths(self, request_hash: str) -> tuple[Path, Path]:
@@ -98,7 +106,12 @@ class HyperFramesBackend:
         if mp4.exists():
             return request.request_hash  # same request already fulfilled: never do the work twice
         packet = self._lookup(request.packet_hash)
-        build_project(packet, project, GSAP)
+        score = None
+        if "score" in request.asset_hashes:
+            score = self.audio.score_bytes(packet, request.seed)
+            if "sha256:" + hashlib.sha256(score).hexdigest() != request.asset_hashes["score"]:
+                raise RuntimeError("the synthesised score no longer matches the request: audio is not deterministic here")
+        build_project(packet, project, GSAP, score=score)
         p = request.parameters
         _run([str(CLI), "render", str(project), "-o", str(mp4), "-q", p["quality"], "-f", p["fps"], "--quiet"],
              _env(self.chrome_path()))

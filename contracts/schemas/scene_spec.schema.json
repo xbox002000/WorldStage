@@ -9,6 +9,26 @@
         "day": {
           "type": "integer"
         },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "detail2": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "event_id": {
           "type": "integer"
         },
@@ -17,6 +37,16 @@
         },
         "importance": {
           "type": "number"
+        },
+        "incident": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "location": {
           "$ref": "#/$defs/Place"
@@ -53,7 +83,10 @@
           },
           "type": "array"
         },
-        "tone": {
+        "trust_flipped": {
+          "type": "boolean"
+        },
+        "variant": {
           "anyOf": [
             {
               "type": "string"
@@ -63,9 +96,6 @@
             }
           ]
         },
-        "trust_flipped": {
-          "type": "boolean"
-        },
         "weather": {
           "type": "string"
         }
@@ -73,7 +103,7 @@
       "required": [
         "event_id",
         "event_type",
-        "tone",
+        "variant",
         "location",
         "day",
         "clock",
@@ -117,6 +147,9 @@
         },
         "persona": {
           "type": "string"
+        },
+        "slot": {
+          "type": "integer"
         }
       },
       "required": [

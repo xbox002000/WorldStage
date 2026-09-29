@@ -7,7 +7,7 @@ from typing import Literal
 
 from contracts.base import content_hash, hash_without
 
-REQUEST_VERSION = 1
+REQUEST_VERSION = 2
 
 TakeStatus = Literal["queued", "submitted", "generating", "ready", "failed", "selected", "rejected", "needs_reconciliation"]
 
@@ -20,6 +20,7 @@ class Toolchain:
     ffmpeg: str
     chrome: str
     encoder: str
+    audio: str = ""  # the audio synthesiser and its numeric library, when the master has a soundtrack
 
 
 @dataclass(frozen=True)

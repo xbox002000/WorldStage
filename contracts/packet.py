@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from contracts.base import hash_without
 from contracts.scene_spec import Place, Prop, WorldMap
 
-PACKET_VERSION = 1
+PACKET_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -107,6 +107,8 @@ class AudioCue:
     t: float
     kind: str  # music | sfx | voice
     name: str
+    duration: float = 0.0
+    intensity: float = 0.5
 
 
 @dataclass(frozen=True)

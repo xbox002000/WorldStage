@@ -26,6 +26,12 @@
         },
         "version": {
           "type": "integer"
+        },
+        "weights": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
         }
       },
       "required": [
@@ -36,7 +42,8 @@
         "duration_scale",
         "title_seconds",
         "end_seconds",
-        "camera_bias"
+        "camera_bias",
+        "weights"
       ],
       "type": "object"
     }

@@ -36,6 +36,8 @@ idna==3.20
     #   anyio
     #   httpx
     #   requests
+numpy==2.5.3
+    # via -r requirements.in
 pyasn1==0.6.4
     # via pyasn1-modules
 pyasn1-modules==0.4.2

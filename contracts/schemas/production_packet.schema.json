@@ -3,6 +3,12 @@
     "AudioCue": {
       "additionalProperties": false,
       "properties": {
+        "duration": {
+          "type": "number"
+        },
+        "intensity": {
+          "type": "number"
+        },
         "kind": {
           "type": "string"
         },

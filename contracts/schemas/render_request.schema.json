@@ -60,6 +60,9 @@
     "Toolchain": {
       "additionalProperties": false,
       "properties": {
+        "audio": {
+          "type": "string"
+        },
         "chrome": {
           "type": "string"
         },

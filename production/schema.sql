@@ -51,12 +51,18 @@ CREATE TABLE IF NOT EXISTS qa_results (
 );
 
 CREATE TABLE IF NOT EXISTS episodes (
-  episode_id  INTEGER PRIMARY KEY AUTOINCREMENT,
-  scene_hash  TEXT NOT NULL REFERENCES scene_specs(scene_hash),
-  take_id     INTEGER REFERENCES takes(take_id),
-  title       TEXT NOT NULL,
-  status      TEXT NOT NULL DEFAULT 'draft',
-  created_at  INTEGER NOT NULL
+  episode_id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  scene_hash      TEXT NOT NULL REFERENCES scene_specs(scene_hash),
+  take_id         INTEGER REFERENCES takes(take_id),
+  title           TEXT NOT NULL,
+  status          TEXT NOT NULL DEFAULT 'draft',
+  created_at      INTEGER NOT NULL,
+  sim_day         INTEGER,           -- world day the episode was made for (0-based)
+  arc_kind        TEXT,
+  score           REAL,
+  continuity_json TEXT,              -- evidence that it continues earlier episodes, or null
+  qa_status       TEXT,
+  recap           TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS budget_ledger (

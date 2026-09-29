@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from contracts.base import hash_without
 
-SCENE_SPEC_VERSION = 2
+SCENE_SPEC_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -36,6 +36,7 @@ class Person:
     name: str
     asset_id: str  # stable: char_<id>
     persona: str = ""
+    slot: int = -1  # place in the world's cast (by id); spreads avatar colours so no two people look alike
 
 
 @dataclass(frozen=True)
@@ -62,7 +63,7 @@ class Thought:
 class Beat:
     event_id: int
     event_type: str
-    tone: str | None
+    variant: str | None  # how it went: a talk's tone, a tell's mode, a confrontation's outcome
     location: Place
     day: int
     clock: str
@@ -73,6 +74,9 @@ class Beat:
     motivation: str | None
     trust_flipped: bool
     importance: float
+    detail: str | None = None  # the claim involved, in plain words (tell / confront)
+    detail2: str | None = None  # what was held back (tell, omission)
+    incident: int | None = None  # the original event this beat is a consequence of
 
 
 @dataclass(frozen=True)

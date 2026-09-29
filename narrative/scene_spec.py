@@ -46,12 +46,16 @@ def _beat(conn: sqlite3.Connection, ev: Ev, seed: str) -> Beat:
             "SELECT observer_id, belief, confidence FROM memories WHERE event_id = ? AND confidence >= 0.9 "
             "ORDER BY memory_id", (ev.id,))
     ]
+    variant = {"talk": ev.truth.get("tone"), "tell": ev.mode, "confront": ev.outcome}.get(ev.type)
+    withheld = ev.truth.get("withheld_text") or []
     return Beat(
-        event_id=ev.id, event_type=ev.type, tone=ev.truth.get("tone") if ev.type == "talk" else None,
+        event_id=ev.id, event_type=ev.type, variant=variant,
         location=_place(conn, ev.location_id), day=ev.day + 1, clock=_clock(ev.ts), weather=_weather(seed, ev.day),
         participants=[Participant(p, role) for p, role in ev.participants], prop=prop, thoughts=thoughts,
         motivation=ev.truth.get("reason") if ev.truth.get("source") else None,
         trust_flipped=ev.flipped, importance=float(ev.importance),
+        detail=ev.truth.get("text") if ev.type in ("tell", "confront") else None,
+        detail2="、".join(withheld) or None, incident=ev.incident,
     )
 
 
@@ -65,12 +69,14 @@ def _world_map(conn: sqlite3.Connection) -> WorldMap:
     )
 
 
-def build_scene_specs(conn: sqlite3.Connection, chosen: list[Candidate]) -> list[SceneSpec]:
+def build_scene_specs(conn: sqlite3.Connection, chosen: list[Candidate], scene_ids: list[str] | None = None) -> list[SceneSpec]:
     seed = conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
     revision, snap = world_revision(conn), snapshot_hash(conn)
     history = history_hash(conn, revision)
+    cast = [r for r in conn.execute("SELECT id, name FROM people ORDER BY id")]
     people = {r["id"]: (r["name"], (conn.execute("SELECT text FROM personas WHERE person_id = ?", (r["id"],)).fetchone() or [""])[0])
-              for r in conn.execute("SELECT id, name FROM people ORDER BY id")}
+              for r in cast}
+    slots = {r["id"]: i for i, r in enumerate(cast)}
     world_map = _world_map(conn)
     specs = []
     for number, cand in enumerate(chosen, start=1):
@@ -80,11 +86,12 @@ def build_scene_specs(conn: sqlite3.Connection, chosen: list[Candidate]) -> list
         a = peak.people[0]
         b = peak.people[1] if len(peak.people) > 1 else a
         spec = SceneSpec(
-            version=SCENE_SPEC_VERSION, scene_id=f"scene_{number:02d}", title=f"{people[a][0]} 與 {people[b][0]}",
+            version=SCENE_SPEC_VERSION, scene_id=scene_ids[number - 1] if scene_ids else f"scene_{number:02d}",
+            title=f"{people[a][0]} 與 {people[b][0]}",
             score=float(cand.score), score_breakdown={k: float(v) for k, v in cand.breakdown.items()},
             peak_event_id=peak.id,
             source=Source(revision, snap, history, ruleset_hash(), simulation_toolchain_hash(), list(cand.arc.ids)),
-            characters={p: Person(p, people[p][0], asset_id(p), people[p][1]) for p in involved},
+            characters={p: Person(p, people[p][0], asset_id(p), people[p][1], slots[p]) for p in involved},
             map=world_map, beats=beats,
         )
         specs.append(finalize(spec))

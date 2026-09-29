@@ -109,7 +109,7 @@ class ProductionCannotTouchTheWorldTests(unittest.TestCase):
         r = reader()
         before = snapshot_hash(r)
         with tempfile.TemporaryDirectory() as tmp:
-            produce(world_path(), os.path.join(tmp, "p.db"), Path(tmp) / "out", top=3, render=False)
+            produce(world_path(), os.path.join(tmp, "p.db"), Path(tmp) / "out", top=3, render=False, exclude_used=False)
         self.assertEqual(snapshot_hash(reader()), before)
 
 
@@ -149,7 +149,7 @@ class ProvenanceTests(unittest.TestCase):
         cls.world = os.path.join(cls.tmp, "world.db")
         shutil.copyfile(world_path(), cls.world)
         cls.prod_db = os.path.join(cls.tmp, "p.db")
-        produce(cls.world, cls.prod_db, Path(cls.tmp) / "out", top=3, render=False)
+        produce(cls.world, cls.prod_db, Path(cls.tmp) / "out", top=3, render=False, exclude_used=False)
 
     def chain(self, world_path_):
         conn = sqlite3.connect(self.prod_db)
@@ -195,7 +195,8 @@ class PreflightTests(unittest.TestCase):
             subprocess.run(cmd, check=True)
             return cls.tmp / name
 
-        cls.good = clip("good.mp4", q.width, q.height, q.fps, q.total_seconds)
+        cls.good = clip("good.mp4", q.width, q.height, q.fps, q.total_seconds, audio=True)
+        cls.silent = clip("silent.mp4", q.width, q.height, q.fps, q.total_seconds)
         cls.small = clip("small.mp4", 320, 568, q.fps, q.total_seconds)
         cls.short = clip("short.mp4", q.width, q.height, q.fps, 3)
         cls.slow = clip("slow.mp4", q.width, q.height, 24, q.total_seconds)
@@ -218,9 +219,11 @@ class PreflightTests(unittest.TestCase):
         self.assertFalse(missing.passed)
 
     def test_audio_is_required_only_when_the_packet_says_so(self):
-        loud = dataclasses.replace(self.packet, qa=dataclasses.replace(self.packet.qa, require_audio=True))
-        self.assertFalse(preflight(loud, self.good, FFPROBE).checks["audio"])
-        self.assertTrue(preflight(loud, self.audio, FFPROBE).checks["audio"])
+        self.assertTrue(self.packet.qa.require_audio)  # compiled packets carry a score
+        self.assertFalse(preflight(self.packet, self.silent, FFPROBE).checks["audio"])
+        self.assertTrue(preflight(self.packet, self.audio, FFPROBE).checks["audio"])
+        quiet = dataclasses.replace(self.packet, qa=dataclasses.replace(self.packet.qa, require_audio=False))
+        self.assertTrue(preflight(quiet, self.silent, FFPROBE).checks["audio"])
 
     def test_unknown_assets_and_broken_timelines_fail(self):
         bad_assets = dataclasses.replace(self.packet, qa=dataclasses.replace(self.packet.qa, required_asset_ids=["char_ghost"]))
