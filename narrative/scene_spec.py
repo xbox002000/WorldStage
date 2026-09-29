@@ -30,7 +30,9 @@ def _weather(world_seed: str, day: int) -> str:
     return make_rng(world_seed, day, "world", "weather").choice(WEATHER)
 
 
-def _place(conn: sqlite3.Connection, location_id: str) -> Place:
+def _place(conn: sqlite3.Connection, location_id: str | None) -> Place:
+    if location_id is None:  # something from outside the town (a seed): told over the whole town
+        return Place("town", "小鎮", 3.0, 2.0)
     r = conn.execute("SELECT id, name, x, y FROM locations WHERE id = ?", (location_id,)).fetchone()
     return Place(r["id"], r["name"], float(r["x"]), float(r["y"]))
 
@@ -87,7 +89,7 @@ def build_scene_specs(conn: sqlite3.Connection, chosen: list[Candidate], scene_i
         b = peak.people[1] if len(peak.people) > 1 else a
         spec = SceneSpec(
             version=SCENE_SPEC_VERSION, scene_id=scene_ids[number - 1] if scene_ids else f"scene_{number:02d}",
-            title=f"{people[a][0]} 與 {people[b][0]}",
+            title=f"{people[a][0]} 與 {people[b][0]}" if a != b else people[a][0],
             score=float(cand.score), score_breakdown={k: float(v) for k, v in cand.breakdown.items()},
             peak_event_id=peak.id,
             source=Source(revision, snap, history, ruleset_hash(), simulation_toolchain_hash(), list(cand.arc.ids)),

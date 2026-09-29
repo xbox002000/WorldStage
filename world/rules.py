@@ -98,6 +98,11 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
         d = clamp_delta(rel(conn, who, other, "affection"), delta, -1.0, 1.0)
         if d:
             changes.append(Change("relationship", f"{who}:{other}", "affection", delta=d))
+    owed = conn.execute("SELECT debt_cents FROM relationships WHERE actor_id = ? AND target_id = ?", (b, a)).fetchone()
+    if owed and owed[0] > 0 and tone in ("cold", "hostile"):
+        d = clamp_delta(rel(conn, b, a, "fear"), 0.1 if tone == "cold" else 0.2, -1.0, 1.0)
+        if d:
+            changes.append(Change("relationship", f"{b}:{a}", "fear", delta=d))
     if tone in TONE_EMOTION and person(conn, b)["emotion"] != TONE_EMOTION[tone]:
         changes.append(Change("person", b, "emotion", value=TONE_EMOTION[tone]))
 

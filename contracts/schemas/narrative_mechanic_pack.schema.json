@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "MechanicSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "world",
+            "character",
+            "constraint"
+          ]
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "NarrativeMechanicPack": {
+      "additionalProperties": false,
+      "properties": {
+        "mechanics": {
+          "items": {
+            "$ref": "#/$defs/MechanicSpec"
+          },
+          "type": "array"
+        },
+        "pack_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "pack_id",
+        "mechanics"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/NarrativeMechanicPack",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

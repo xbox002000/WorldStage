@@ -99,6 +99,7 @@ class VolitionDecider:
         self.temperature = temperature
         self.errors = 0
         self.unparseable = 0
+        self.mechanics: list = []  # set by the simulation from the world's recorded mechanic pack
 
     def options(self, conn: sqlite3.Connection, actor: str, now: int) -> list[tuple[float, Intent]]:
         rng = make_rng(self.world_seed, now, actor, "volition_detail")
@@ -182,9 +183,14 @@ class VolitionDecider:
             out.append((0.2 + 0.5 * t["honesty"] + 0.4 * max(0.0, r["fear"]) + 0.3 * (spare > 4000) - 0.5 * n,
                         Intent(actor, "repay", rp["target"], reason="volition")))
 
+        in_debt = conn.execute("SELECT 1 FROM relationships WHERE actor_id = ? AND debt_cents > 0", (actor,)).fetchone()
         for ln in opts["lend"]:
             other = ln["target"]
             r = rel(conn, actor, other)
+            if in_debt or rel(conn, other, actor)["debt_cents"] > 0 or conn.execute(
+                    "SELECT 1 FROM events WHERE type = 'lend' AND json_extract(truth, '$.actor') = ? "
+                    "AND json_extract(truth, '$.target') = ? AND timestamp > ?", (actor, other, now - 7 * 1440)).fetchone():
+                continue
             emo = conn.execute("SELECT emotion FROM people WHERE id = ?", (other,)).fetchone()[0]
             distress = 1.0 if emo in ("uneasy", "scared", "hurt") else 0.2
             if r["affection"] > 0.1:
@@ -200,6 +206,8 @@ class VolitionDecider:
 
     def decide(self, conn: sqlite3.Connection, actor: str, now: int) -> Intent | None:
         scored = self.options(conn, actor, now)
+        for m in self.mechanics:
+            scored = m.bias(conn, actor, now, scored + m.options(conn, actor, now))
         if len(scored) == 1:
             return None
         weights = [math.exp(s / self.temperature) for s, _ in scored]

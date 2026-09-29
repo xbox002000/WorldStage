@@ -11,7 +11,7 @@ from contracts.base import canonical_json, from_dict
 from contracts.spatial import SpatialObject, SpatialPlan, verify
 from narrative.director import rank_threads, select_thread
 from narrative.scene_spec import build_scene_specs
-from narrative.spatial import blocker, compile_spatial
+from narrative.spatial import LONE, blocker, compile_spatial
 from narrative.threads import derive_threads
 from world.db import connect, init_db
 from world.reader import open_world_reader
@@ -111,9 +111,11 @@ class SpatialTests(unittest.TestCase):
         self.assertEqual(plan.scene_hash, self.spec.scene_hash)
         self.assertEqual(len(plan.beats), len(self.spec.beats))
         for beat, staging in zip(self.spec.beats, plan.beats):
-            principals = {p.id for p in beat.participants if p.role != "witness"}
+            # in a lone act (losing, missing, taking) the victim or suspect is only in someone's mind, not on the spot
+            roles = ("actor",) if beat.event_type in LONE else ("actor", "target")
+            principals = {p.id for p in beat.participants if p.role in roles}
             placed = {p.id for p in staging.placements}
-            self.assertLessEqual(principals, placed | {"nobody"})
+            self.assertLessEqual(principals, placed)
             self.assertTrue(staging.cameras)
 
     def test_sight_lines_see_through_windows_but_not_walls_or_trees(self):
@@ -128,6 +130,20 @@ class SpatialTests(unittest.TestCase):
     def test_a_restaging_does_not_change_the_story(self):
         plan = compile_spatial(self.spec)
         self.assertEqual({b.event_id for b in plan.beats}, {b.event_id for b in self.spec.beats})
+
+
+
+
+class DailyWorldCTests(unittest.TestCase):
+    def test_the_daily_job_follows_a_thread_and_writes_its_spatial_plan(self):
+        from channel.daily import DailyConfig, run_daily
+        tmp = tempfile.mkdtemp(prefix="dailyc_")
+        cfg = DailyConfig(world_db=os.path.join(tmp, "world.db"), prod_db=os.path.join(tmp, "prod.db"),
+                          out_dir=os.path.join(tmp, "episodes"), days=2, seed=5, init=True, render=False,
+                          world_c=True, feed="synthetic_v1")
+        results = run_daily(cfg)
+        written = [r for r in results if os.path.exists(os.path.join(tmp, "episodes", f"day_{r.sim_day + 1:02d}", "spatial_plan.json"))]
+        self.assertTrue(written)
 
 
 if __name__ == "__main__":

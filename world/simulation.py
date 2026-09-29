@@ -15,6 +15,7 @@ DAY = 1440
 DECISION_SLOTS = (730, 1090, 1270)  # after arrivals at cafe, park and home
 UPKEEP_SLOT = 1439
 JITTER_MAX = 25  # minutes: people never act on the dot
+PRELUDE = ("backstory", "mechanic", "awakening")  # set-up events that may precede a day without being part of one
 MISPLACE_RATE = 0.06  # chance per carried item per departure, times the person's absent_minded trait
 
 
@@ -30,11 +31,18 @@ class Simulation:
     """
 
     def __init__(self, conn: sqlite3.Connection, active: Decider, ambient: Decider, active_ids: set[str],
-                 feed: str | None = None) -> None:
+                 feed: str | None = None, mechanics: list | None = None) -> None:
         self.conn = conn
         self.feed = feed  # name of the outside-event feed (world/feeds/*.json); None = a closed town
         self.economy = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() is not None
+        if mechanics is None and self.economy:
+            from world.mechanics import mechanics_of
+            mechanics = mechanics_of(conn)  # the pack recorded in the world itself
+        self.mechanics = mechanics or []
+        for d in {id(active): active, id(ambient): ambient}.values():
+            if hasattr(d, "mechanics"):
+                d.mechanics = self.mechanics
         self.active = active
         self.ambient = ambient
         self.active_ids = active_ids
@@ -44,7 +52,8 @@ class Simulation:
     # -- days ----------------------------------------------------------------------------------------------------
     def next_day(self) -> int:
         """The first day that has not been simulated. Raises if the last day was left unfinished."""
-        last_any = self.conn.execute("SELECT MAX(timestamp) FROM events WHERE type <> 'backstory'").fetchone()[0]
+        last_any = self.conn.execute(
+            f"SELECT MAX(timestamp) FROM events WHERE type NOT IN ({','.join('?' * len(PRELUDE))})", PRELUDE).fetchone()[0]
         if last_any is None:
             return 0
         last_end = self.conn.execute("SELECT MAX(timestamp) FROM events WHERE type = 'day_end'").fetchone()[0]
@@ -67,6 +76,8 @@ class Simulation:
             from world.seeds import SeedLayer
             for cand in SeedLayer(self.conn, self.feed).dawn(day):
                 self.stats[f"seed_{cand.status}"] += 1
+        for m in self.mechanics:
+            m.on_dawn(self.conn, day)
         for i, slot in enumerate(slots):
             window = (slots[i + 1] if i + 1 < len(slots) else UPKEEP_SLOT) - slot
             base = day * DAY + slot
@@ -121,7 +132,9 @@ class Simulation:
         if intent.action == "move" and self.economy:
             self._maybe_misplace(intent.actor, now)
         spec = resolve(self.conn, intent, now, trigger)
-        apply_event(self.conn, spec)
+        event_id = apply_event(self.conn, spec)
+        for m in self.mechanics:
+            m.after_event(self.conn, event_id)
         self.stats[f"applied_{intent.action}"] += 1
         if intent.action == "tell":
             self.stats[f"tell_{intent.mode}"] += 1

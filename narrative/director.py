@@ -73,7 +73,8 @@ def thread_arc(t: StoryThread, events: dict[int, Ev], shown: set[int]) -> Arc:
     origin = events.get(t.event_ids[0])
     if origin is not None and origin not in fresh and len(fresh) < MAX_EVENTS and origin.id not in shown:
         fresh = [origin] + fresh
-    peak = max(fresh, key=lambda e: (e.importance, e.id))
+    chosen = [e for e in fresh if e.id in set(t.decision_event_ids) and e.people] or [e for e in fresh if e.people] or fresh
+    peak = max(chosen, key=lambda e: (e.importance, e.id))  # the peak is something a person did
     return Arc(tuple(sorted(fresh, key=lambda e: e.id)), peak, "thread")
 
 

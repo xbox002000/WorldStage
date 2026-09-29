@@ -109,7 +109,7 @@ def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePac
             background += 1
         person = spec.characters[p.id]
         characters.append(ShotCharacter(p.id, person.name, person.asset_id, p.role, position, action, emotion))
-    actor = next((c for c in characters if c.role == "actor"), characters[0])
+    actor = next((c for c in characters if c.role == "actor"), characters[0] if characters else None)
     other = next((c for c in characters if c.role in ("target", "victim")), None)
     tod = _time_of_day(beat.clock)
     if previous is None:
@@ -120,9 +120,10 @@ def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePac
         note = f"moved from {previous.location.name} to {beat.location.name}"
     return Shot(
         shot_id=f"s{index:02d}", event_id=beat.event_id,
-        intent=f"show {actor.name} {actor.action}" + (f" toward {other.name}" if other else ""),
+        intent=(f"show {actor.name} {actor.action}" + (f" toward {other.name}" if other else "")) if actor
+        else f"establish {beat.location.name}: something from outside reaches the town",
         subject=", ".join(c.name for c in characters if c.position != "background"),
-        action=actor.action, environment=f"{beat.location.name}, {beat.weather}, {tod}",
+        action=actor.action if actor else "establish", environment=f"{beat.location.name}, {beat.weather}, {tod}",
         camera=Camera(shot_type, movement, FOCAL_MM[shot_type]), lighting=Lighting(tod, beat.weather),
         start_seconds=round(start, 3), duration_seconds=duration, caption=caption(beat, names),
         thought=beat.motivation, characters=characters, props=[beat.prop] if beat.prop else [],

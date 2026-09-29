@@ -73,6 +73,14 @@ def _summary(row: sqlite3.Row, truth: dict, names: dict[str, str]) -> str:
         return f"{who}兌了樂透，拿到{truth.get('amount_cents', 0) // 100}元"
     if kind == "backstory":
         return truth.get("text", "很久以前的事")
+    if kind == "awakening":
+        return f"{who}醒來，帶著上一世的記憶（{len(truth.get('known', []))}件事）"
+    if kind == "system_quest":
+        return f"［系統］給{who}的任務：{truth.get('text', '')}"
+    if kind == "system_reward":
+        return f"［系統］{who}完成任務" + (f"，獎勵情報：{truth['reward']}" if truth.get("reward") else "")
+    if kind == "system_lapse":
+        return f"［系統］{who}的任務失敗"
     return f"{who}{kind}" if who else kind
 
 

@@ -14,6 +14,11 @@ from pathlib import Path
 from typing import Callable
 
 from agent.decision import GeminiDecider, SeededDecider
+from agent.volition import VolitionDecider
+from contracts.base import canonical_json
+from narrative.director import select_thread
+from narrative.scene_spec import build_scene_specs
+from narrative.spatial import compile_spatial
 from agent.llm import DEFAULT_MODEL, FallbackClient, build_chain
 from agent.llm_cache import LLMCache
 from contracts.stylepack import SUSPENSE_V1, StylePack
@@ -52,6 +57,10 @@ class DailyConfig:
     render: bool = True
     experiment: str | None = None
     protagonists: frozenset[str] = field(default_factory=lambda: DEFAULT_PROTAGONISTS)
+    # World C: rule motives for everyone the model does not decide for, an outside-event feed, and the story
+    # director (threads) instead of the arc selector. A spatial plan is written next to each episode.
+    world_c: bool = False
+    feed: str | None = None
 
 
 @dataclass(frozen=True)
@@ -134,11 +143,23 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
         conn.close()
 
 
+def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread) -> None:
+    """How the chosen scene is staged in space (read-only), for a spatial backend such as Blender later."""
+    spec = build_scene_specs(world, [cand], [folder.name])[0]
+    plan = compile_spatial(spec)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "spatial_plan.json").write_text(canonical_json(plan), encoding="utf-8")
+    (folder / "thread.json").write_text(canonical_json(thread), encoding="utf-8")
+
+
 def _freeze(cfg: DailyConfig, live: Path, conn: sqlite3.Connection) -> None:
     probe = connect(live)
     seed = probe.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
     probe.close()
-    models = [cfg.model] + (["openrouter-free"] if cfg.use_openrouter else []) if cfg.use_llm else ["seeded"]
+    models = [cfg.model] + (["openrouter-free"] if cfg.use_openrouter else []) if cfg.use_llm else [
+        "volition" if cfg.world_c else "seeded"]
+    if cfg.world_c:
+        models = models + [f"feed:{cfg.feed or 'none'}", "director:threads"]
     config = experiment.build_config(
         experiment_id=cfg.experiment, world_seed=seed, active_ids=set(cfg.active_ids) if cfg.use_llm else set(),
         style=cfg.style, models=models, days=cfg.days, orientation=cfg.orientation, quality=cfg.quality)
@@ -158,13 +179,13 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
                 mode="record", cache=cache)
             active = GeminiDecider(client)
             seed = sim_conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
-            ambient = SeededDecider(seed)
+            ambient = VolitionDecider(seed) if cfg.world_c else SeededDecider(seed)
             active_ids = set(cfg.active_ids)
         else:
             seed = sim_conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
-            active = ambient = SeededDecider(seed)
+            active = ambient = VolitionDecider(seed) if cfg.world_c else SeededDecider(seed)
             active_ids = set()
-        sim = Simulation(sim_conn, active, ambient, active_ids)
+        sim = Simulation(sim_conn, active, ambient, active_ids, feed=cfg.feed if cfg.world_c else None)
         (day,) = sim.run(1)
         problems = audit(sim_conn)
         if problems:
@@ -184,7 +205,10 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
 
     world = open_world_reader(live)
     try:
-        cand, _ = select_daily(world, day, cfg.protagonists, cfg.style.weights, series.used_event_ids(conn))
+        if cfg.world_c:
+            cand, thread, _ = select_thread(world, day, series.used_event_ids(conn))
+        else:
+            cand, _ = select_daily(world, day, cfg.protagonists, cfg.style.weights, series.used_event_ids(conn))
         status, episode = "quiet_day", None
         if cand is not None:
             (episode,) = make_episodes(world, conn, Path(cfg.out_dir), [cand], scene_ids=[f"day_{day + 1:02d}"],
@@ -194,6 +218,8 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
                       "render_failed" if episode.qa_status == "render_failed" else "qa_failed")
             if episode.video is not None:
                 LocalPublisher(conn, episode.episode_id).publish(episode.video.parent)
+            if cfg.world_c:
+                _write_spatial(world, cand, Path(cfg.out_dir) / f"day_{day + 1:02d}", thread)
         conn.execute("INSERT INTO daily_runs(experiment_id, sim_day, world_revision, snapshot_hash, episode_id, status, usage_json, "
                      "created_at) VALUES (?,?,?,?,?,?,?,strftime('%s','now'))",
                      (cfg.experiment, day, revision, snap, episode.episode_id if episode else None, status,

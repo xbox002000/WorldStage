@@ -57,22 +57,28 @@ Five worlds × 14 days, rule motives only ($0). C0 is the closed town; C1 adds t
 
 | Measure | C0 | C1 |
 |---|---|---|
-| threads | 39 | 40 |
-| long threads (≥ 3 days, ≥ 4 events) | 14.6 | 17.2 |
-| active threads per day | 7.8 | 8.1 |
-| cross-thread rate | 0.20 | 0.32 |
-| delayed-consequence rate | 0.77 | 0.78 |
-| event diversity (kinds of chosen acts) | 7.4 | 8.8 |
-| information asymmetry (threads with a wrong belief) | 0.08 | 0.10 |
-| relationship flips per day | 2.3 | 2.7 |
+| threads | 33.8 | 40.2 |
+| long threads (≥ 3 days, ≥ 4 events) | 11.0 | 15.2 |
+| active threads per day | 6.5 | 7.7 |
+| cross-thread rate | 0.31 | 0.30 |
+| delayed-consequence rate | 0.79 | 0.76 |
+| event diversity (kinds of chosen acts) | 7.4 | 8.4 |
+| information asymmetry (threads with a wrong belief) | 0.14 | 0.09 |
+| relationship flips per day | 2.5 | 2.4 |
 | flat-day ratio | 0.043 | 0.014 |
 | seed influence rate | – | 0.43 |
-| seed direct-plot rate | – | 0.0 |
+| seed direct-plot rate | – | 0.10 |
 | goal change rate | 0 | 0 |
 
+These are the numbers after lending was limited (no lending while in debt, not to someone who still owes you, once
+a week per person). A first run had shown C1 ahead on crossing (0.32 against 0.20), but that difference was mostly
+lend-and-repay noise.
+
 **Reading:**
-- The closed town already produces multi-day threads. Outside events add longer and more crossing threads without
-  scripting them: no seed thread lacks a chosen act.
+- The closed town already produces multi-day threads.
+- Outside events add more and longer threads, more kinds of acts and fewer flat days. They do not add crossing or
+  wrong beliefs.
+- One seed thread in ten has no chosen act. Those are pure weather (a parcel nobody touched).
 - Weak spots:
   - Information asymmetry is low. Most beliefs end up true, because gossip is mostly truthful and quiet acts are
     rarely seen.
