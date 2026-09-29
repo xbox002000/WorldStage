@@ -4,7 +4,8 @@ The score is deterministic and made of parts (no model judges):
 momentum   what moved in the last two days;
 tension    how open the thread's question still is;
 stakes     what is at risk;
-asymmetry  how many beliefs about it are wrong (someone knows something others do not);
+asymmetry  the knowledge gap (narrative/knowledge.py): someone believes the wrong thing, or it concerns someone who
+           does not know; more if the audience has already seen the truth (dramatic irony);
 crossing   how many other threads it touches;
 novelty    not shown in the last episodes;
 payoff     somebody holds grounds to accuse or confront, so the question may be settled soon.
@@ -39,17 +40,21 @@ def _payoff(conn: sqlite3.Connection, t: StoryThread) -> float:
 
 
 def score_thread(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> ThreadScore:
+    from narrative.knowledge import knowledge_of
     new = [e for e in t.event_ids if e not in shown]
+    k = knowledge_of(conn, t, shown)
     parts = {
         "momentum": t.momentum,
         "tension": t.tension,
         "stakes": t.stakes,
-        "asymmetry": min(1.0, t.information_asymmetry / 3),
+        "asymmetry": k.gap if k is not None else min(1.0, t.information_asymmetry / 3),
         "crossing": min(1.0, len(t.cross_threads) / 3),
         "novelty": len(new) / len(t.event_ids) if t.event_ids else 0.0,
         "payoff": _payoff(conn, t),
     }
-    return ThreadScore(t.thread_id, round(sum(WEIGHTS[k] * v for k, v in parts.items()), 4),
+    from world.recipes import load_recipe, recipe_of
+    bonus = load_recipe(recipe_of(conn)).director_prefers.get(t.kind, 0.0)
+    return ThreadScore(t.thread_id, round(sum(WEIGHTS[k] * v for k, v in parts.items()) + bonus, 4),
                        {k: round(v, 3) for k, v in parts.items()})
 
 

@@ -8,7 +8,8 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from contracts.claim import AFFIRM, DENY, FALSE, PARTIAL, TRUE, UNKNOWN, Claim
+from contracts.claim import AFFIRM, DENY, FALSE, PARTIAL, TRUE, UNKNOWN, Claim, can_distort, distort
+from world.rng import rng as make_rng
 from contracts.tell import TellIntent
 from world.claims import claim_dict, describe_claim, evaluate, labels, load_claim, truth_claims
 from world.confront import find_grounds
@@ -31,6 +32,8 @@ BELIEF_EFFECT: dict[tuple[str, str], float] = {
 }
 TELL_IMPORTANCE = {"truth": 0.30, "omission": 0.35, "distortion": 0.45, "lie": 0.50}
 WITNESS_CONFIDENCE = 0.6
+DRIFT = 0.8  # chance of an honest slip = DRIFT x (1 - the teller's confidence in what they heard)
+UNSURE = 0.7  # only what the teller is unsure of drifts; a clear sighting is passed on as seen
 
 # outcome -> (accuser trust in accused, accuser affection, accused trust in accuser, accused fear of accuser,
 #             accuser emotion, accused emotion, importance)
@@ -69,10 +72,21 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
     t = TellIntent(a, b, it.mode, it.claim_id, list(it.withheld))
     src = best_memory(conn, a, t.source_claim_id)
     asserted = asserted_claim(conn, t)
+    misremembered = False
+    from world.recipes import enabled
+    if t.mode in ("truth", "omission") and src["confidence"] < UNSURE and can_distort(asserted) and enabled(conn, "gossip.drift"):
+        # Hearsay drifts in the retelling (Talk of the Town): the less sure the teller is, the likelier an honest
+        # slip that bends the act (took -> stole). Not a lie: confronted, it comes out as `misinformed`.
+        seed = conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
+        if make_rng(seed, now, f"drift:{a}:{b}:{t.source_claim_id}", "misremember").random() < DRIFT * (1 - src["confidence"]):
+            asserted, misremembered = distort(asserted), True
     about = src["about_event_id"] if src["about_event_id"] is not None else src["event_id"]
     names = labels(conn)
     here = person(conn, a)["location_id"]
-    confidence = listener_confidence(rel(conn, b, a, "trust"))
+    from world.psyche import trait
+    # someone who has learned not to trust believes less of what they are told
+    confidence = round(min(0.95, max(0.10, listener_confidence(rel(conn, b, a, "trust"))
+                                     + 0.4 * (trait(conn, b, "trust_default") - 0.5))), 2)
 
     verdict = evaluate(conn, asserted, about)
     deceived = t.mode in ("lie", "distortion") and verdict in (FALSE, PARTIAL)
@@ -121,7 +135,7 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
             "actor": a, "target": b, "mode": t.mode, "reason": it.reason, "source": it.source,
             "source_claim": t.source_claim_id, "asserted_claim": claim_dict(asserted), "verdict": verdict,
             "incident": incident_of(conn, about), "depends_on": sorted({src["event_id"], about}),
-            "listener_confidence": confidence, "trust_flipped": flipped,
+            "listener_confidence": confidence, "trust_flipped": flipped, "misremembered": misremembered,
             "text": describe_claim(asserted, names),
             "withheld_text": [describe_claim(load_claim(conn, cid), names) for cid in t.withheld_claim_ids],
         },

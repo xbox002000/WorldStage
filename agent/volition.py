@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import replace
 import sqlite3
 
 from agent.perception import social_options
@@ -57,11 +58,14 @@ def value_factor(cents: int) -> float:
 
 
 def _tone(conn: sqlite3.Connection, me: str, other: str, t: dict, emotion: str, rng) -> tuple[str, float]:
-    """How someone would speak to another, and how much they want to."""
+    """How someone would speak to another, and how much they want to. History shows here: cynicism cools every
+    word, aggression heats it, withdrawal makes talking less wanted."""
+    from world.psyche import trait
     r = rel(conn, me, other)
     owed_to_me = rel(conn, other, me)["debt_cents"]
-    warmth = r["trust"] + r["affection"] - r["rivalry"] - 0.3 * (owed_to_me > 0) * (1 - t["generosity"])
-    heat = t["temper"] * (1.2 if emotion in ("angry", "hurt", "embarrassed") else 0.6)
+    warmth = (r["trust"] + r["affection"] - r["rivalry"] - 0.3 * (owed_to_me > 0) * (1 - t["generosity"])
+              - 0.6 * (trait(conn, me, "cynicism") - 0.2))
+    heat = t["temper"] * (1.2 if emotion in ("angry", "hurt", "embarrassed") else 0.6) + (trait(conn, me, "aggression") - 0.2)
     weights = {
         "warm": max(0.02, 0.4 + warmth),
         "neutral": 0.5,
@@ -69,7 +73,8 @@ def _tone(conn: sqlite3.Connection, me: str, other: str, t: dict, emotion: str, 
         "hostile": max(0.0, heat * (0.1 - warmth) + 0.3 * (owed_to_me > 0 and r["trust"] < 0)),
     }
     tone = rng.choices(TONES, [weights[k] for k in TONES])[0]
-    want = 0.45 + 0.25 * t["curiosity"] + 0.25 * abs(r["affection"]) + 0.2 * max(0.0, r["rivalry"])
+    want = (0.45 + 0.25 * t["curiosity"] + 0.25 * abs(r["affection"]) + 0.2 * max(0.0, r["rivalry"])
+            - 0.5 * (trait(conn, me, "withdrawal") - 0.1))
     return tone, want
 
 
@@ -91,6 +96,69 @@ def owner_suspects(conn: sqlite3.Connection, owner: str, actor: str, oid: str) -
     return row[0] or 0.0
 
 
+def _harms(conn: sqlite3.Connection, it: Intent, target: str) -> bool:
+    """A tell that says something bad about `target`."""
+    if it.action != "tell" or it.claim_id is None:
+        return False
+    row = conn.execute("SELECT subject, act, polarity FROM claims WHERE claim_id = ?", (it.claim_id,)).fetchone()
+    return row is not None and row["subject"] == target and belief_effect(Claim(row["subject"], row["act"], "x", row["polarity"])) < 0
+
+
+def goal_bias(conn: sqlite3.Connection, actor: str, scored: list) -> list:
+    """Open goals lean the actor's own options. They never add an option the world does not offer."""
+    from world.goals import goals_of, has_goals
+    if not has_goals(conn):
+        return scored
+    goals = [g for g in goals_of(conn, actor) if g["status"] == "active"]
+    if not goals:
+        return scored
+    out = []
+    for score, it in scored:
+        if it is not None:
+            for g in goals:
+                w, k, tgt, obj = g["priority"], g["kind"], g["target"], g["object"]
+                a = it.action
+                if k == "recover" and ((a == "take" and it.target == obj) or a in ("accuse", "confront")):
+                    score += w * (2.0 if a == "take" else 0.6)
+                elif k == "expose" and it.target == tgt and a in ("accuse", "confront"):
+                    score += w * 0.9
+                elif k in ("expose", "revenge", "outshine") and _harms(conn, it, tgt):
+                    score += w * (0.7 if k == "revenge" else 0.4)
+                elif k == "revenge" and it.target == tgt:
+                    if a == "talk":
+                        it = Intent(it.actor, "talk", it.target, "hostile" if it.tone != "warm" else "cold", reason=f"goal:{g['person_id']}:{g['slot']}")
+                        score += w * 0.4
+                    elif a in ("accuse", "steal"):
+                        score += w * 0.5
+                elif k == "outshine" and it.target == tgt and a == "talk" and it.tone == "warm":
+                    it = Intent(it.actor, "talk", it.target, "cold", reason=f"goal:{g['person_id']}:{g['slot']}")
+                elif k in ("clear_name", "make_amends", "reconcile", "befriend") and it.target == tgt and a == "talk":
+                    it = Intent(it.actor, "talk", it.target, "warm", reason=f"goal:{g['person_id']}:{g['slot']}")
+                    score += w * 0.5
+                elif k == "make_amends" and a == "give":
+                    score += w * 2.5
+                elif k in ("make_amends", "reconcile", "befriend") and it.target == tgt and a == "lend":
+                    score += w * 0.3
+                elif k == "repay" and a == "repay" and it.target == tgt:
+                    score += w * 0.6
+                elif k == "save" and a == "lend":
+                    score -= w * 0.5
+        out.append((score, it))
+    # an option a goal pushed up carries that goal in its reason, so the event it becomes can be traced to the goal
+    return [(sc, it if it is None or sc == base or it.reason.startswith("goal:") else replace(it, reason=f"goal:{_lead(conn, actor, it)}"))
+            for (sc, it), (base, _) in zip(out, scored)]
+
+
+def _lead(conn: sqlite3.Connection, actor: str, it: Intent) -> str:
+    """The goal slot most likely behind a boosted option (the actor's most important active goal about its target)."""
+    from world.goals import goals_of
+    goals = [g for g in goals_of(conn, actor) if g["status"] == "active"]
+    for g in goals:
+        if it.target and (g["target"] == it.target or g["object"] == it.target):
+            return f"{g['person_id']}:{g['slot']}"
+    return f"{goals[0]['person_id']}:{goals[0]['slot']}" if goals else "?"
+
+
 class VolitionDecider:
     """Decides for any character. Same world, same seed, same time: same choice."""
 
@@ -109,7 +177,8 @@ class VolitionDecider:
         opts = social_options(conn, actor)
         here = [o["id"] for o in opts["here"]]
         crowd = len(here)
-        out: list[tuple[float, Intent]] = [(IDLE, None)]
+        from world.psyche import trait
+        out: list[tuple[float, Intent]] = [(IDLE + 0.8 * (trait(conn, actor, "withdrawal") - 0.1), None)]
 
         for other in here:
             tone, want = _tone(conn, actor, other, t, me["emotion"], rng)
@@ -179,6 +248,10 @@ class VolitionDecider:
 
         for rp in opts["repay"]:
             r = rel(conn, actor, rp["target"])
+            lent = conn.execute("SELECT MAX(timestamp) FROM events WHERE type = 'lend' AND json_extract(truth, '$.actor') = ? "
+                                "AND json_extract(truth, '$.target') = ?", (rp["target"], actor)).fetchone()[0]
+            if lent is not None and now - lent < 2 * 1440 and r["fear"] < 0.2:
+                continue  # nobody pays back a loan the same afternoon unless pressed
             spare = me["money_cents"] - min(rp["debt_cents"], LEND_CENTS)
             out.append((0.2 + 0.5 * t["honesty"] + 0.4 * max(0.0, r["fear"]) + 0.3 * (spare > 4000) - 0.5 * n,
                         Intent(actor, "repay", rp["target"], reason="volition")))
@@ -187,20 +260,21 @@ class VolitionDecider:
         for ln in opts["lend"]:
             other = ln["target"]
             r = rel(conn, actor, other)
-            if in_debt or rel(conn, other, actor)["debt_cents"] > 0 or conn.execute(
+            if in_debt or need(conn, other) < 0.5 or rel(conn, other, actor)["debt_cents"] > 0 or conn.execute(
                     "SELECT 1 FROM events WHERE type = 'lend' AND json_extract(truth, '$.actor') = ? "
                     "AND json_extract(truth, '$.target') = ? AND timestamp > ?", (actor, other, now - 7 * 1440)).fetchone():
                 continue
             emo = conn.execute("SELECT emotion FROM people WHERE id = ?", (other,)).fetchone()[0]
             distress = 1.0 if emo in ("uneasy", "scared", "hurt") else 0.2
             if r["affection"] > 0.1:
-                out.append((t["generosity"] * r["affection"] * distress * 1.2 - 0.3 * n,
+                out.append((t["generosity"] * r["affection"] * distress * 1.2 - 0.3 * n - 0.4 * (trait(conn, actor, "cynicism") - 0.2),
                             Intent(actor, "lend", other, reason="volition")))
 
         for a in opts["accuse"]:
             r = rel(conn, actor, a["target"])
             angry = 0.3 if me["emotion"] in ("angry", "hurt", "uneasy") else 0.0
-            out.append((a["confidence"] * (0.6 + t["temper"]) + angry - 0.4 * max(0.0, r["fear"]) - 0.2 * r["affection"],
+            out.append((a["confidence"] * (0.6 + t["temper"]) + angry - 0.4 * max(0.0, r["fear"]) - 0.2 * r["affection"]
+                        + 0.4 * (trait(conn, actor, "vigilance") - 0.2),
                         Intent(actor, "accuse", a["target"], memory_id=a["memory_id"], reason="volition")))
         return out
 
@@ -208,6 +282,7 @@ class VolitionDecider:
         scored = self.options(conn, actor, now)
         for m in self.mechanics:
             scored = m.bias(conn, actor, now, scored + m.options(conn, actor, now))
+        scored = goal_bias(conn, actor, scored)
         if len(scored) == 1:
             return None
         weights = [math.exp(s / self.temperature) for s, _ in scored]

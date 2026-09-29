@@ -69,6 +69,23 @@ CREATE TABLE IF NOT EXISTS world_vars (
   value REAL NOT NULL
 );
 
+-- Goals: fixed slots per person (see migrations/v004.sql).
+CREATE TABLE IF NOT EXISTS goals (
+  person_id   TEXT NOT NULL REFERENCES people(id),
+  slot        INTEGER NOT NULL CHECK (slot >= 0),
+  kind        TEXT NOT NULL DEFAULT '',
+  target      TEXT NOT NULL DEFAULT '',
+  object      TEXT NOT NULL DEFAULT '',
+  status      TEXT NOT NULL DEFAULT 'empty'
+    CHECK (status IN ('empty','formed','active','blocked','abandoned','revised','completed','transformed')),
+  priority    REAL NOT NULL DEFAULT 0.0 CHECK (priority BETWEEN 0.0 AND 1.0),
+  since_day   INTEGER NOT NULL DEFAULT 0,
+  setbacks    INTEGER NOT NULL DEFAULT 0 CHECK (setbacks >= 0),
+  parent      TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (person_id, slot)
+);
+
+
 -- Directed: actor's feeling toward target. History lives in event_deltas.
 CREATE TABLE IF NOT EXISTS relationships (
   actor_id   TEXT NOT NULL REFERENCES people(id),
@@ -106,7 +123,7 @@ CREATE TABLE IF NOT EXISTS event_participants (
 CREATE TABLE IF NOT EXISTS event_deltas (
   delta_id    INTEGER PRIMARY KEY AUTOINCREMENT,
   event_id    INTEGER NOT NULL REFERENCES events(event_id),
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('person','relationship','object','var')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('person','relationship','object','var','goal')),
   entity_id   TEXT NOT NULL,
   field       TEXT NOT NULL,
   old_value,
@@ -285,6 +302,16 @@ WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
 BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
 CREATE TRIGGER IF NOT EXISTS world_vars_no_delete BEFORE DELETE ON world_vars
 BEGIN SELECT RAISE(ABORT, 'world variables cannot be deleted'); END;
+
+CREATE TRIGGER IF NOT EXISTS goals_guard_insert BEFORE INSERT ON goals
+WHEN EXISTS (SELECT 1 FROM events) AND NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS goals_guard_update BEFORE UPDATE ON goals
+WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS goals_no_delete BEFORE DELETE ON goals
+BEGIN SELECT RAISE(ABORT, 'goals cannot be deleted'); END;
+
 
 -- Input log for replay; deliberately outside the world snapshot.
 CREATE TABLE IF NOT EXISTS llm_cache (

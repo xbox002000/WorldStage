@@ -22,6 +22,7 @@ TABLES: dict[str, str] = {
     "objects": "id",
     "relationships": "actor_id, target_id",
     "world_vars": "key",
+    "goals": "person_id, slot",
     "events": "event_id",
     "event_participants": "event_id, person_id, role",
     "event_deltas": "delta_id",

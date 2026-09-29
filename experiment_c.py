@@ -54,17 +54,28 @@ def main() -> None:
             r["seed"] = seed
             results.setdefault(arm, []).append(r)
             print(arm, seed, "threads", r["threads"], "long", r["long_threads"], "flat", r["flat_day_ratio"], flush=True)
+    from world.ruleset import KERNEL_VERSION, ruleset_hash
+    from world.seeds import feed_hash
+    config = {"kernel_version": KERNEL_VERSION, "ruleset_hash": ruleset_hash(), "arms": {a: f for a, f in ARMS.items()},
+              "feed_hashes": {f: feed_hash(f) for f in ARMS.values() if f}, "decider": "volition", "mechanics": [],
+              "seeds": [BASE_SEED + i for i in range(args.seeds)], "days": args.days}
     summary = {}
     for arm, runs in results.items():
-        keys = [k for k, v in runs[0].items() if isinstance(v, (int, float)) and k != "seed"]
+        keys = [k for k, v in runs[0].items() if isinstance(v, (int, float)) and not isinstance(v, bool) and k != "seed"]
         summary[arm] = {k: round(mean(r[k] for r in runs if r[k] is not None), 3) for k in keys
                         if any(r[k] is not None for r in runs)}
-    (out / "results.json").write_text(json.dumps({"runs": results, "summary": summary}, ensure_ascii=False, indent=2),
+        seedout = [r["seed_outcomes"] for r in runs if r.get("seed_outcomes")]
+        if any(sum(o.values()) for o in seedout):
+            summary[arm]["seed_outcomes"] = {k: sum(o[k] for o in seedout) for k in seedout[0]}
+    (out / "results.json").write_text(json.dumps({"config": config, "runs": results, "summary": summary},
+                                                 ensure_ascii=False, indent=2),
                                       encoding="utf-8")
     keys = sorted(set(summary["C0"]) | set(summary["C1"]))
     print(f"\n{'measure':28} {'C0':>8} {'C1':>8}")
     for k in keys:
-        print(f"{k:28} {summary['C0'].get(k, '-'):>8} {summary['C1'].get(k, '-'):>8}")
+        a, b = summary["C0"].get(k, "-"), summary["C1"].get(k, "-")
+        print(f"{k:28} {str(a):>8} {str(b):>8}")
+    print("ruleset", config["ruleset_hash"][:19])
 
 
 if __name__ == "__main__":

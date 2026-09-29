@@ -150,11 +150,14 @@ def missing_items(conn: sqlite3.Connection, owner: str) -> list[sqlite3.Row]:
         "ORDER BY o.id", (owner, owner)).fetchall()
 
 
-def _how_it_went(conn: sqlite3.Connection, oid: str) -> sqlite3.Row | None:
-    """The last event that separated the item from its rightful owner (misplace or an unnoticed steal)."""
+def _how_it_went(conn: sqlite3.Connection, oid: str, owner: str | None = None) -> sqlite3.Row | None:
+    """The last moment the owner was with the item as it went: they left it somewhere, or it was stolen from them
+    while they stood there. A later pick-up happened where the owner was not, so it tells the owner nothing."""
+    owner = owner or conn.execute("SELECT rightful_owner_id FROM objects WHERE id = ?", (oid,)).fetchone()[0]
     return conn.execute(
-        "SELECT * FROM events WHERE type IN ('misplace', 'steal', 'take') AND json_extract(truth, '$.object') = ? "
-        "ORDER BY event_id DESC LIMIT 1", (oid,)).fetchone()
+        "SELECT * FROM events WHERE json_extract(truth, '$.object') = ? AND ("
+        " (type = 'misplace' AND json_extract(truth, '$.actor') = ?) OR (type = 'steal' AND json_extract(truth, '$.victim') = ?))"
+        " ORDER BY event_id DESC LIMIT 1", (oid, owner, owner)).fetchone()
 
 
 def suspect_for(conn: sqlite3.Connection, owner: str, loss: sqlite3.Row | None) -> tuple[str, float] | None:
@@ -174,14 +177,15 @@ def suspect_for(conn: sqlite3.Connection, owner: str, loss: sqlite3.Row | None) 
         return None
     scored = sorted((rel(conn, owner, p, "trust") - 0.5 * rel(conn, owner, p, "rivalry"), p) for p in around)
     score, suspect = scored[0]
-    confidence = round(min(0.75, max(0.3, 0.35 - 0.4 * score)), 2)
+    from world.psyche import trait
+    confidence = round(min(0.8, max(0.3, 0.35 - 0.4 * score + 0.3 * (trait(conn, owner, "vigilance") - 0.2))), 2)
     return suspect, confidence
 
 
 def notice_missing(conn: sqlite3.Connection, owner: str, oid: str, now: int) -> EventSpec:
     names = labels(conn)
     lost = Claim(owner, "lose", oid)
-    loss = _how_it_went(conn, oid)
+    loss = _how_it_went(conn, oid, owner)
     guess = suspect_for(conn, owner, loss)
     memories = [MemorySpec(owner, describe_claim(lost, names), 1.0, claim=lost)]
     deltas = RelDeltas()

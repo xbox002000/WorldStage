@@ -40,6 +40,8 @@ class Simulation:
             from world.mechanics import mechanics_of
             mechanics = mechanics_of(conn)  # the pack recorded in the world itself
         self.mechanics = mechanics or []
+        from world.recipes import compiled, recipe_of
+        self.primitives = set(compiled(recipe_of(conn)).order) if self.economy else set()
         for d in {id(active): active, id(ambient): ambient}.values():
             if hasattr(d, "mechanics"):
                 d.mechanics = self.mechanics
@@ -72,7 +74,7 @@ class Simulation:
         ids = [r["id"] for r in self.conn.execute("SELECT id FROM people ORDER BY id")]
         schedules = {r["id"]: json.loads(r["schedule"]) for r in self.conn.execute("SELECT id, schedule FROM people")}
         slots = sorted({int(s) for sched in schedules.values() for s in sched} | set(DECISION_SLOTS))
-        if self.feed and self.economy:
+        if self.feed and "seeds.external" in self.primitives:
             from world.seeds import SeedLayer
             for cand in SeedLayer(self.conn, self.feed).dawn(day):
                 self.stats[f"seed_{cand.status}"] += 1
@@ -89,10 +91,10 @@ class Simulation:
                     scripted.append((self._stamp(pid, base, window), intent))
             for ts, intent in sorted(scripted, key=lambda s: intent_sort_key(s[0], s[1])):
                 self._apply(intent, ts, "schedule")
-            if slot in DECISION_SLOTS and self.economy:
+            if slot in DECISION_SLOTS and "props.parrot" in self.primitives:
                 from world.props import parrot_events
                 for spec in parrot_events(self.conn, base):
-                    apply_event(self.conn, spec)
+                    self._after(apply_event(self.conn, spec))
                     self.stats["parrot_speaks"] += 1
             if slot in DECISION_SLOTS:
                 # Each person decides at their own moment inside the slot; earlier deciders shape what later ones see.
@@ -129,17 +131,26 @@ class Simulation:
         except WorldError:
             self.stats[f"rejected_{trigger}"] += 1
             return
-        if intent.action == "move" and self.economy:
+        if intent.action == "move" and "items.ownership" in self.primitives:
             self._maybe_misplace(intent.actor, now)
         spec = resolve(self.conn, intent, now, trigger)
         event_id = apply_event(self.conn, spec)
-        for m in self.mechanics:
-            m.after_event(self.conn, event_id)
         self.stats[f"applied_{intent.action}"] += 1
         if intent.action == "tell":
             self.stats[f"tell_{intent.mode}"] += 1
         elif intent.action == "confront":
             self.stats[f"confront_{spec.truth['outcome']}"] += 1
+        self._after(event_id)
+
+    def _after(self, event_id: int) -> None:
+        """What follows from an event without anyone choosing it: mechanics react, goals are reviewed."""
+        for m in self.mechanics:
+            m.after_event(self.conn, event_id)
+        if "goals" in self.primitives:
+            from world.goals import after_event
+            for spec in after_event(self.conn, event_id):
+                apply_event(self.conn, spec)
+                self.stats["goal_changes"] += 1
 
     def _maybe_misplace(self, pid: str, now: int) -> None:
         """Leaving a place, an absent-minded person may leave something behind. Nobody decides this."""
@@ -168,7 +179,7 @@ class Simulation:
                 changes.append(Change("person", pid, "energy", delta=min(60, 100 - p["energy"])))
             if p["hunger"] < 100:
                 changes.append(Change("person", pid, "hunger", delta=min(30, 100 - p["hunger"])))
-            if self.economy:
+            if "money.rent" in self.primitives:
                 from world.money import rent_changes
                 changes += rent_changes(self.conn, pid)
             if changes:
@@ -182,9 +193,22 @@ class Simulation:
         from world.props import overnight
         for pid in ids:
             for spec in overnight(self.conn, pid, now):
+                if spec.type == "feed_pet" and "props.animals" not in self.primitives:
+                    continue
                 apply_event(self.conn, spec)
                 self.stats[spec.type] += 1
-        for pid in ids:
+        for pid in ids if "items.ownership" in self.primitives else []:
             for obj in missing_items(self.conn, pid):
-                apply_event(self.conn, notice_missing(self.conn, pid, obj["id"], now))
+                self._after(apply_event(self.conn, notice_missing(self.conn, pid, obj["id"], now)))
                 self.stats["noticed_missing"] += 1
+        from world.goals import overnight as goals_overnight
+        for spec in (goals_overnight(self.conn, now // 1440, now) if "goals" in self.primitives else []):
+            apply_event(self.conn, spec)
+            self.stats["goal_changes"] += 1
+        if "psyche" in self.primitives:
+            from world.psyche import reflect
+            for pid in ids:
+                spec = reflect(self.conn, pid, now // 1440, now)
+                if spec is not None:
+                    apply_event(self.conn, spec)
+                    self.stats["reflections"] += 1

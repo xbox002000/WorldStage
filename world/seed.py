@@ -81,8 +81,11 @@ HOME_DAY = {480: "move:cafe", 720: "eat", 1080: "move:park", 1260: "move:apartme
 HOME_DAY_ALT = {480: "move:park", 720: "move:cafe", 750: "eat", 1080: "move:cafe", 1260: "move:apartment"}
 
 
-def build_world(conn: sqlite3.Connection, world_seed: int) -> None:
+def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v1") -> None:
     """Fill an initialised database: 5 places, 10 people, their things, props offstage, and one old secret."""
+    from world.recipes import compiled
+    compiled(recipe)  # refuses a recipe that does not compile
+    conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('recipe', ?)", (recipe,))
     rng = make_rng(world_seed, 0, "world", "seed_world")
     for lid, name, x, y, cap, tags in LOCATIONS:
         conn.execute("INSERT INTO locations VALUES (?,?,?,?,?,?)", (lid, name, x, y, cap, json.dumps(tags)))
@@ -124,8 +127,15 @@ def build_world(conn: sqlite3.Connection, world_seed: int) -> None:
     variables.update({f"arrears.{p[0]}": 0.0 for p in PEOPLE})
     variables.update({f"missing.{o[0]}": 0.0 for o in OBJECTS + PROPS})
     variables.update({f"revert.{k}": -1.0 for k in WORLD_VARS})  # day a seed's temporary change wears off
+    from world.psyche import keys_for
+    for p in PEOPLE:
+        variables.update(keys_for(p[0]))
     for key, value in sorted(variables.items()):
         conn.execute("INSERT INTO world_vars(key, value) VALUES (?,?)", (key, value))
+    from world.goals import initial_rows
+    for row in initial_rows([p[0] for p in PEOPLE]):
+        conn.execute("INSERT INTO goals(person_id, slot, kind, target, object, status, priority, since_day, setbacks, parent) "
+                     "VALUES (?,?,?,?,?,?,?,?,?,?)", row)
     backstory(conn)
 
 

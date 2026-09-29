@@ -207,12 +207,19 @@ def derive_threads(conn: sqlite3.Connection, today: int | None = None) -> list[S
         kept[key] = evs
         for e in evs:
             event_threads.setdefault(e.id, set()).add(key)
-    # causal crossing: an event in one thread whose cause sits in another
+    # causal crossing: an event in one thread whose cause sits in another, directly or through a goal:
+    # thread A's event changes someone's goal, and an act that goal drove belongs to thread B
+    goal_cause = {e.truth["goal"]: e.truth.get("cause_event") for e in rows.values()
+                  if e.type == "goal_change" and e.truth.get("to") in ("formed", "transformed")}
     crosses: dict[str, set[str]] = {k: set() for k in kept}
     for key, evs in kept.items():
         for e in evs:
             others = set(event_threads.get(e.id, ())) - {key}
-            for dep in [e.parent] + [int(d) for d in e.truth.get("depends_on", [])]:
+            deps = [e.parent] + [int(d) for d in e.truth.get("depends_on", [])]
+            reason = e.truth.get("reason") or ""
+            if reason.startswith("goal:"):
+                deps.append(goal_cause.get(reason[5:]))
+            for dep in deps:
                 others |= event_threads.get(dep, set()) - {key} if dep is not None else set()
             crosses[key] |= others
             for o in others:

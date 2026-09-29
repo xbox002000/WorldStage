@@ -45,10 +45,31 @@ class ThreadTests(unittest.TestCase):
     def test_threads_are_derived_deterministically(self):
         self.assertEqual([t.hash() for t in derive_threads(self.world)], [t.hash() for t in derive_threads(self.world)])
 
-    def test_a_thread_can_run_for_days_and_cross_another(self):
+    def test_a_thread_can_run_for_days(self):
         threads = derive_threads(self.world)
         self.assertTrue(any(t.last_day - t.first_day >= 2 and len(t.event_ids) >= 4 for t in threads))
-        self.assertTrue(any(t.cross_threads for t in threads))
+
+    def test_a_false_accusation_crosses_an_item_thread_into_a_feud(self):
+        # built on purpose: whether a given random world happens to contain a crossing is a measurement, not a rule
+        from tests.test_world_c import act, fresh, put
+        from world.intent import Intent
+        from world.items import misplace, notice_missing
+        from world.events import apply_event
+        c = fresh()
+        put(c, 10, ming="cafe", tao="cafe", jun="park")  # only Tao is around when Ming leaves the wallet
+        apply_event(c, misplace(c, "ming", "wallet_ming", 20))
+        put(c, 30, ming="office", tao="office", jun="cafe")
+        act(c, Intent("jun", "take", "wallet_ming"), 40)  # Jun, who was not there, picks it up
+        apply_event(c, notice_missing(c, "ming", "wallet_ming", 50))
+        mem = c.execute("SELECT m.memory_id, c.subject FROM memories m JOIN claims c USING (claim_id) "
+                        "WHERE m.observer_id = 'ming' AND c.act = 'take' AND c.subject = 'tao'").fetchone()
+        self.assertIsNotNone(mem)  # Ming can only suspect whoever was there: Tao
+        self.assertEqual(act(c, Intent("ming", "accuse", "tao", memory_id=mem["memory_id"]), 60)["outcome"], "false")
+        put(c, 65, ming="cafe", tao="cafe")
+        act(c, Intent("tao", "talk", "ming", "hostile"), 70)
+        act(c, Intent("ming", "talk", "tao", "cold"), 80)
+        threads = {t.thread_id: t for t in derive_threads(c)}
+        self.assertIn("feud:ming:tao", threads["item:wallet_ming"].cross_threads)
 
     def test_seed_threads_are_marked_with_their_origin(self):
         seeded = [t for t in derive_threads(self.world) if t.seed_origins]
