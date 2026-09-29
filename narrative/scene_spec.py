@@ -79,6 +79,9 @@ def build_scene_specs(conn: sqlite3.Connection, chosen: list[Candidate], scene_i
     people = {r["id"]: (r["name"], (conn.execute("SELECT text FROM personas WHERE person_id = ?", (r["id"],)).fetchone() or [""])[0])
               for r in cast}
     slots = {r["id"]: i for i, r in enumerate(cast)}
+    from world.animals import animal_ids
+    animals = animal_ids(conn) if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() else set()
     world_map = _world_map(conn)
     specs = []
     for number, cand in enumerate(chosen, start=1):
@@ -93,7 +96,8 @@ def build_scene_specs(conn: sqlite3.Connection, chosen: list[Candidate], scene_i
             score=float(cand.score), score_breakdown={k: float(v) for k, v in cand.breakdown.items()},
             peak_event_id=peak.id,
             source=Source(revision, snap, history, ruleset_hash(), simulation_toolchain_hash(), list(cand.arc.ids)),
-            characters={p: Person(p, people[p][0], asset_id(p), people[p][1], slots[p]) for p in involved},
+            characters={p: Person(p, people[p][0], f"animal_{p}" if p in animals else asset_id(p), people[p][1], slots[p])
+                        for p in involved},
             map=world_map, beats=beats,
         )
         specs.append(finalize(spec))

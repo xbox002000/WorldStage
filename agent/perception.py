@@ -51,7 +51,8 @@ def observe(conn: sqlite3.Connection, actor: str) -> dict:
         "SELECT p.id, p.name, "
         "COALESCE((SELECT trust FROM relationships WHERE actor_id = ? AND target_id = p.id), 0) AS trust, "
         "COALESCE((SELECT affection FROM relationships WHERE actor_id = ? AND target_id = p.id), 0) AS affection "
-        "FROM people p WHERE p.location_id = ? AND p.id <> ? ORDER BY p.id",
+        "FROM people p LEFT JOIN personas s ON s.person_id = p.id WHERE p.location_id = ? AND p.id <> ? "
+        "AND p.status <> 'inactive' AND COALESCE(json_extract(s.traits, '$.species'), 'human') = 'human' ORDER BY p.id",
         (actor, actor, me["location_id"], actor),
     ).fetchall()
     persona = conn.execute("SELECT text FROM personas WHERE person_id = ?", (actor,)).fetchone()

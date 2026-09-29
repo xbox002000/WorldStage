@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 
 from contracts.claim import Claim
 from world.claims import describe_claim, labels
@@ -74,6 +75,12 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
     if it.action == "confront":
         from world.social import resolve_confront
         return resolve_confront(conn, it, now, trigger)
+    if it.action == "drop":
+        from world.items import misplace
+        return replace(misplace(conn, it.actor, it.target, now), trigger_type=trigger,
+                       truth={**misplace(conn, it.actor, it.target, now).truth, "reason": it.reason, "dropped": True})
+    if it.action == "bark":
+        return _bark(conn, it, base)
     if it.action in ("take", "give", "accuse"):
         from world import items
         return {"take": items.resolve_take, "give": items.resolve_give, "accuse": items.resolve_accuse}[it.action](
@@ -121,6 +128,21 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
         truth={"actor": a, "target": b, "tone": tone, "reason": it.reason, "source": it.source, "trust_flipped": flipped},
         participants=[(a, "actor"), (b, "target")], changes=changes, memories=memories,
         claims=[ClaimSpec(claim)],
+    )
+
+
+def _bark(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
+    """Loud: everyone there hears a dog barking at someone. People make of it what they will (no claim)."""
+    names = labels(conn)
+    heard = noticers(conn, base["location_id"], base["timestamp"], f"bark:{it.actor}:{it.target}", LOUD, it.actor, it.target)
+    text = f"{names.get(it.actor, it.actor)}對著{names.get(it.target, it.target)}狂吠"
+    ch = [c for c in [clamp_delta(rel(conn, it.target, it.actor, "fear"), 0.05, -1.0, 1.0)] if c]
+    return EventSpec(
+        **base, type="bark", importance=0.3, parent_event_id=last_event_between(conn, it.actor, it.target),
+        truth={"actor": it.actor, "target": it.target, "reason": it.reason, "text": text},
+        participants=[(it.actor, "actor"), (it.target, "target")] + [(w, "witness") for w in heard],
+        changes=[Change("relationship", f"{it.target}:{it.actor}", "fear", delta=ch[0])] if ch else [],
+        memories=[MemorySpec(p, text, 0.9) for p in [it.target] + heard],
     )
 
 

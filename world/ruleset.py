@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parent.parent
 RULESET_FILES = (
     "world/schema.sql",
     # rule-based motives decide like a rule, so they are part of the ruleset (a model's answers are recorded instead)
-    "agent/volition.py", "agent/perception.py",
+    "agent/volition.py", "agent/perception.py", "agent/animal.py",
 )
 RULESET_GLOBS = ("world/*.py", "world/*/*.py", "world/migrations/*.sql", "world/feeds/*.json", "world/recipes/*.json",
                  "contracts/*.py")

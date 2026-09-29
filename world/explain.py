@@ -45,7 +45,9 @@ def _summary(row: sqlite3.Row, truth: dict, names: dict[str, str]) -> str:
     if kind == "talk":
         return f"{who}{tone.get(truth.get('tone'), '')}對{other}說話"
     if kind == "misplace":
-        return f"{who}把{thing}忘在{place}"
+        return f"{who}把{thing}{'丟' if truth.get('dropped') else '忘'}在{place}"
+    if kind == "bark":
+        return truth.get("text", f"{who}在叫")
     if kind == "take":
         return f"{who}撿走了{thing}" + (f"（{owner}的）" if owner else "") + ("" if truth.get("witnessed") else "，沒人看見")
     if kind == "find":

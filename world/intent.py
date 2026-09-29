@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from world.state import WorldError
 
 ACTIONS = ("move", "eat", "work", "rest", "talk", "steal", "tell", "confront",
-           "take", "give", "lend", "repay", "accuse")
+           "take", "give", "lend", "repay", "accuse", "drop", "bark")
+ANIMAL_ACTIONS = ("move", "rest", "take", "drop", "bark")  # no words, no money, no accusations
 TONES = ("warm", "neutral", "cold", "hostile")
 
 EAT_COST_CENTS = 800  # base price; the world variable price_food overrides it
@@ -101,6 +102,14 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
         raise WorldError(f"{it.actor} is inactive")
     if it.action not in ACTIONS:
         raise WorldError(f"action {it.action!r} is not allowed")
+    from world.animals import is_animal
+    animal = is_animal(conn, it.actor)
+    if animal and it.action not in ANIMAL_ACTIONS:
+        raise WorldError(f"an animal cannot {it.action}")
+    if not animal and it.action in ("bark",):
+        raise WorldError("people do not bark")
+    if it.target and it.action in ("talk", "tell", "lend", "repay", "confront", "give") and is_animal(conn, it.target):
+        raise WorldError("an animal cannot be told, lent to or argued with")
     here = actor["location_id"]
 
     if it.action == "move":
@@ -184,6 +193,12 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
     elif it.action == "accuse":
         _present_person(conn, it.actor, it.target, here)
         validate_accusation(conn, it.actor, it.target, it.memory_id)
+    elif it.action == "drop":
+        obj = conn.execute("SELECT owner_person_id, status FROM objects WHERE id = ?", (it.target,)).fetchone()
+        if obj is None or obj["owner_person_id"] != it.actor or obj["status"] != "normal":
+            raise WorldError("the actor does not hold that")
+    elif it.action == "bark":
+        _present_person(conn, it.actor, it.target, here)
 
 
 def _present_person(conn: sqlite3.Connection, actor: str, target: str | None, here: str) -> None:

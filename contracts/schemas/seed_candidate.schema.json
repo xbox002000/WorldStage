@@ -78,7 +78,8 @@
             "place_object",
             "deliver_object",
             "set_object_value",
-            "news"
+            "news",
+            "animal_arrives"
           ]
         },
         "revert_after_days": {

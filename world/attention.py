@@ -27,8 +27,11 @@ def var(conn: sqlite3.Connection, key: str, default: float = 0.0) -> float:
 
 
 def present(conn: sqlite3.Connection, here: str, *exclude: str) -> list[str]:
-    """Everyone at a place (sorted), minus the principals."""
-    rows = conn.execute("SELECT id FROM people WHERE location_id = ? ORDER BY id", (here,)).fetchall()
+    """Every person at a place (sorted), minus the principals. Animals sense instead (world/animals.py)."""
+    rows = conn.execute(
+        "SELECT p.id FROM people p LEFT JOIN personas s ON s.person_id = p.id WHERE p.location_id = ? "
+        "AND p.status <> 'inactive' AND COALESCE(json_extract(s.traits, '$.species'), 'human') = 'human' ORDER BY p.id",
+        (here,)).fetchall()
     return [r["id"] for r in rows if r["id"] not in exclude]
 
 

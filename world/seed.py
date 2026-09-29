@@ -57,7 +57,6 @@ PROPS = [
     ("ticket", "樂透彩券", ["paper"], 0),
     ("parrot", "鸚鵡", ["fixed", "repeater", "animal"], 0),
     ("package", "包裹", ["parcel"], 12000),
-    ("dog", "小狗", ["animal", "pet"], 0),
 ]
 # Static traits, each 0..1. They drive rule motives (agent/volition.py) and small rules such as misplacing things.
 TRAITS = {
@@ -79,6 +78,14 @@ WORLD_VARS = {"price_food": 800.0, "visibility": 1.0, "job_security": 1.0}
 WORKER_DAY = {480: "move:office", 540: "work", 720: "move:cafe", 750: "eat", 1080: "move:park", 1260: "move:apartment"}
 HOME_DAY = {480: "move:cafe", 720: "eat", 1080: "move:park", 1260: "move:apartment"}
 HOME_DAY_ALT = {480: "move:park", 720: "move:cafe", 750: "eat", 1080: "move:cafe", 1260: "move:apartment"}
+
+
+# Animals: perceivers without language (world/animals.py). They wait offstage (inactive) until a seed brings them.
+ANIMALS = [
+    # id, name, place it will turn up, traits
+    ("dog", "小狗", "park", {"species": "dog", "curiosity": 0.7, "honesty": 1.0, "temper": 0.3, "gossip": 0.0,
+                            "generosity": 0.5, "absent_minded": 0.8}),
+]
 
 
 def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v1") -> None:
@@ -108,8 +115,17 @@ def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v
     for pid, text in PERSONAS.items():
         conn.execute("INSERT INTO personas(person_id, text, traits) VALUES (?,?,?)",
                      (pid, text, json.dumps(TRAITS[pid], sort_keys=True)))
+    for aid, name, place, traits in ANIMALS:
+        conn.execute("INSERT INTO people VALUES (?,?,?,?,?,?,?,?,?,?)",
+                     (aid, name, place, 100, 0, 40, "", "calm", "{}", "inactive"))
+        conn.execute("INSERT INTO personas(person_id, text, traits) VALUES (?,?,?)",
+                     (aid, "一隻會跟著喜歡的人走、什麼都想叼走的小狗", json.dumps(traits, sort_keys=True)))
     ids = [p[0] for p in PEOPLE]
     debts = {(debtor, lender): cents for debtor, lender, cents in DEBTS}
+    for aid, *_ in ANIMALS:  # an animal starts neutral toward everyone, and everyone toward it
+        for pid in ids:
+            conn.execute("INSERT INTO relationships(actor_id, target_id) VALUES (?,?)", (aid, pid))
+            conn.execute("INSERT INTO relationships(actor_id, target_id) VALUES (?,?)", (pid, aid))
     for a in ids:
         for b in ids:
             if a != b:

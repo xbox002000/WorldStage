@@ -40,6 +40,11 @@ class Simulation:
             from world.mechanics import mechanics_of
             mechanics = mechanics_of(conn)  # the pack recorded in the world itself
         self.mechanics = mechanics or []
+        from agent.animal import AnimalDecider
+        from world.animals import animal_ids
+        self.animals = animal_ids(conn) if self.economy else set()
+        self.animal_decider = AnimalDecider(self.seed if hasattr(self, "seed") else
+                                            conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0])
         from world.recipes import compiled, recipe_of
         self.primitives = set(compiled(recipe_of(conn)).order) if self.economy else set()
         for d in {id(active): active, id(ambient): ambient}.values():
@@ -119,6 +124,14 @@ class Simulation:
         return Intent(pid, action, target or None)
 
     def _decide(self, pid: str, now: int) -> None:
+        if pid in self.animals:
+            if self.conn.execute("SELECT status FROM people WHERE id = ?", (pid,)).fetchone()[0] == "inactive":
+                return
+            intent = self.animal_decider.decide(self.conn, pid, now)
+            self.stats["animal_decisions"] += 1
+            if intent is not None:
+                self._apply(intent, now, "decision")
+            return
         tier = "active" if pid in self.active_ids else "ambient"
         intent = (self.active if tier == "active" else self.ambient).decide(self.conn, pid, now)
         self.stats[f"{tier}_decisions"] += 1
@@ -134,6 +147,9 @@ class Simulation:
         if intent.action == "move" and "items.ownership" in self.primitives:
             self._maybe_misplace(intent.actor, now)
         spec = resolve(self.conn, intent, now, trigger)
+        if self.animals:
+            from world.animals import with_senses
+            spec = with_senses(self.conn, spec)
         event_id = apply_event(self.conn, spec)
         self.stats[f"applied_{intent.action}"] += 1
         if intent.action == "tell":
@@ -171,6 +187,8 @@ class Simulation:
         """Overnight: everyone goes home, pays rent, sleeps and gets hungry (one event per person); then props do
         what they do, and people notice what they no longer have."""
         for pid in ids:
+            if pid in self.animals:
+                continue  # an animal sleeps where it is; hunger and rent are people's business
             p = self.conn.execute("SELECT * FROM people WHERE id = ?", (pid,)).fetchone()
             changes = []
             if p["location_id"] != "apartment":
@@ -191,6 +209,11 @@ class Simulation:
             return
         from world.items import missing_items, notice_missing
         from world.props import overnight
+        if "props.animals" in self.primitives:
+            from world.props import feed_animals
+            for spec in feed_animals(self.conn, now):
+                apply_event(self.conn, spec)
+                self.stats["feed_pet"] += 1
         for pid in ids:
             for spec in overnight(self.conn, pid, now):
                 if spec.type == "feed_pet" and "props.animals" not in self.primitives:

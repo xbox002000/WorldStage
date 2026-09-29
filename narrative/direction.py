@@ -65,7 +65,22 @@ def plan_knowledge(conn, spec: SceneSpec, thread: StoryThread | None, shown: set
     return AudienceKnowledgePlan("mystery", "nobody on screen, and not the audience, knows the answer yet", state, None, [])
 
 
+def _animals(spec: SceneSpec) -> set[str]:
+    return {pid for pid, p in spec.characters.items() if p.asset_id.startswith("animal_")}
+
+
 def plan_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan) -> FocalizationPlan:
+    animals = _animals(spec)
+    if animals and knowledge.state is not None and (knowledge.state.wrong or knowledge.state.unaware):
+        # the animal did it or sensed it, while the people it concerns are in the dark: a witness that cannot speak
+        for a in sorted(animals):
+            seen = [i for i, b in enumerate(spec.beats) if a in [p.id for p in b.participants]]
+            knows = a in knowledge.state.knows or any(
+                b.event_type in ("take", "misplace", "steal") for i, b in enumerate(spec.beats) if i in seen)
+            if seen and knows:
+                others = [i for i in range(len(spec.beats)) if i not in seen]
+                return FocalizationPlan(a, "animal", "witness", "the only one who saw it cannot say it", seen,
+                                        [i for i in others if i not in knowledge.withheld_beats])
     counts: dict[str, int] = {}
     for b in spec.beats:
         for pid in _people(b):
@@ -169,6 +184,13 @@ def _shots_for(i: int, b: Beat, functions: list[str], focal: FocalizationPlan, s
     if focal.mode == "limited" and focal.focalizer in _people(b, ("witness",)):
         shots.append(("observe", "MS", "eye_level", "subjective", "handheld", "slow", actor, "body", 2.5, "pov",
                       f"through {focal.focalizer}'s eyes: they only watched"))
+    if focal.kind == "animal" and focal.focalizer in [p.id for p in b.participants]:
+        if focal.focalizer == actor:  # its own act: low, following the thing in its mouth
+            shots.append(("observe", "MS", "ground", "rear", "tracking", "medium", actor, "object", 2.5, "wide",
+                          "low behind the animal, the thing in its mouth"))
+        else:
+            shots.append(("observe", "MS", "ground", "subjective", "handheld", "slow", actor, "hands", 3.0, "pov",
+                          f"from {focal.focalizer}'s height: legs, hands, a thing changing hands, voices without words"))
     out = []
     for j, s in enumerate(shots[:4]):
         out.append(CameraShot(start + j, i, s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10]))
@@ -211,7 +233,8 @@ def plan_edit_and_sound(spec: SceneSpec, beats: list[DramaticBeat], shots: list[
             music, why = "tension", "pressure"
         else:
             music, why = "none", "let the place speak"
-        dialogue = "muffled" if s.relation == "subjective" else "none" if s.function in ("hide", "foreshadow", "isolate") else "full"
+        dialogue = ("muffled" if s.relation == "subjective" or focal.kind == "animal" else
+                    "none" if s.function in ("hide", "foreshadow", "isolate") else "full")
         sound.append(SoundCue(n, music, dialogue, b.location.name, why))
     if cuts:
         cuts.append(Cut(len(shots), "hold", "hold"))  # end on the last image, the question still open
@@ -251,7 +274,9 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     cuts, sound = plan_edit_and_sound(spec, beats, shots, knowledge, focal)
     names = {pid: p.name for pid, p in spec.characters.items()}
     who = names.get(focal.focalizer, focal.focalizer)
-    if knowledge.strategy == "irony" and knowledge.state:
+    if focal.kind == "animal":
+        goal = f"透過{who}的眼睛：牠看見了，卻說不出來" + (f"（{knowledge.state.question}）" if knowledge.state else "")
+    elif knowledge.strategy == "irony" and knowledge.state:
         goal = f"觀眾知道真相（{knowledge.state.question}），{who}卻不知道：看{who}怎麼走下去"
     elif knowledge.strategy == "mystery" and knowledge.state:
         goal = f"跟著{who}追問：{knowledge.state.question}"

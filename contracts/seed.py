@@ -18,7 +18,7 @@ from contracts.base import hash_without
 SEED_VERSION = 1
 
 SeedType = Literal["stimulus", "pressure", "opportunity", "disruption", "information"]
-EffectOp = Literal["set_var", "place_object", "deliver_object", "set_object_value", "news"]
+EffectOp = Literal["set_var", "place_object", "deliver_object", "set_object_value", "news", "animal_arrives"]
 # The only world variables an outside event may move.
 SEED_VARS = ("price_food", "visibility", "job_security")
 AUDIENCES = ("everyone", "workers", "at_cafe", "at_office", "at_park", "at_station")

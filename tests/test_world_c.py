@@ -64,7 +64,7 @@ class StartingWorldTests(unittest.TestCase):
 class AttentionTests(unittest.TestCase):
     def test_loud_acts_are_seen_by_everyone_quiet_ones_by_few(self):
         conn = fresh()
-        everyone = {r[0] for r in conn.execute("SELECT id FROM people")}
+        everyone = {r[0] for r in conn.execute("SELECT id FROM people WHERE status <> 'inactive'")} - {"dog"}  # people notice; animals sense
         self.assertEqual(set(noticers(conn, "apartment", 100, "x", LOUD)), everyone)
         quiet = [len(noticers(conn, "apartment", t, "x", QUIET)) for t in range(100, 140)]
         self.assertLess(sum(quiet) / len(quiet), 4)
@@ -145,7 +145,10 @@ class SeedLayerTests(unittest.TestCase):
         kinds = {(r[0], r[1]) for r in conn.execute(
             f"SELECT entity_type, field FROM event_deltas WHERE event_id IN ({','.join(map(str, seeds))})")}
         for etype, field in kinds:
-            self.assertIn(etype, ("var", "object"), (etype, field))
+            self.assertIn(etype, ("var", "object", "person"), (etype, field))
+        people = {(r[0], r[1]) for r in conn.execute(
+            f"SELECT entity_id, field FROM event_deltas WHERE entity_type = 'person' AND event_id IN ({','.join(map(str, seeds))})")}
+        self.assertTrue(people <= {("dog", "status"), ("dog", "location_id")}, people)  # only an animal turning up
         for etype, field in kinds:
             if etype == "var":
                 self.assertTrue(field == "value")

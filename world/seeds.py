@@ -58,7 +58,7 @@ def _adapt_topic(ev: ExternalEvent) -> tuple[str, list[str], list[SeedEffect]] |
         "exotic_pet_escape": ("stimulus", ["animals", "food"], [
             SeedEffect("place_object", key="parrot", at="cafe"),
             _news("咖啡店飛進來一隻鸚鵡，老闆把牠留下了，牠什麼話都學")]),
-        "stray_animals": ("opportunity", ["animals", "social"], [SeedEffect("place_object", key="dog", at="park")]),
+        "stray_animals": ("opportunity", ["animals", "social"], [SeedEffect("animal_arrives", key="dog", at="park")]),
     }
     return table.get(ev.topic)
 
@@ -86,7 +86,7 @@ def check_effects(effects: list[SeedEffect]) -> None:
             raise ValueError(f"a seed may not set {e.key!r}")
         if e.op == "news" and e.audience not in AUDIENCES:
             raise ValueError(f"unknown audience {e.audience!r}")
-        if e.op not in ("set_var", "place_object", "deliver_object", "set_object_value", "news"):
+        if e.op not in ("set_var", "place_object", "deliver_object", "set_object_value", "news", "animal_arrives"):
             raise ValueError(f"op {e.op!r} is not in the closed vocabulary")
 
 
@@ -114,6 +114,10 @@ def adapt(conn: sqlite3.Connection, ev: ExternalEvent) -> SeedCandidate:
                 "place_object", "deliver_object", "set_object_value") else None
             if e.op in ("place_object", "deliver_object") and (row is None or row[0] != "offstage"):
                 status, reason = "rejected", f"{e.key} is already in the town"
+            if e.op == "animal_arrives":
+                animal = conn.execute("SELECT status FROM people WHERE id = ?", (e.key,)).fetchone()
+                if animal is None or animal[0] != "inactive":
+                    status, reason = "rejected", f"{e.key} is already in the town"
             if e.op == "set_object_value" and (row is None or row[0] != "normal"):
                 status, reason = "rejected", f"{e.key} is not in the town"
     return _finish(SeedCandidate(f"seed-{ev.external_event_id}", ev.external_event_id, seed_type, relevance, domains,
@@ -129,8 +133,14 @@ def _audience(conn: sqlite3.Connection, audience: str) -> list[str]:
     if audience == "workers":
         return [r[0] for r in conn.execute("SELECT id FROM people WHERE schedule LIKE '%\"work\"%' ORDER BY id")]
     if audience.startswith("at_"):
-        return [r[0] for r in conn.execute("SELECT id FROM people WHERE location_id = ? ORDER BY id", (audience[3:],))]
-    return [r[0] for r in conn.execute("SELECT id FROM people ORDER BY id")]
+        return [p for p in humans(conn) if conn.execute("SELECT location_id FROM people WHERE id = ?", (p,)).fetchone()[0] == audience[3:]]
+    return humans(conn)
+
+
+def humans(conn: sqlite3.Connection) -> list[str]:
+    return [r[0] for r in conn.execute(
+        "SELECT p.id FROM people p LEFT JOIN personas s ON s.person_id = p.id "
+        "WHERE COALESCE(json_extract(s.traits, '$.species'), 'human') = 'human' ORDER BY p.id")]
 
 
 def effect_changes(conn: sqlite3.Connection, c: SeedCandidate, day: int, now: int) -> tuple[list[Change], list[MemorySpec], dict]:
@@ -150,13 +160,15 @@ def effect_changes(conn: sqlite3.Connection, c: SeedCandidate, day: int, now: in
         elif e.op == "place_object":
             changes += [Change("object", e.key, "status", value="normal"), Change("object", e.key, "location_id", value=e.at)]
         elif e.op == "deliver_object":
-            people = [r[0] for r in conn.execute("SELECT id FROM people ORDER BY id")]
+            people = humans(conn)
             holder = rng.choice(people)
             rightful = rng.choice([p for p in people if p != holder])
             picks.update(holder=holder, rightful=rightful)
             changes += [Change("object", e.key, "status", value="normal"),
                         Change("object", e.key, "owner_person_id", value=holder),
                         Change("object", e.key, "rightful_owner_id", value=rightful)]
+        elif e.op == "animal_arrives":  # a stray turns up; what it does from here is its own affair
+            changes += [Change("person", e.key, "status", value="active"), Change("person", e.key, "location_id", value=e.at)]
         elif e.op == "set_object_value":
             cur = conn.execute("SELECT value_cents FROM objects WHERE id = ?", (e.key,)).fetchone()[0]
             if int(e.value) != cur:

@@ -49,6 +49,28 @@ def parrot_events(conn: sqlite3.Connection, now: int) -> list[EventSpec]:
     return out
 
 
+def feed_animals(conn: sqlite3.Connection, now: int) -> list[EventSpec]:
+    """An animal that has attached itself to someone is fed by them: it costs them, and binds it closer."""
+    from world.animals import animal_ids, keeper
+    out = []
+    for a in sorted(animal_ids(conn)):
+        if conn.execute("SELECT status FROM people WHERE id = ?", (a,)).fetchone()[0] == "inactive":
+            continue
+        k = keeper(conn, a)
+        if k is None:
+            continue
+        money = conn.execute("SELECT money_cents FROM people WHERE id = ?", (k,)).fetchone()[0]
+        cost = min(money, DOG_FOOD_CENTS)
+        aff = conn.execute("SELECT affection FROM relationships WHERE actor_id = ? AND target_id = ?", (a, k)).fetchone()[0]
+        changes = [Change("relationship", f"{a}:{k}", "affection", delta=round(min(1.0, aff + 0.05) - aff, 6))]
+        if cost:
+            changes.append(Change("person", k, "money_cents", delta=-cost))
+        out.append(EventSpec(timestamp=now, type="feed_pet", trigger_type="rule", location_id=None, importance=0.05,
+                             truth={"actor": k, "object": a, "cost_cents": cost}, participants=[(k, "actor"), (a, "target")],
+                             changes=[c for c in changes if c.delta]))
+    return out
+
+
 def overnight(conn: sqlite3.Connection, pid: str, now: int) -> list[EventSpec]:
     """Props a person holds that do something overnight."""
     out = []

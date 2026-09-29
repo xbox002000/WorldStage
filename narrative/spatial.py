@@ -86,10 +86,13 @@ def _free_spots(loc: str, used: set[str]) -> list[str]:
     return [k for k in seats + lay["stand"] if k not in used]
 
 
-def stage_beat(index: int, beat: Beat) -> BeatStaging:
+ANIMAL_HEIGHT = 0.5
+
+
+def stage_beat(index: int, beat: Beat, animals: set[str] = frozenset()) -> BeatStaging:
     loc = beat.location.id if beat.location.id in LAYOUTS else "cafe"
     principals = [p.id for p in beat.participants if p.role in PRINCIPAL_ROLES][:2]
-    witnesses = [p.id for p in beat.participants if p.role == "witness" and p.id not in principals]
+    witnesses = [p.id for p in beat.participants if p.role in ("witness", "sensed") and p.id not in principals]
     loud = beat.event_type in LOUD or beat.variant == "hostile"
     placements: list[Placement] = []
     used: set[str] = set()
@@ -97,7 +100,8 @@ def stage_beat(index: int, beat: Beat) -> BeatStaging:
     def place(pid: str, anchor: str, face: list[float] | None, pose: str) -> Placement:
         x, y, yaw = _anchor(loc, anchor)
         pos = [x, y, 0.0]
-        p = Placement(pid, anchor, pos, _yaw(pos, face) if face else yaw, pose, SEATED_HEIGHT if pose == "sit" else 1.7)
+        height = ANIMAL_HEIGHT if pid in animals else SEATED_HEIGHT if pose == "sit" else 1.7
+        p = Placement(pid, anchor, pos, _yaw(pos, face) if face else yaw, "stand" if pid in animals else pose, height)
         placements.append(p)
         used.add(anchor)
         return p
@@ -138,7 +142,7 @@ def stage_beat(index: int, beat: Beat) -> BeatStaging:
 
     checks = [SightCheck(w.id, actor.id, True, not blocker(_head(w), _chest(actor), objects),
                          blocker(_head(w), _chest(actor), objects))
-              for w in placements if actor and w.id in witnesses]
+              for w in placements if actor and w.id in witnesses and w.id != actor.id]
     cameras = _cameras(loc, placements, principals, beat, focus, objects)
     for i, cam in enumerate(cameras):
         for s in cam.subjects:
@@ -204,7 +208,8 @@ def _cameras(loc: str, placements: list[Placement], principals: list[str], beat:
 
 
 def compile_spatial(spec: SceneSpec) -> SpatialPlan:
-    beats = [stage_beat(i, b) for i, b in enumerate(spec.beats)]
+    animals = {pid for pid, p in spec.characters.items() if p.asset_id.startswith("animal_")}
+    beats = [stage_beat(i, b, animals) for i, b in enumerate(spec.beats)]
     problems = [f"beat {s.beat_index}: {c.observer} cannot see {c.subject} (blocked by {c.blocked_by})"
                 for s in beats for c in s.checks if c.required and not c.visible]
     locations = sorted({s.location for s in beats})
