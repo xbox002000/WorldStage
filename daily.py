@@ -37,10 +37,12 @@ def main() -> int:
         use_llm=args.llm, model=args.model, max_calls=args.max_calls, min_interval=args.min_interval,
         use_openrouter=not args.no_fallback, active_ids=tuple(args.active.split(",")), experiment=args.experiment,
         orientation="landscape" if args.landscape else "portrait", quality=args.quality, render=not args.dry_run)
-    for r in run_daily(cfg):
+    def show(r) -> None:
         e = r.episode
         print(f"day {r.sim_day + 1}: {r.status}" + (f" | {e.title} | qa={e.qa_status} | {e.video}" if e else "")
-              + f" | llm calls={r.usage['llm_calls']} failures={r.usage['llm_failures']}")
+              + f" | llm calls={r.usage['llm_calls']} failures={r.usage['llm_failures']}", flush=True)
+
+    run_daily(cfg, on_day=show)
     return 0
 
 

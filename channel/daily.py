@@ -111,7 +111,8 @@ def _usage(client, decider, sim: Simulation) -> dict:
 
 
 def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] | None = None,
-              sleep: Callable[[float], None] = time.sleep) -> list[DayResult]:
+              sleep: Callable[[float], None] = time.sleep,
+              on_day: Callable[[DayResult], None] | None = None) -> list[DayResult]:
     live = Path(cfg.world_db)
     if not live.exists():
         if not cfg.init:
@@ -123,7 +124,12 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
     try:
         if cfg.experiment:
             _freeze(cfg, live, conn)
-        return [_one_day(cfg, live, conn, client_factory) for _ in range(cfg.days)]
+        results = []
+        for _ in range(cfg.days):
+            results.append(_one_day(cfg, live, conn, client_factory))
+            if on_day:
+                on_day(results[-1])  # progress is visible as each day completes, not only at the very end
+        return results
     finally:
         conn.close()
 
