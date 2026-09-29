@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from contracts.base import from_dict
 from contracts.scene_spec import SceneSpec
-from narrative.arcs import EXPOSED, Arc, load_events
+from narrative.arcs import EXPOSED, Arc, Ev, load_events
 from narrative.continuity import connects
 from narrative.scorer import unresolved_tension
 from production import db as prod
@@ -16,9 +16,11 @@ from world.explain import causes
 from world.state import audit
 
 FLAT_TENSION = 0.6  # an ending at least this unresolved leaves viewers hanging: the episode is not flat
+STRONG_SWING = 0.25  # a trust flip smaller than this is a crossing of zero, not a reversal viewers can feel
 LATE_FROM_DAY = 5  # 0-based: days 6 and 7 of a week
 WARM_LIMIT = 0.6
 FLAT_LIMIT = 2 / 7
+DRAMATIC = ("tell", "confront", "steal")
 
 
 @dataclass(frozen=True)
@@ -57,7 +59,32 @@ def warm_tone_ratio(world: sqlite3.Connection) -> float | None:
     return tones.get("warm", 0) / total if total else None
 
 
+def decision_mix(world: sqlite3.Connection) -> dict[str, dict[str, int]]:
+    """Who produced which social events: {"model": {type: n}, "seeded": {type: n}}. Scripted routine (move, eat,
+    work) is left out. The point: drama that only the random background produces is not the characters' doing."""
+    mix: dict[str, dict[str, int]] = {"model": {}, "seeded": {}}
+    for r in world.execute(
+            "SELECT type, COALESCE(json_extract(truth, '$.source'), '') AS src, COUNT(*) AS n FROM events "
+            "WHERE type IN ('talk', 'tell', 'confront', 'steal') AND trigger_type = 'decision' "
+            "GROUP BY type, src ORDER BY type"):
+        who = "model" if r["src"] else "seeded"
+        mix[who][r["type"]] = mix[who].get(r["type"], 0) + r["n"]
+    return mix
+
+
+def model_drama_share(world: sqlite3.Connection) -> float | None:
+    """Share of the social events a model decided that are a tell, a confront or a steal (talk is the rest)."""
+    model = decision_mix(world)["model"]
+    total = sum(model.values())
+    return sum(model.get(t, 0) for t in DRAMATIC) / total if total else None
+
+
 # -- episodes --------------------------------------------------------------------------------------------------------
+def strong_flip(ev: Ev) -> bool:
+    """Trust changed sign and moved by a real amount, not +0.06 to -0.06."""
+    return ev.flipped and ev.trust_shift >= STRONG_SWING
+
+
 def _arc(events: dict, row: EpisodeRow) -> Arc:
     evs = tuple(events[i] for i in row.spec.source.source_event_ids if i in events)
     return Arc(evs, events[row.spec.peak_event_id], row.arc_kind)
@@ -66,11 +93,13 @@ def _arc(events: dict, row: EpisodeRow) -> Arc:
 def episode_flags(events: dict, row: EpisodeRow) -> dict:
     beats = row.spec.beats
     flip = any(b.trust_flipped for b in beats)
+    strong = any(strong_flip(events[b.event_id]) for b in beats if b.event_id in events)
     exposure = any(b.event_type == "confront" and b.variant in EXPOSED for b in beats)
     unresolved = unresolved_tension(_arc(events, row), events) >= FLAT_TENSION
     goal_change = False  # V0 has no goal-changing mechanic; recorded so the definition stays complete
-    return {"flip": flip, "exposure": exposure, "goal_change": goal_change, "unresolved": unresolved,
-            "flat": not (flip or exposure or goal_change or unresolved)}
+    return {"flip": flip, "strong_flip": strong, "exposure": exposure, "goal_change": goal_change, "unresolved": unresolved,
+            "flat": not (flip or exposure or goal_change or unresolved),
+            "flat_strict": not (strong or exposure or goal_change or unresolved)}
 
 
 def flat_episode_ratio(world: sqlite3.Connection, rows: list[EpisodeRow]) -> tuple[float | None, list[dict]]:
@@ -142,6 +171,8 @@ def acceptance(world: sqlite3.Connection, conn: sqlite3.Connection, *, experimen
     rows = episodes(conn)
     warm = warm_tone_ratio(world)
     flat, flags = flat_episode_ratio(world, rows)
+    flat_strict = (sum(f["flat_strict"] for f in flags) / len(flags)) if flags else None
+    drama = model_drama_share(world)
     cont = continuity_report(world, rows)
     reached, late_total = late_trace(world)
     qa = conn.execute("SELECT COUNT(*) FROM episodes e JOIN takes t USING (take_id) JOIN qa_results q USING (take_id) "
@@ -153,6 +184,10 @@ def acceptance(world: sqlite3.Connection, conn: sqlite3.Connection, *, experimen
         "episodes_passed_qa": _check(qa, qa >= len(rows) > 0, "all"),
         "warm_tone_ratio": _check(warm, (warm < WARM_LIMIT) if warm is not None else None, f"< {WARM_LIMIT}"),
         "flat_episode_ratio": _check(flat, (flat <= FLAT_LIMIT + 1e-9) if flat is not None else None, f"<= {FLAT_LIMIT:.3f}"),
+        # Same test with a flip only counting when trust swings by STRONG_SWING or more.
+        "flat_episode_ratio_strict": _check(flat_strict, (flat_strict <= FLAT_LIMIT + 1e-9) if flat_strict is not None else None,
+                                            f"<= {FLAT_LIMIT:.3f}"),
+        "model_drama_share": _check(drama, None, "informational: model-decided tell/confront/steal share"),
         "lie_chain_in_an_episode": _check(chains, bool(chains), ">= 1 episode"),
         "continuity": _check(sum(c["connected"] for c in cont), all(c["connected"] for c in cont) if cont else None,
                              f"{len(cont)} of {len(cont)} follow-ups connected"),
@@ -163,6 +198,7 @@ def acceptance(world: sqlite3.Connection, conn: sqlite3.Connection, *, experimen
         "replay_identical": _check(replay_ok, replay_ok, "same world from the recorded answers"),
     }
     return {"checks": checks, "flags": flags, "continuity": cont, "usage": use, "llm_talk_tones": llm_talk_tones(world),
+            "decision_mix": decision_mix(world),
             "passed": all(c["passed"] for c in checks.values() if c["passed"] is not None),
             "not_evaluated": sorted(k for k, c in checks.items() if c["passed"] is None)}
 
@@ -172,9 +208,11 @@ def format_report(result: dict) -> str:
     for name, c in result["checks"].items():
         mark = "  n/a" if c["passed"] is None else (" PASS" if c["passed"] else " FAIL")
         lines.append(f"{mark}  {name:36} {c['value']!s:34} target {c['target']}")
-    lines += ["", f"LLM talk tones: {result['llm_talk_tones']}", f"Usage: {result['usage']}"]
+    lines += ["", f"LLM talk tones: {result['llm_talk_tones']}", f"Who decided what: {result['decision_mix']}",
+              f"Usage: {result['usage']}"]
     lines.append("Episode flags: " + "; ".join(
-        f"#{f['episode_id']} flip={int(f['flip'])} exposed={int(f['exposure'])} unresolved={int(f['unresolved'])} flat={int(f['flat'])}"
+        f"#{f['episode_id']} flip={int(f['flip'])} strong={int(f['strong_flip'])} exposed={int(f['exposure'])} "
+        f"unresolved={int(f['unresolved'])} flat={int(f['flat'])} strict={int(f['flat_strict'])}"
         for f in result["flags"]))
     lines.append("RESULT: " + ("all evaluated checks passed" if result["passed"] else "some checks failed")
                  + (f" (not evaluated: {', '.join(result['not_evaluated'])})" if result["not_evaluated"] else ""))

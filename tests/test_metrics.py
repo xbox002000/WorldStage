@@ -7,15 +7,16 @@ from pathlib import Path
 
 from narrative.selector import rank_arcs
 from production import db as prod
-from production.metrics import (LATE_FROM_DAY, acceptance, continuity_report, episode_flags, episodes, flat_episode_ratio,
-                                format_report, has_lie_chain, late_trace, llm_talk_tones, usage, warm_tone_ratio)
+from production.metrics import (LATE_FROM_DAY, acceptance, continuity_report, decision_mix, episode_flags, episodes,
+                                flat_episode_ratio, format_report, has_lie_chain, late_trace, llm_talk_tones,
+                                model_drama_share, strong_flip, usage, warm_tone_ratio)
 from production.pipeline import make_episodes
 from tests.helpers import social_world
 from tests.test_series import lie_story
 from tests.test_social import STOLE, cid, do, told_memory
 from world.events import Change, EventSpec, apply_event
 from world.intent import Intent
-from narrative.arcs import load_events
+from narrative.arcs import Ev, load_events
 
 
 def make(world, conn, cands):
@@ -39,6 +40,35 @@ class ToneTests(unittest.TestCase):
         conn = social_world()
         do(conn, 10, Intent("john", "talk", "mary", "warm"))
         self.assertIsNone(warm_tone_ratio(conn))
+
+
+class DecisionMixTests(unittest.TestCase):
+    def test_the_model_and_the_random_background_are_counted_apart(self):
+        conn = social_world()
+        do(conn, 10, Intent("tom", "steal", "phone", source="m"))
+        do(conn, 11, Intent("john", "talk", "mary", "warm", source="m"))
+        do(conn, 12, Intent("john", "talk", "mary", "cold", source="m"))
+        do(conn, 13, Intent("mary", "talk", "john", "warm"))
+        self.assertEqual(decision_mix(conn), {"model": {"steal": 1, "talk": 2}, "seeded": {"talk": 1}})
+        self.assertAlmostEqual(model_drama_share(conn), 1 / 3)
+
+    def test_a_model_that_only_talks_has_no_drama_share_and_no_model_means_none(self):
+        conn = social_world()
+        do(conn, 10, Intent("john", "talk", "mary", "warm"))
+        self.assertIsNone(model_drama_share(conn))
+        do(conn, 11, Intent("john", "talk", "mary", "cold", source="m"))
+        self.assertEqual(model_drama_share(conn), 0.0)
+
+
+class FlipStrengthTests(unittest.TestCase):
+    @staticmethod
+    def ev(flipped, shift):
+        return Ev(1, 0, "talk", "cafe", None, 0.5, {}, (), shift, flipped)
+
+    def test_a_flip_counts_as_a_reversal_only_when_trust_really_moves(self):
+        self.assertFalse(strong_flip(self.ev(True, 0.12)))  # +0.06 to -0.06 is a crossing of zero
+        self.assertTrue(strong_flip(self.ev(True, 0.35)))
+        self.assertFalse(strong_flip(self.ev(False, 0.60)))  # a big move that keeps the sign is not a flip
 
 
 class EpisodeFlagTests(unittest.TestCase):
@@ -143,7 +173,8 @@ class AcceptanceTests(unittest.TestCase):
         make(world, conn, [incident_candidates(world, exclude=set(cand_a.arc.ids))[0]])
         result = acceptance(world, conn, days=2, replay_ok=True)
         self.assertEqual(set(result["checks"]), {
-            "episodes_produced", "episodes_passed_qa", "warm_tone_ratio", "flat_episode_ratio", "lie_chain_in_an_episode",
+            "episodes_produced", "episodes_passed_qa", "warm_tone_ratio", "flat_episode_ratio", "flat_episode_ratio_strict",
+            "model_drama_share", "lie_chain_in_an_episode",
             "continuity", "late_decisions_traceable_to_day_1", "world_audit", "llm_failures", "replay_identical"})
         self.assertTrue(result["checks"]["episodes_produced"]["passed"])
         self.assertFalse(result["checks"]["episodes_passed_qa"]["passed"])  # nothing was rendered in this test
