@@ -20,7 +20,8 @@ SceneSpec ──(+ StylePack)──▶ ProductionPacket ──▶ RenderRequest 
 | `production/` | `production.db`, provenance tracing, deterministic QA, pipeline, series memory, experiment freeze, metrics. Read-only towards the world |
 | `channel/` | the daily job and the replay check: the only place that drives both the world (on a copy) and production |
 | `audio/` | deterministic synthesised score and effects |
-| `render/` | packet → HyperFrames project, local render backend |
+| `capability/` | provider registry and selection, composition root (`defaults.py`), MCP client/adapter and a demo MCP server |
+| `render/` | providers: HyperFrames and ffmpeg composition, mock video clips, whitebox depth/mask from the SpatialPlan |
 | `tests/` | `python -m unittest discover -s tests -t .` |
 
 ## Commands
@@ -29,12 +30,16 @@ SceneSpec ──(+ StylePack)──▶ ProductionPacket ──▶ RenderRequest 
 .venv/Scripts/python run_sim.py --days 7 --db out/world.db          # no LLM
 .venv/Scripts/python run_sim.py --llm --days 7 --db out/world.db    # Gemini for the active tier
 .venv/Scripts/python produce.py --world out/world.db --top 3        # episodes -> out/episodes/
+.venv/Scripts/python produce.py --world out/world.db --route shots --mcp --prefer mcp:visual-mock   # shot providers via MCP
 .venv/Scripts/python -m contracts.generate_schemas                  # after changing a contract
 ```
+
+Architecture decisions: `docs/architecture/`.
 
 ## Rules that must keep holding
 
 - Nothing outside `world.events.apply_event` changes the world; production code only holds read-only connections.
+- Production code names capabilities, never tools: providers come from `capability/defaults.py`.
 - All randomness comes from `world/rng.py`; queries that affect state have `ORDER BY`.
 - Truth (`event_claims`), character belief (`memories`) and audience belief are different things over the same claims.
 - Changing anything in `RULESET_FILES` changes `ruleset_hash`; changing a contract needs its schema regenerated.

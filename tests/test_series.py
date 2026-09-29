@@ -252,7 +252,10 @@ class SeriesTests(unittest.TestCase):
             upgraded = prod.open_production_db(path)
             cols = {r["name"] for r in upgraded.execute("PRAGMA table_info(episodes)")}
             self.assertTrue({"sim_day", "arc_kind", "score", "continuity_json", "qa_status", "recap"} <= cols)
-            self.assertEqual(upgraded.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0], "2")
+            self.assertEqual(upgraded.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()[0],
+                             str(prod.SCHEMA_VERSION))
+            tables = {r[0] for r in upgraded.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+            self.assertTrue({"provider_selections", "visual_failures", "repair_requests"} <= tables)  # v3
             upgraded.close()
 
 

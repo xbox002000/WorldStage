@@ -29,7 +29,11 @@ class McpStdioClient:
         self._next = 0
         self.server_info: dict = {}
         self.tools: dict[str, dict] = {}
-        self._handshake()
+        try:
+            self._handshake()
+        except BaseException:
+            self.close()
+            raise
 
     def _pump(self) -> None:
         for line in self.proc.stdout:
@@ -86,9 +90,14 @@ class McpStdioClient:
         return json.loads(text) if text else {}
 
     def close(self) -> None:
-        if self.proc.poll() is None:
-            self.proc.stdin.close()
-            try:
-                self.proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.proc.kill()
+        try:
+            self.proc.stdin.close()  # a well-behaved server exits when its input ends
+        except OSError:
+            pass
+        try:
+            self.proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
+            self.proc.wait()
+        for stream in (self.proc.stdout, self.proc.stderr):
+            stream.close()
