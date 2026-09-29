@@ -1,0 +1,208 @@
+from __future__ import annotations
+
+import json
+import os
+import time
+from typing import Callable
+
+DEFAULT_MODEL = "gemini-3.5-flash-lite"
+RETRYABLE = {429, 500, 503, 504}
+
+
+class BudgetExceeded(RuntimeError):
+    pass
+
+
+def load_api_key(*names: str) -> str:
+    """Process environment first, then the Windows user environment (setx does not reach running apps)."""
+    names = names or ("GEMINI_API_KEY", "GOOGLE_API_KEY")
+    for name in names:
+        if os.environ.get(name):
+            return os.environ[name]
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+            for name in names:
+                try:
+                    return winreg.QueryValueEx(k, name)[0]
+                except FileNotFoundError:
+                    continue
+    except (ImportError, OSError):
+        pass
+    raise RuntimeError(f"{' / '.join(names)} is not set")
+
+
+def has_api_key(*names: str) -> bool:
+    try:
+        return bool(load_api_key(*names))
+    except RuntimeError:
+        return False
+
+
+def _gemini_backend(model: str) -> Callable[[str, dict, float], str]:
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=load_api_key("GEMINI_API_KEY", "GOOGLE_API_KEY"))
+
+    def call(prompt: str, schema: dict, temperature: float) -> str:
+        resp = client.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json", response_json_schema=schema, temperature=temperature
+            ),
+        )
+        return resp.text
+
+    return call
+
+
+class LLMClient:
+    """Structured-JSON calls with retry/backoff, a request-rate floor and a hard call budget."""
+
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        *,
+        max_calls: int | None = None,
+        min_interval: float = 4.0,
+        retries: int = 5,
+        backend: Callable[[str, dict, float], str] | None = None,
+        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.model = model
+        self.max_calls = max_calls
+        self.min_interval = min_interval
+        self.retries = retries
+        self._backend = backend
+        self._sleep = sleep
+        self._clock = clock
+        self._last = -1e9
+        self.calls = 0  # every attempt counts against quota
+        self.failures = 0
+
+    def generate_json(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict:
+        if self._backend is None:
+            self._backend = _gemini_backend(self.model)
+        for attempt in range(self.retries + 1):
+            if self.max_calls is not None and self.calls >= self.max_calls:
+                raise BudgetExceeded(f"call budget of {self.max_calls} reached")
+            wait = self._last + self.min_interval - self._clock()
+            if wait > 0:
+                self._sleep(wait)
+            self._last = self._clock()
+            self.calls += 1
+            try:
+                return json.loads(self._backend(prompt, schema, temperature))
+            except Exception as e:  # noqa: BLE001 - SDK raises its own error types
+                code = getattr(e, "code", None)
+                retryable = code in RETRYABLE or isinstance(e, json.JSONDecodeError)
+                self.failures += 1
+                if not retryable or attempt == self.retries:
+                    raise
+                self._sleep(min(60.0, 2.0 ** attempt * 2))
+        raise AssertionError("unreachable")
+
+
+class HttpError(Exception):
+    def __init__(self, code: int, body: str) -> None:
+        super().__init__(f"HTTP {code}: {body}")
+        self.code = code
+
+
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Free models, in the order they are tried after Gemini. `structured` = accepts a JSON schema.
+OPENROUTER_FALLBACKS = (
+    ("nvidia/nemotron-3-super-120b-a12b:free", True),
+    ("google/gemma-4-31b-it:free", False),
+)
+
+
+def _openrouter_backend(model: str, structured: bool) -> Callable[[str, dict, float], str]:
+    import httpx
+
+    key = load_api_key("OPENROUTER_API_KEY")
+
+    def call(prompt: str, schema: dict, temperature: float) -> str:
+        if structured:
+            fmt = {"type": "json_schema", "json_schema": {"name": "intent", "strict": True, "schema": schema}}
+            content = prompt
+        else:
+            fmt = {"type": "json_object"}
+            content = prompt + "\n\nReturn only a JSON object matching this JSON Schema:\n" + json.dumps(schema)
+        r = httpx.post(
+            OPENROUTER_URL,
+            headers={"Authorization": f"Bearer {key}"},
+            json={"model": model, "temperature": temperature, "response_format": fmt,
+                  "messages": [{"role": "user", "content": content}]},
+            timeout=90,
+        )
+        if r.status_code >= 400:
+            raise HttpError(r.status_code, r.text[:200])
+        return r.json()["choices"][0]["message"]["content"]
+
+    return call
+
+
+class FallbackClient:
+    """Tries clients in order; one that fails or runs out of budget is skipped for a cooldown.
+
+    The first client is retried again after the cooldown, so the preferred model comes back on its own.
+    """
+
+    def __init__(self, clients: list[LLMClient], cooldown: float = 300.0,
+                 clock: Callable[[], float] = time.monotonic) -> None:
+        self.clients = clients
+        self.cooldown = cooldown
+        self._clock = clock
+        self._blocked_until: dict[int, float] = {}
+        self.last_model = clients[0].model
+        self.switches = 0
+
+    @property
+    def calls(self) -> int:
+        return sum(c.calls for c in self.clients)
+
+    @property
+    def failures(self) -> int:
+        return sum(c.failures for c in self.clients)
+
+    @property
+    def model(self) -> str:
+        return self.last_model
+
+    def generate_json(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict:
+        last_error: Exception | None = None
+        for i, client in enumerate(self.clients):
+            if self._blocked_until.get(i, -1.0) > self._clock():
+                continue
+            try:
+                result = client.generate_json(prompt, schema, temperature)
+            except BudgetExceeded as e:
+                self._blocked_until[i] = float("inf")
+                last_error = e
+            except Exception as e:  # noqa: BLE001
+                self._blocked_until[i] = self._clock() + self.cooldown
+                last_error = e
+            else:
+                if client.model != self.last_model:
+                    self.switches += 1
+                self.last_model = client.model
+                return result
+        raise last_error or RuntimeError("all models are unavailable")
+
+
+def build_chain(gemini_model: str = DEFAULT_MODEL, *, max_calls: int | None = None, min_interval: float = 4.0,
+                use_openrouter: bool = True, openrouter_max_calls: int | None = None) -> FallbackClient:
+    """Gemini first, then OpenRouter free models when an OPENROUTER_API_KEY is available."""
+    clients = [LLMClient(gemini_model, max_calls=max_calls, min_interval=min_interval)]
+    if use_openrouter and has_api_key("OPENROUTER_API_KEY"):
+        for model, structured in OPENROUTER_FALLBACKS:
+            clients.append(LLMClient(
+                model, max_calls=openrouter_max_calls, min_interval=min_interval, retries=2,
+                backend=_openrouter_backend(model, structured),
+            ))
+    return FallbackClient(clients)

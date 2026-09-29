@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+vendor/
+Other/
+*.db
+*.db-wal
+*.db-shm
+tools/
+render/node_modules/
+render/projects/
+render/renders/
+out/
