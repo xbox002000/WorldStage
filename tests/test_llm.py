@@ -195,5 +195,69 @@ class OpenRouterBackendTests(unittest.TestCase):
         self.assertIn(502, RETRYABLE)
 
 
+class DailyQuotaTests(unittest.TestCase):
+    class Api429(Exception):
+        code = 429
+
+    PER_DAY = "429 RESOURCE_EXHAUSTED quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier"
+    PER_MINUTE = "429 RESOURCE_EXHAUSTED quotaId: GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+
+    def test_only_a_per_day_429_counts_as_a_used_up_quota(self):
+        from agent.llm import _daily_quota_hit
+
+        self.assertTrue(_daily_quota_hit(self.Api429(self.PER_DAY)))
+        self.assertFalse(_daily_quota_hit(self.Api429(self.PER_MINUTE)))  # that one clears within a minute
+
+        class Overloaded(Exception):
+            code = 503
+
+        self.assertFalse(_daily_quota_hit(Overloaded("PerDay")))
+
+    def test_the_gemini_backend_reports_a_used_up_day_as_quota_exhausted(self):
+        from unittest import mock
+
+        from agent import llm
+
+        class Models:
+            def generate_content(self, **kw):
+                raise DailyQuotaTests.Api429(DailyQuotaTests.PER_DAY)
+
+        class FakeClient:
+            def __init__(self, **kw):
+                self.models = Models()
+
+        with mock.patch.object(llm, "load_api_key", return_value="k"), mock.patch("google.genai.Client", FakeClient):
+            with self.assertRaises(llm.QuotaExhausted):
+                llm._gemini_backend("gemini-x")("p", {}, 0.5)
+
+    def test_a_used_up_model_is_not_retried_and_stays_skipped_for_the_run(self):
+        from agent.llm import FallbackClient, QuotaExhausted
+
+        calls = []
+
+        def spent(*a):
+            calls.append(1)
+            raise QuotaExhausted("gemini-x: the free daily quota is used up")
+
+        now = [0.0]
+        clients = [
+            LLMClient("m0", backend=spent, min_interval=0, retries=3, sleep=lambda s: None, clock=lambda: now[0]),
+            LLMClient("m1", backend=lambda *a: '{"from": "second"}', min_interval=0, retries=0, sleep=lambda s: None,
+                      clock=lambda: now[0]),
+        ]
+        chain = FallbackClient(clients, cooldown=1.0, clock=lambda: now[0])
+        self.assertEqual(chain.generate_json("p", {}), {"from": "second"})
+        now[0] = 10_000  # far past any cooldown: a used-up day does not come back on its own
+        self.assertEqual(chain.generate_json("p", {}), {"from": "second"})
+        self.assertEqual(len(calls), 1)  # one attempt, no retries, never asked again
+
+    def test_a_comma_separated_model_names_a_chain_in_order(self):
+        from agent.llm import build_chain
+
+        chain = build_chain("gemini-3.5-flash, gemini-3.5-flash-lite", use_openrouter=False)
+        self.assertEqual([c.model for c in chain.clients], ["gemini-3.5-flash", "gemini-3.5-flash-lite"])
+        self.assertEqual([c.model for c in build_chain(use_openrouter=False).clients], ["gemini-3.5-flash-lite"])
+
+
 if __name__ == "__main__":
     unittest.main()

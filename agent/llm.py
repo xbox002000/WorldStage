@@ -15,6 +15,15 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class QuotaExhausted(BudgetExceeded):
+    """The provider's daily quota for this model is used up: asking again today is pointless, so the model is
+    skipped for the rest of the run instead of being retried."""
+
+
+def _daily_quota_hit(e: Exception) -> bool:
+    return getattr(e, "code", None) == 429 and "PerDay" in str(e)  # quotaId ...RequestsPerDayPerProjectPerModel...
+
+
 FAILED = "__failed__"  # a cache entry meaning "every model failed to answer this request"
 
 
@@ -56,13 +65,18 @@ def _gemini_backend(model: str) -> Callable[[str, dict, float], str]:
     client = genai.Client(api_key=load_api_key("GEMINI_API_KEY", "GOOGLE_API_KEY"))
 
     def call(prompt: str, schema: dict, temperature: float) -> str:
-        resp = client.models.generate_content(
-            model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json", response_json_schema=schema, temperature=temperature
-            ),
-        )
+        try:
+            resp = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json", response_json_schema=schema, temperature=temperature
+                ),
+            )
+        except Exception as e:  # noqa: BLE001 - SDK raises its own error types
+            if _daily_quota_hit(e):
+                raise QuotaExhausted(f"{model}: the free daily quota is used up") from e
+            raise
         return resp.text
 
     return call
@@ -269,7 +283,10 @@ def build_chain(gemini_model: str = DEFAULT_MODEL, *, max_calls: int | None = No
     In replay mode nothing is called, so the OpenRouter models are included whether or not a key exists.
     """
     cache_args = {"mode": mode, "cache": cache}
-    clients = [LLMClient(gemini_model, max_calls=max_calls, min_interval=min_interval, **cache_args)]
+    # `gemini_model` may be a comma-separated chain ("gemini-3.5-flash,gemini-3.5-flash-lite"): a model whose daily
+    # quota is used up hands over to the next one.
+    names = [m.strip() for m in gemini_model.split(",") if m.strip()] or [DEFAULT_MODEL]
+    clients = [LLMClient(m, max_calls=max_calls, min_interval=min_interval, **cache_args) for m in names]
     if use_openrouter and (mode == "replay" or has_api_key("OPENROUTER_API_KEY")):
         for model, structured in OPENROUTER_FALLBACKS:
             clients.append(LLMClient(
