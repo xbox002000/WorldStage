@@ -5,6 +5,8 @@ import sqlite3
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
+from contracts.claim import Claim
+from world.claims import claim_id
 from world.db import mutation
 from world.state import NUMERIC_INT, ENTITIES, WorldError, entity_key, read_entity, value_kind
 
@@ -20,11 +22,33 @@ class Change:
     value: Any = None
 
 
+SOURCE_TYPES = ("direct_observation", "told_by", "inference", "external_rumor")
+
+
 @dataclass(frozen=True)
 class MemorySpec:
+    """What one person now believes. `claim` is the structured belief; `belief` is prompt text only.
+
+    about_self: the belief is about the event being committed (the usual case). Otherwise about_event_id
+    names another event, or is None for a general belief, which must cite at least one source.
+    """
+
     observer_id: str
     belief: str
     confidence: float
+    claim: Claim | None = None
+    about_self: bool = True
+    about_event_id: int | None = None
+    source_type: str = "direct_observation"
+    source_id: str | None = None
+    derived_from_events: Sequence[int] = ()
+    derived_from_memories: Sequence[int] = ()
+
+
+@dataclass(frozen=True)
+class ClaimSpec:
+    claim: Claim
+    role: str = "truth"  # truth | asserted | withheld
 
 
 @dataclass(frozen=True)
@@ -39,6 +63,7 @@ class EventSpec:
     participants: Sequence[tuple[str, str]] = ()  # (person_id, role)
     changes: Sequence[Change] = ()
     memories: Sequence[MemorySpec] = ()
+    claims: Sequence[ClaimSpec] = ()
 
 
 def apply_event(conn: sqlite3.Connection, spec: EventSpec) -> int:
@@ -68,12 +93,37 @@ def apply_event(conn: sqlite3.Connection, spec: EventSpec) -> int:
         for (etype, eid), changes in by_entity.items():
             _apply_entity_changes(conn, event_id, etype, eid, changes)
 
-        for m in spec.memories:
+        for cs in spec.claims:
             conn.execute(
-                "INSERT INTO memories(observer_id, event_id, belief, confidence, created_at) VALUES (?,?,?,?,?)",
-                (m.observer_id, event_id, m.belief, m.confidence, spec.timestamp),
+                "INSERT INTO event_claims(event_id, claim_id, role) VALUES (?,?,?)",
+                (event_id, claim_id(conn, cs.claim), cs.role),
             )
+
+        for m in spec.memories:
+            _insert_memory(conn, event_id, spec.timestamp, m)
         return int(event_id)
+
+
+def _insert_memory(conn: sqlite3.Connection, event_id: int, timestamp: int, m: MemorySpec) -> None:
+    if m.source_type not in SOURCE_TYPES:
+        raise WorldError(f"unknown memory source type {m.source_type!r}")
+    if m.source_type == "told_by" and conn.execute("SELECT 1 FROM people WHERE id = ?", (m.source_id,)).fetchone() is None:
+        raise WorldError(f"told_by source {m.source_id!r} is not a person")
+    about = event_id if m.about_self else m.about_event_id
+    sources = [("memory", i) for i in m.derived_from_memories] + [("event", i) for i in m.derived_from_events]
+    if m.claim is not None and about is None and not sources:
+        raise WorldError("a general belief must cite at least one source")
+    cid = claim_id(conn, m.claim) if m.claim is not None else None
+    mid = conn.execute(
+        "INSERT INTO memories(observer_id, event_id, belief, confidence, created_at, claim_id, about_event_id, "
+        "source_type, source_id) VALUES (?,?,?,?,?,?,?,?,?)",
+        (m.observer_id, event_id, m.belief, m.confidence, timestamp, cid, about, m.source_type, m.source_id),
+    ).lastrowid
+    for kind, ref in sources:
+        conn.execute(
+            "INSERT INTO memory_sources(memory_id, derived_from_memory_id, derived_from_event_id) VALUES (?,?,?)",
+            (mid, ref if kind == "memory" else None, ref if kind == "event" else None),
+        )
 
 
 def _apply_entity_changes(

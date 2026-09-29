@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import json
-import random
 import sqlite3
 from dataclasses import replace
 
-from agent.llm import LLMClient
+from agent.llm import CacheMiss, LLMClient
 from agent.perception import candidates, observe
 from world.intent import TONES, Intent, parse_intent
+from world.rng import rng as make_rng
 
 INTENT_SCHEMA = {
     "type": "object",
@@ -68,6 +68,8 @@ class GeminiDecider:
             return None
         try:
             raw = self.client.generate_json(build_prompt(conn, actor), INTENT_SCHEMA)
+        except CacheMiss:
+            raise
         except Exception:  # noqa: BLE001 - a failed call must not stop the world
             self.errors += 1
             return None
@@ -84,7 +86,7 @@ class SeededDecider:
         self.act_probability = act_probability
 
     def decide(self, conn: sqlite3.Connection, actor: str, now: int) -> Intent | None:
-        rng = random.Random(f"{self.world_seed}:{now}:{actor}")
+        rng = make_rng(self.world_seed, now, actor, "ambient_choice")
         options = [c for c in candidates(conn, actor) if c["action"] != "idle"]
         if not options or rng.random() > self.act_probability:
             return None

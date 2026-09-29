@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import random
 import sqlite3
 
 from narrative.arcs import Ev
 from narrative.selector import Candidate
+from world.rng import rng as make_rng
 
 SPEC_VERSION = 1
 WEATHER = ("clear", "cloudy", "rain", "fog")
@@ -31,7 +31,7 @@ def _clock(ts: int) -> str:
 
 
 def _weather(world_seed: str, day: int) -> str:
-    return random.Random(f"{world_seed}:{day}:weather").choice(WEATHER)
+    return make_rng(world_seed, day, "world", "weather").choice(WEATHER)
 
 
 def _shot(conn: sqlite3.Connection, ev: Ev, names: dict[str, str], seed: str, index: int) -> dict:

@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Iterator
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
+MIGRATIONS_DIR = Path(__file__).with_name("migrations")
+SCHEMA_VERSION = 2
 
 
 def connect(path: str | Path = ":memory:") -> sqlite3.Connection:
@@ -19,10 +21,34 @@ def connect(path: str | Path = ":memory:") -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection, world_seed: int = 0) -> None:
+    """Create a fresh database at the current schema version."""
     conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
-    conn.execute(
-        "INSERT OR IGNORE INTO meta(key, value) VALUES ('world_seed', ?)", (str(world_seed),)
-    )
+    conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('world_seed', ?)", (str(world_seed),))
+    conn.execute("INSERT OR IGNORE INTO meta(key, value) VALUES ('schema_version', ?)", (str(SCHEMA_VERSION),))
+
+
+def schema_version(conn: sqlite3.Connection) -> int:
+    """Databases created before versioning existed are version 1."""
+    try:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    except sqlite3.OperationalError:
+        return 0
+    return int(row[0]) if row else 1
+
+
+def migrate(conn: sqlite3.Connection) -> int:
+    """Upgrade an existing database to SCHEMA_VERSION by applying world/migrations/vNNN.sql in order."""
+    version = schema_version(conn)
+    if version == 0:
+        raise RuntimeError("not a world database")
+    if version > SCHEMA_VERSION:
+        raise RuntimeError(f"database is version {version}, this code only knows {SCHEMA_VERSION}")
+    while version < SCHEMA_VERSION:
+        version += 1
+        sql = (MIGRATIONS_DIR / f"v{version:03d}.sql").read_text(encoding="utf-8")
+        conn.executescript("BEGIN;\n" + sql + "\nCOMMIT;")
+        conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('schema_version', ?)", (str(version),))
+    return version
 
 
 @contextmanager

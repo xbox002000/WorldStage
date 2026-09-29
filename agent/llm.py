@@ -5,12 +5,18 @@ import os
 import time
 from typing import Callable
 
+from agent.llm_cache import LLMCache, canonical_request, request_hash
+
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
 RETRYABLE = {429, 500, 503, 504}
 
 
 class BudgetExceeded(RuntimeError):
     pass
+
+
+class CacheMiss(RuntimeError):
+    """Replay mode asked for a request that was never recorded."""
 
 
 def load_api_key(*names: str) -> str:
@@ -72,7 +78,19 @@ class LLMClient:
         backend: Callable[[str, dict, float], str] | None = None,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
+        provider: str = "gemini",
+        mode: str = "live",
+        cache: LLMCache | None = None,
+        system_prompt: str = "",
     ) -> None:
+        if mode not in ("live", "record", "replay"):
+            raise ValueError(f"unknown mode {mode!r}")
+        if mode != "live" and cache is None:
+            raise ValueError(f"mode {mode!r} needs a cache")
+        self.provider = provider
+        self.mode = mode
+        self.cache = cache
+        self.system_prompt = system_prompt
         self.model = model
         self.max_calls = max_calls
         self.min_interval = min_interval
@@ -84,7 +102,28 @@ class LLMClient:
         self.calls = 0  # every attempt counts against quota
         self.failures = 0
 
+    def request(self, prompt: str, schema: dict, temperature: float) -> tuple[dict, str]:
+        """The effective request and its hash: what a cached answer is valid for."""
+        req = canonical_request(self.provider, self.model, self.system_prompt, prompt, schema,
+                                {"temperature": temperature})
+        return req, request_hash(req)
+
+    def lookup(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict | None:
+        return self.cache.get(self.request(prompt, schema, temperature)[1]) if self.cache else None
+
     def generate_json(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict:
+        req, h = self.request(prompt, schema, temperature)
+        if self.mode == "replay":
+            hit = self.cache.get(h)
+            if hit is None:
+                raise CacheMiss(h)
+            return hit
+        result = self._call(prompt, schema, temperature)
+        if self.mode == "record":
+            self.cache.put(h, req, result)
+        return result
+
+    def _call(self, prompt: str, schema: dict, temperature: float) -> dict:
         if self._backend is None:
             self._backend = _gemini_backend(self.model)
         for attempt in range(self.retries + 1):
@@ -175,6 +214,13 @@ class FallbackClient:
         return self.last_model
 
     def generate_json(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict:
+        if any(c.mode == "replay" for c in self.clients):
+            for client in self.clients:
+                hit = client.lookup(prompt, schema, temperature)
+                if hit is not None:
+                    self.last_model = client.model
+                    return hit
+            raise CacheMiss("no recorded answer from any model in the chain")
         last_error: Exception | None = None
         for i, client in enumerate(self.clients):
             if self._blocked_until.get(i, -1.0) > self._clock():
@@ -196,13 +242,18 @@ class FallbackClient:
 
 
 def build_chain(gemini_model: str = DEFAULT_MODEL, *, max_calls: int | None = None, min_interval: float = 4.0,
-                use_openrouter: bool = True, openrouter_max_calls: int | None = None) -> FallbackClient:
-    """Gemini first, then OpenRouter free models when an OPENROUTER_API_KEY is available."""
-    clients = [LLMClient(gemini_model, max_calls=max_calls, min_interval=min_interval)]
-    if use_openrouter and has_api_key("OPENROUTER_API_KEY"):
+                use_openrouter: bool = True, openrouter_max_calls: int | None = None, mode: str = "live",
+                cache: LLMCache | None = None) -> FallbackClient:
+    """Gemini first, then OpenRouter free models when an OPENROUTER_API_KEY is available.
+
+    In replay mode nothing is called, so the OpenRouter models are included whether or not a key exists.
+    """
+    cache_args = {"mode": mode, "cache": cache}
+    clients = [LLMClient(gemini_model, max_calls=max_calls, min_interval=min_interval, **cache_args)]
+    if use_openrouter and (mode == "replay" or has_api_key("OPENROUTER_API_KEY")):
         for model, structured in OPENROUTER_FALLBACKS:
             clients.append(LLMClient(
                 model, max_calls=openrouter_max_calls, min_interval=min_interval, retries=2,
-                backend=_openrouter_backend(model, structured),
+                backend=_openrouter_backend(model, structured), provider="openrouter", **cache_args,
             ))
     return FallbackClient(clients)

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
-import random
 import sqlite3
+
+from world.rng import rng as make_rng
 
 LOCATIONS = [
     # id, name, x, y, capacity, tags
@@ -55,7 +56,7 @@ HOME_DAY_ALT = {480: "move:park", 720: "move:cafe", 750: "eat", 1080: "move:cafe
 
 def build_world(conn: sqlite3.Connection, world_seed: int) -> None:
     """Fill an initialised database with the V0 world: 5 places, 10 people, 5 objects."""
-    rng = random.Random(f"{world_seed}:seed")
+    rng = make_rng(world_seed, 0, "world", "seed_world")
     for lid, name, x, y, cap, tags in LOCATIONS:
         conn.execute("INSERT INTO locations VALUES (?,?,?,?,?,?)", (lid, name, x, y, cap, json.dumps(tags)))
     for a, b, minutes in EDGES:

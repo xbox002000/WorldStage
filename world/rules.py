@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
-from world.events import Change, EventSpec, MemorySpec
+from contracts.claim import Claim
+from world.events import Change, ClaimSpec, EventSpec, MemorySpec
 from world.intent import EAT_COST_CENTS, WORK_ENERGY, Intent
 
 # tone -> (target's trust in actor, target's affection for actor, actor's affection for target)
@@ -123,16 +124,19 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
     if tone in TONE_EMOTION and _person(conn, b)["emotion"] != TONE_EMOTION[tone]:
         changes.append(Change("person", b, "emotion", value=TONE_EMOTION[tone]))
 
+    claim = Claim(a, f"speak_{tone}", b)
     memories = [
-        MemorySpec(b, f"{a} spoke {tone}ly to me", 0.9),
-        MemorySpec(a, f"I spoke {tone}ly to {b}", 1.0),
-    ] + [MemorySpec(w, f"{a} spoke {tone}ly to {b}", 0.6) for w in _bystanders(conn, base["location_id"], a, b)]
+        MemorySpec(b, f"{a} spoke {tone}ly to me", 0.9, claim=claim),
+        MemorySpec(a, f"I spoke {tone}ly to {b}", 1.0, claim=claim),
+    ] + [MemorySpec(w, f"{a} spoke {tone}ly to {b}", 0.6, claim=claim)
+         for w in _bystanders(conn, base["location_id"], a, b)]
 
     return EventSpec(
         **base, type="talk", parent_event_id=last_event_between(conn, a, b),
         importance=0.85 if flipped else TONE_IMPORTANCE[tone],
         truth={"actor": a, "target": b, "tone": tone, "reason": it.reason, "source": it.source, "trust_flipped": flipped},
         participants=[(a, "actor"), (b, "target")], changes=changes, memories=memories,
+        claims=[ClaimSpec(claim)],
     )
 
 
@@ -146,14 +150,16 @@ def _steal(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
         ch = _trust_change(conn, observer, thief, delta)
         if ch:
             changes.append(ch)
+    claim = Claim(thief, "steal", obj["id"])
     memories = [
-        MemorySpec(owner, f"{thief} took my {obj['name']}", 0.95),
-        MemorySpec(thief, f"I took {owner}'s {obj['name']}", 1.0),
-    ] + [MemorySpec(w, f"{thief} took {owner}'s {obj['name']}", 0.8) for w in witnesses]
+        MemorySpec(owner, f"{thief} took my {obj['name']}", 0.95, claim=claim),
+        MemorySpec(thief, f"I took {owner}'s {obj['name']}", 1.0, claim=claim),
+    ] + [MemorySpec(w, f"{thief} took {owner}'s {obj['name']}", 0.8, claim=claim) for w in witnesses]
 
     return EventSpec(
         **base, type="steal", parent_event_id=last_event_between(conn, thief, owner), importance=0.8,
         truth={"actor": thief, "victim": owner, "object": obj["id"], "reason": it.reason, "source": it.source},
         participants=[(thief, "actor"), (owner, "victim")] + [(w, "witness") for w in witnesses],
         changes=changes, memories=memories,
+        claims=[ClaimSpec(claim)],
     )

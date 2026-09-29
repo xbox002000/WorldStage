@@ -6,7 +6,7 @@ from collections import Counter
 from typing import Protocol
 
 from world.events import apply_event
-from world.intent import Intent, parse_intent, validate
+from world.intent import Intent, intent_sort_key, validate
 from world.rules import resolve
 from world.state import WorldError
 
@@ -40,22 +40,25 @@ class Simulation:
         slots = sorted({int(s) for sched in schedules.values() for s in sched} | set(DECISION_SLOTS))
         for slot in slots:
             now = day * DAY + slot
+            scripted = []
             for pid in ids:
-                scripted = schedules[pid].get(str(slot))
-                if scripted:
-                    self._scripted(pid, scripted, now)
+                spec = schedules[pid].get(str(slot))
+                if spec:
+                    scripted.append(self._scripted_intent(pid, spec))
+            for intent in sorted((i for i in scripted if i is not None), key=lambda i: intent_sort_key(now, i)):
+                self._apply(intent, now, "schedule")
             if slot in DECISION_SLOTS:
                 for pid in ids:
                     self._decide(pid, now)
         self._upkeep(ids, day * DAY + UPKEEP_SLOT)
 
-    def _scripted(self, pid: str, spec: str, now: int) -> None:
+    def _scripted_intent(self, pid: str, spec: str) -> Intent | None:
         action, _, target = spec.partition(":")
         if action == "move" and self.conn.execute(
             "SELECT location_id FROM people WHERE id = ?", (pid,)
         ).fetchone()[0] == target:
-            return
-        self._apply(Intent(pid, action, target or None), now, "schedule")
+            return None  # already there
+        return Intent(pid, action, target or None)
 
     def _decide(self, pid: str, now: int) -> None:
         tier = "active" if pid in self.active_ids else "ambient"

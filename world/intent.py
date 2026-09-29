@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from dataclasses import dataclass
@@ -24,6 +25,20 @@ class Intent:
     reason: str = ""
     priority: float = 0.5
     source: str = ""  # which model proposed it; empty for rule/seeded decisions
+
+
+def intent_hash(it: Intent) -> str:
+    """Identity of a proposed action, independent of who wrote the reason text."""
+    payload = json.dumps([it.actor, it.action, it.target, it.tone], separators=(",", ":"), ensure_ascii=False)
+    return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def intent_sort_key(timestamp: int, it: Intent) -> tuple:
+    """Total order for actions competing at one moment: time, priority (high first), actor, content hash.
+
+    No two distinct intents share a key, so the order never depends on dict or SQL row order.
+    """
+    return (timestamp, -it.priority, it.actor, intent_hash(it))
 
 
 def parse_intent(actor: str, raw: dict) -> Intent:

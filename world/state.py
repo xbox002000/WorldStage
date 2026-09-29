@@ -81,6 +81,11 @@ def audit(conn: sqlite3.Connection) -> list[Problem]:
         if key in last and not _same(last[key], r["old_value"]):
             problems.append(Problem(*key, f"chain broken: expected old={last[key]!r}, got {r['old_value']!r}"))
         last[key] = r["new_value"]
+    for r in conn.execute(
+        "SELECT m.memory_id FROM memories m WHERE m.claim_id IS NOT NULL AND m.about_event_id IS NULL "
+        "AND NOT EXISTS (SELECT 1 FROM memory_sources s WHERE s.memory_id = m.memory_id) ORDER BY m.memory_id"
+    ):
+        problems.append(Problem("memory", str(r["memory_id"]), "claim", "general belief has no source"))
     for (etype, eid, field), new in last.items():
         row = read_entity(conn, etype, eid)
         if row is None:
