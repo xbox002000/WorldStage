@@ -81,25 +81,40 @@ again (temperature 0.8), with one sentence added under "Current mood". Read-only
 Even with a strong motive or explicit permission this model answers "talk". For this model, prompting harder is not a
 fix. Whether another model behaves differently is the next probe.
 
-## Addendum: the same 14 situations put to other free models (no motive added)
+## Addendum: the same 14 situations put to other free models
 
-| model | dramatic choices among the answers | note |
-|---|---|---|
-| `gemini-3.5-flash-lite` (Experiment A) | 0 of 14 (0 of 84 in the run) | |
-| `gemini-3.5-flash` | **3 of 13**: 2 confront, 1 tell (truth) | free tier is **20 requests a day per project**; used up during the probe |
-| `gemini-3.8-flash` | 1 of 1: confront | 503 "high demand" for 13 of 14 calls, so almost no data |
-| `gemma-4-31b-it` (Gemini API) | no answer | 500 INTERNAL |
-| `gemma-4-31b-it:free`, `nemotron-3-super-120b-a12b:free` (OpenRouter) | 1 answer (talk) / none | 429 upstream / error payload |
+Same prompts as the run. "Answers" excludes calls that failed. Second column: nothing added; third: the "wronged" sentence.
 
-The three `gemini-3.5-flash` choices read as in character, e.g. Ming (proud, cares about face): "Ning hid the truth from me,
-I must expose her to keep my face." With the "wronged" sentence added its first answer was to steal Ning's diary as revenge,
-then the daily quota ran out. Samples are tiny (13 answers), but it is the same prompts and the same contexts, and 3 of 13
-against 0 of 98 flash-lite decisions is not chance (p about 0.001, one-sided). So the earlier reading, that language-model
-characters will not act dramatically, holds for `gemini-3.5-flash-lite` only.
+| model | dramatic / answers, nothing added | dramatic / answers, "wronged" | note |
+|---|---|---|---|
+| `gemini-3.5-flash-lite` (Experiment A) | 0 / 14 (0 / 84 in the run) | 1 / 14 | reliable, no failures |
+| `gemma-4-31b-it` (Gemini API) | 1 / 11 (tell) | 1 / 2 (confront) | 27 of 40 calls failed (500) |
+| `gemini-3.5-flash` | **3 / 13** (2 confront, 1 tell) | 1 / 1 (steal) | free tier **20 requests a day per project**, used up mid-probe |
+| `gemini-3.8-flash` | 1 / 1 (confront) | none | 503 "high demand" on 13 of 14 calls |
+| `nemotron-3-super-120b-a12b:free` (OpenRouter) | **5 / 8** (4 confront, 1 steal) | **10 / 11** (6 confront, 3 steal, 1 distortion) | 9 of 28 calls failed; one invalid target (`steal hao`) |
+| `gemma-4-31b-it:free` (OpenRouter) | 0 / 1 | none | 429 upstream on 39 of 40 calls |
 
-Consequences: a stronger model is worth a controlled run (Experiment B changes only the model); its free quota (20 a day)
-fits the 12 decisions a day of four characters only when one simulated day is played per real day.
+The stronger models use the mechanics as designed. Nemotron's confrontations quote the contradiction: "you said Lan was cold
+to Ning, but I saw her be hostile, that does not match"; its distortion follows the persona's goal: "I want to turn Jun and
+Tao against each other to weaken my competitor and improve my chance of promotion". `gemini-3.5-flash` gave, for Ming (proud,
+cares about face): "Ning hid the truth from me, I must expose her to keep my face", and with the "wronged" sentence its
+first answer was to steal Ning's diary as revenge.
 
-Side finding fixed in the same commit: the OpenRouter backend turned an HTTP 200 reply that carried an error object into
+Samples are small, but they are the same prompts and contexts, and 3 of 13 against 0 of 98 flash-lite decisions is not chance
+(p about 0.001, one-sided). So the earlier reading, that language-model characters will not act dramatically, holds for
+`gemini-3.5-flash-lite` only. How dramatic the characters are is mostly a property of the model, and it varies from 0% to
+about 60% across models that are free today. Too much drama is possible too: some of the situations make a confrontation
+the obvious move for a model that acts on them.
+
+What this means for planning:
+
+- A stronger model is worth a controlled run: Experiment B changes only the model (chain), everything else stays frozen.
+- Free quotas decide the logistics. `gemini-3.5-flash`: 20 requests a day per project (resets at midnight Pacific time); four
+  characters need 12 decisions a day, so it fits only when one simulated day is played per real day. OpenRouter free models
+  are rate limited upstream and failed about a third of the calls; they are a fallback, not a base.
+- Model temperament is a knob: the persona layer can later pick a model (or a prompt tier) per character.
+
+Side finding fixed in the same work: the OpenRouter backend turned an HTTP 200 reply that carried an error object into
 `KeyError: 'choices'`, which hid the cause and skipped retries. It is now an `HttpError` with the upstream code (502 when
-none is given, and 502 is retryable).
+none is given, and 502 is retryable). A per-day Gemini 429 is now `QuotaExhausted`: not retried, and the model is skipped for
+the rest of the run.
