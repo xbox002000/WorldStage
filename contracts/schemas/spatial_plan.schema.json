@@ -1,0 +1,302 @@
+{
+  "$defs": {
+    "BeatStaging": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_index": {
+          "type": "integer"
+        },
+        "cameras": {
+          "items": {
+            "$ref": "#/$defs/CameraShot"
+          },
+          "type": "array"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/SightCheck"
+          },
+          "type": "array"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "layout_id": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "placements": {
+          "items": {
+            "$ref": "#/$defs/Placement"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "beat_index",
+        "event_id",
+        "location",
+        "layout_id",
+        "placements",
+        "cameras",
+        "checks"
+      ],
+      "type": "object"
+    },
+    "CameraShot": {
+      "additionalProperties": false,
+      "properties": {
+        "end_position": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lens_mm": {
+          "type": "number"
+        },
+        "move": {
+          "enum": [
+            "static",
+            "push_in",
+            "pan",
+            "follow"
+          ]
+        },
+        "position": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "shot": {
+          "type": "string"
+        },
+        "subjects": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "target": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "shot",
+        "position",
+        "target"
+      ],
+      "type": "object"
+    },
+    "LayoutRef": {
+      "additionalProperties": false,
+      "properties": {
+        "layout_hash": {
+          "type": "string"
+        },
+        "layout_id": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "objects": {
+          "items": {
+            "$ref": "#/$defs/SpatialObject"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "layout_id",
+        "location",
+        "objects",
+        "layout_hash"
+      ],
+      "type": "object"
+    },
+    "Placement": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "type": "string"
+        },
+        "height": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "pose": {
+          "enum": [
+            "stand",
+            "sit"
+          ]
+        },
+        "position": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "yaw": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "anchor",
+        "position",
+        "yaw"
+      ],
+      "type": "object"
+    },
+    "SightCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "blocked_by": {
+          "type": "string"
+        },
+        "observer": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "visible": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "observer",
+        "subject",
+        "required",
+        "visible"
+      ],
+      "type": "object"
+    },
+    "SpatialObject": {
+      "additionalProperties": false,
+      "properties": {
+        "blocks_sight": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "wall",
+            "table",
+            "chair",
+            "counter",
+            "door",
+            "window",
+            "bench",
+            "tree",
+            "desk",
+            "sofa",
+            "platform",
+            "prop",
+            "perch"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "position": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "size": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "yaw": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "position",
+        "size"
+      ],
+      "type": "object"
+    },
+    "SpatialPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/BeatStaging"
+          },
+          "type": "array"
+        },
+        "compiler_version": {
+          "type": "string"
+        },
+        "layouts": {
+          "items": {
+            "$ref": "#/$defs/LayoutRef"
+          },
+          "type": "array"
+        },
+        "plan_hash": {
+          "type": "string"
+        },
+        "problems": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scene_hash": {
+          "type": "string"
+        },
+        "scene_id": {
+          "type": "string"
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "scene_id",
+        "scene_hash",
+        "compiler_version",
+        "layouts",
+        "beats",
+        "valid",
+        "problems"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/SpatialPlan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

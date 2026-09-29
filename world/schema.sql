@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS people (
 -- Static character sheet: never changes, so it lives outside the event-sourced state.
 CREATE TABLE IF NOT EXISTS personas (
   person_id TEXT PRIMARY KEY REFERENCES people(id),
-  text      TEXT NOT NULL
+  text      TEXT NOT NULL,
+  traits    TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(traits))
 );
 
 CREATE TABLE IF NOT EXISTS objects (
@@ -56,7 +57,16 @@ CREATE TABLE IF NOT EXISTS objects (
   location_id     TEXT REFERENCES locations(id),
   tags            TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(tags)),
   status          TEXT NOT NULL DEFAULT 'normal',
+  rightful_owner_id TEXT REFERENCES people(id),
+  value_cents     INTEGER NOT NULL DEFAULT 0 CHECK (value_cents >= 0),
   CHECK (NOT (owner_person_id IS NOT NULL AND location_id IS NOT NULL))
+);
+
+-- Numeric world variables (prices, visibility, arrears, seed state). Seedable before the first event,
+-- afterwards changed only inside a mutation, like every other piece of current state.
+CREATE TABLE IF NOT EXISTS world_vars (
+  key   TEXT PRIMARY KEY,
+  value REAL NOT NULL
 );
 
 -- Directed: actor's feeling toward target. History lives in event_deltas.
@@ -96,7 +106,7 @@ CREATE TABLE IF NOT EXISTS event_participants (
 CREATE TABLE IF NOT EXISTS event_deltas (
   delta_id    INTEGER PRIMARY KEY AUTOINCREMENT,
   event_id    INTEGER NOT NULL REFERENCES events(event_id),
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('person','relationship','object')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('person','relationship','object','var')),
   entity_id   TEXT NOT NULL,
   field       TEXT NOT NULL,
   old_value,
@@ -266,6 +276,15 @@ WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
 BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
 CREATE TRIGGER IF NOT EXISTS objects_no_delete BEFORE DELETE ON objects
 BEGIN SELECT RAISE(ABORT, 'objects cannot be deleted'); END;
+
+CREATE TRIGGER IF NOT EXISTS world_vars_guard_insert BEFORE INSERT ON world_vars
+WHEN EXISTS (SELECT 1 FROM events) AND NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS world_vars_guard_update BEFORE UPDATE ON world_vars
+WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS world_vars_no_delete BEFORE DELETE ON world_vars
+BEGIN SELECT RAISE(ABORT, 'world variables cannot be deleted'); END;
 
 -- Input log for replay; deliberately outside the world snapshot.
 CREATE TABLE IF NOT EXISTS llm_cache (

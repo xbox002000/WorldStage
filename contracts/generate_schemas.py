@@ -8,12 +8,17 @@ from contracts.base import schema_for
 from contracts.packet import ProductionPacket
 from contracts.render_request import RenderRequest, Take
 from contracts.scene_spec import SceneSpec
+from contracts.seed import ExternalEvent, SeedCandidate
+from contracts.spatial import SpatialPlan
 from contracts.stylepack import StylePack
 from contracts.tell import TellIntent
+from contracts.thread import StoryThread
 
 OUT = Path(__file__).with_name("schemas")
 CONTRACTS = {"scene_spec": SceneSpec, "production_packet": ProductionPacket, "render_request": RenderRequest,
-             "take": Take, "stylepack": StylePack, "tell_intent": TellIntent}
+             "take": Take, "stylepack": StylePack, "tell_intent": TellIntent,
+             "external_event": ExternalEvent, "seed_candidate": SeedCandidate, "story_thread": StoryThread,
+             "spatial_plan": SpatialPlan}
 
 
 def render_all() -> dict[str, str]:

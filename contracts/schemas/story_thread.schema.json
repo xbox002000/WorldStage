@@ -1,0 +1,107 @@
+{
+  "$defs": {
+    "StoryThread": {
+      "additionalProperties": false,
+      "properties": {
+        "central_question": {
+          "type": "string"
+        },
+        "cross_threads": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "decision_event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "first_day": {
+          "type": "integer"
+        },
+        "information_asymmetry": {
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "item",
+            "debt",
+            "rumor",
+            "feud"
+          ]
+        },
+        "last_day": {
+          "type": "integer"
+        },
+        "momentum": {
+          "type": "number"
+        },
+        "participants": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "seed_origins": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "stakes": {
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "seeded",
+            "forming",
+            "active",
+            "escalating",
+            "climax",
+            "resolved",
+            "dormant"
+          ]
+        },
+        "tension": {
+          "type": "number"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "world_revision": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "thread_id",
+        "kind",
+        "central_question",
+        "participants",
+        "event_ids",
+        "decision_event_ids",
+        "first_day",
+        "last_day",
+        "status",
+        "stakes",
+        "momentum",
+        "tension",
+        "information_asymmetry",
+        "cross_threads"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/StoryThread",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

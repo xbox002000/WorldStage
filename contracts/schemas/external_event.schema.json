@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "ExternalEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "type": "number"
+        },
+        "day": {
+          "type": "integer"
+        },
+        "expires_after_days": {
+          "type": "integer"
+        },
+        "external_event_id": {
+          "type": "string"
+        },
+        "magnitude": {
+          "type": "number"
+        },
+        "salience": {
+          "type": "number"
+        },
+        "source": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "external_event_id",
+        "source",
+        "day",
+        "title",
+        "topic"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/ExternalEvent",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

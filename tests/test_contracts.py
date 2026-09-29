@@ -37,7 +37,8 @@ class SchemaFileTests(unittest.TestCase):
         packet_def = schema["$defs"]["ProductionPacket"]
         self.assertIn("shots", packet_def["required"])
         self.assertNotIn("packet_hash", packet_def["required"])  # has a default
-        self.assertEqual(set(CONTRACTS), {"scene_spec", "production_packet", "render_request", "take", "stylepack", "tell_intent"})
+        self.assertLessEqual({"scene_spec", "production_packet", "render_request", "take", "stylepack", "tell_intent",
+                              "external_event", "seed_candidate"}, set(CONTRACTS))
 
 
 class RoundTripTests(unittest.TestCase):

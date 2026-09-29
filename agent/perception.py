@@ -86,7 +86,54 @@ def social_options(conn: sqlite3.Connection, actor: str) -> dict:
                          "can_distort": can_distort(claim)})
     confront = [{"memory_id": c["memory_id"], "target": c["target"], "text": describe_claim(c["claim"], names),
                  "grounds_text": describe_claim(c["grounds"], names), "claim": c["claim"]} for c in confrontable(conn, actor)]
-    return {"here": obs["others_here"], "steal": steal, "tell": tell, "confront": confront}
+    return {"here": obs["others_here"], "steal": steal, "tell": tell, "confront": confront,
+            **item_options(conn, actor, obs["me"]["location_id"], here_ids, names)}
+
+
+def belief_dropped(conn: sqlite3.Connection, actor: str, memory_id: int) -> bool:
+    """A later memory that contradicts this one with at least the same confidence supersedes it."""
+    from world.confront import _beliefs_about, superseded
+    m = conn.execute("SELECT m.memory_id, m.confidence, c.subject, c.act, c.object, c.polarity FROM memories m "
+                     "JOIN claims c USING (claim_id) WHERE m.memory_id = ?", (memory_id,)).fetchone()
+    return superseded(_beliefs_about(conn, actor, m["subject"], m["object"]), m)
+
+
+def concerns(conn: sqlite3.Connection, actor: str, obj: str) -> bool:
+    """People accuse over what was done to them: a lie told to them, or a thing that is rightfully theirs."""
+    if obj == actor:
+        return True
+    row = conn.execute("SELECT rightful_owner_id FROM objects WHERE id = ?", (obj,)).fetchone()
+    return row is not None and row[0] == actor
+
+
+def item_options(conn: sqlite3.Connection, actor: str, here: str, here_ids: list[str], names: dict[str, str]) -> dict:
+    """World C options: things lying here, things to give back, money to lend or repay, people to accuse."""
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() is None:
+        return {"take": [], "give": [], "lend": [], "repay": [], "accuse": []}
+    take = [{"target": r["id"], "object": r["name"], "value_cents": r["value_cents"], "rightful": r["rightful_owner_id"]}
+            for r in conn.execute("SELECT * FROM objects WHERE location_id = ? AND status = 'normal' "
+                                  "AND tags NOT LIKE '%\"fixed\"%' ORDER BY id", (here,))]
+    give = [{"target": r["id"], "object": r["name"], "owner": r["rightful_owner_id"], "value_cents": r["value_cents"]}
+            for r in conn.execute("SELECT * FROM objects WHERE owner_person_id = ? AND status = 'normal' "
+                                  "AND rightful_owner_id IS NOT NULL AND rightful_owner_id <> ? ORDER BY id", (actor, actor))
+            if r["rightful_owner_id"] in here_ids]
+    money = conn.execute("SELECT money_cents FROM people WHERE id = ?", (actor,)).fetchone()[0]
+    from world.intent import ACCUSABLE, LEND_CENTS, MIN_ACCUSE_CONFIDENCE, already_accused
+    lend = [{"target": p} for p in here_ids] if money >= LEND_CENTS else []
+    repay = [{"target": r["target_id"], "debt_cents": r["debt_cents"]} for r in conn.execute(
+        "SELECT target_id, debt_cents FROM relationships WHERE actor_id = ? AND debt_cents > 0 ORDER BY target_id", (actor,))
+        if r["target_id"] in here_ids and money >= min(r["debt_cents"], LEND_CENTS)]
+    accuse, seen = [], set()
+    for r in conn.execute(
+        f"SELECT m.memory_id, m.confidence, m.claim_id, c.subject, c.act, c.object FROM memories m JOIN claims c USING (claim_id) "
+        f"WHERE m.observer_id = ? AND c.polarity = 'affirm' AND c.act IN ({','.join('?' * len(ACCUSABLE))}) "
+        f"AND m.confidence >= ? ORDER BY m.confidence DESC, m.memory_id", (actor, *ACCUSABLE, MIN_ACCUSE_CONFIDENCE)):
+        if r["subject"] in here_ids and r["claim_id"] not in seen and concerns(conn, actor, r["object"])                 and not already_accused(conn, actor, r["claim_id"]) and not belief_dropped(conn, actor, r["memory_id"]):
+            seen.add(r["claim_id"])
+            accuse.append({"memory_id": r["memory_id"], "target": r["subject"], "confidence": r["confidence"],
+                           "act": r["act"], "object": r["object"],
+                           "text": describe_claim(Claim(r["subject"], r["act"], r["object"]), names)})
+    return {"take": take, "give": give, "lend": lend, "repay": repay, "accuse": accuse}
 
 
 def candidates(conn: sqlite3.Connection, actor: str) -> list[dict]:

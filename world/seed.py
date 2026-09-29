@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 import sqlite3
 
+from contracts.claim import Claim
+from world.claims import describe_claim
+from world.events import Change, ClaimSpec, EventSpec, MemorySpec, apply_event
 from world.rng import rng as make_rng
 
 LOCATIONS = [
@@ -44,9 +47,33 @@ PERSONAS = {
     "rui": "和事佬，但被連續冷淡會失去耐心",
 }
 OBJECTS = [
-    ("wallet_ming", "錢包", "ming"), ("phone_mei", "手機", "mei"), ("diary_ning", "日記", "ning"),
-    ("key_yun", "鑰匙", "yun"), ("watch_jun", "手錶", "jun"),
+    # id, name, rightful owner, value (cents)
+    ("wallet_ming", "錢包", "ming", 5000), ("phone_mei", "手機", "mei", 30000), ("diary_ning", "日記", "ning", 0),
+    ("key_yun", "鑰匙", "yun", 500), ("watch_jun", "手錶", "jun", 15000), ("ring_mei", "戒指", "mei", 20000),
 ]
+# Props that only outside events bring in; they wait offstage (no holder, no place) until then.
+PROPS = [
+    # id, name, tags, value (cents)
+    ("ticket", "樂透彩券", ["paper"], 0),
+    ("parrot", "鸚鵡", ["fixed", "repeater", "animal"], 0),
+    ("package", "包裹", ["parcel"], 12000),
+    ("dog", "小狗", ["animal", "pet"], 0),
+]
+# Static traits, each 0..1. They drive rule motives (agent/volition.py) and small rules such as misplacing things.
+TRAITS = {
+    "ming": {"honesty": 0.5, "temper": 0.7, "gossip": 0.4, "generosity": 0.3, "absent_minded": 0.2, "curiosity": 0.4},
+    "mei": {"honesty": 0.7, "temper": 0.3, "gossip": 0.2, "generosity": 0.3, "absent_minded": 0.3, "curiosity": 0.3},
+    "jun": {"honesty": 0.35, "temper": 0.5, "gossip": 0.3, "generosity": 0.2, "absent_minded": 0.5, "curiosity": 0.4},
+    "lan": {"honesty": 0.7, "temper": 0.5, "gossip": 0.5, "generosity": 0.6, "absent_minded": 0.3, "curiosity": 0.5},
+    "hao": {"honesty": 0.6, "temper": 0.2, "gossip": 0.9, "generosity": 0.7, "absent_minded": 0.4, "curiosity": 0.9},
+    "yun": {"honesty": 0.4, "temper": 0.4, "gossip": 0.1, "generosity": 0.3, "absent_minded": 0.2, "curiosity": 0.3},
+    "kai": {"honesty": 0.5, "temper": 0.6, "gossip": 0.6, "generosity": 0.3, "absent_minded": 0.2, "curiosity": 0.5},
+    "ning": {"honesty": 0.8, "temper": 0.6, "gossip": 0.2, "generosity": 0.4, "absent_minded": 0.5, "curiosity": 0.4},
+    "tao": {"honesty": 0.7, "temper": 0.6, "gossip": 0.3, "generosity": 0.1, "absent_minded": 0.2, "curiosity": 0.3},
+    "rui": {"honesty": 0.8, "temper": 0.2, "gossip": 0.5, "generosity": 0.8, "absent_minded": 0.6, "curiosity": 0.5},
+}
+DEBTS = [("jun", "tao", 6000), ("ming", "kai", 3000)]  # (debtor, lender, cents): old debts the town starts with
+WORLD_VARS = {"price_food": 800.0, "visibility": 1.0, "job_security": 1.0}
 
 # slot (minute of day) -> action, for people who work / people who do not
 WORKER_DAY = {480: "move:office", 540: "work", 720: "move:cafe", 750: "eat", 1080: "move:park", 1260: "move:apartment"}
@@ -55,7 +82,7 @@ HOME_DAY_ALT = {480: "move:park", 720: "move:cafe", 750: "eat", 1080: "move:cafe
 
 
 def build_world(conn: sqlite3.Connection, world_seed: int) -> None:
-    """Fill an initialised database with the V0 world: 5 places, 10 people, 5 objects."""
+    """Fill an initialised database: 5 places, 10 people, their things, props offstage, and one old secret."""
     rng = make_rng(world_seed, 0, "world", "seed_world")
     for lid, name, x, y, cap, tags in LOCATIONS:
         conn.execute("INSERT INTO locations VALUES (?,?,?,?,?,?)", (lid, name, x, y, cap, json.dumps(tags)))
@@ -76,14 +103,47 @@ def build_world(conn: sqlite3.Connection, world_seed: int) -> None:
              json.dumps({str(k): v for k, v in schedule.items()}), "active"),
         )
     for pid, text in PERSONAS.items():
-        conn.execute("INSERT INTO personas VALUES (?,?)", (pid, text))
+        conn.execute("INSERT INTO personas(person_id, text, traits) VALUES (?,?,?)",
+                     (pid, text, json.dumps(TRAITS[pid], sort_keys=True)))
     ids = [p[0] for p in PEOPLE]
+    debts = {(debtor, lender): cents for debtor, lender, cents in DEBTS}
     for a in ids:
         for b in ids:
             if a != b:
                 conn.execute(
-                    "INSERT INTO relationships(actor_id, target_id, trust, affection) VALUES (?,?,?,?)",
-                    (a, b, round(rng.uniform(-0.3, 0.5), 2), round(rng.uniform(-0.2, 0.4), 2)),
+                    "INSERT INTO relationships(actor_id, target_id, trust, affection, debt_cents) VALUES (?,?,?,?,?)",
+                    (a, b, round(rng.uniform(-0.3, 0.5), 2), round(rng.uniform(-0.2, 0.4), 2), debts.get((a, b), 0)),
                 )
-    for oid, name, owner in OBJECTS:
-        conn.execute("INSERT INTO objects(id, name, owner_person_id) VALUES (?,?,?)", (oid, name, owner))
+    for oid, name, owner, value in OBJECTS:
+        conn.execute("INSERT INTO objects(id, name, owner_person_id, rightful_owner_id, value_cents) VALUES (?,?,?,?,?)",
+                     (oid, name, owner, owner, value))
+    for oid, name, tags, value in PROPS:
+        conn.execute("INSERT INTO objects(id, name, tags, status, value_cents) VALUES (?,?,?,'offstage',?)",
+                     (oid, name, json.dumps(tags), value))
+    variables = dict(WORLD_VARS)
+    variables.update({f"arrears.{p[0]}": 0.0 for p in PEOPLE})
+    variables.update({f"missing.{o[0]}": 0.0 for o in OBJECTS + PROPS})
+    variables.update({f"revert.{k}": -1.0 for k in WORLD_VARS})  # day a seed's temporary change wears off
+    for key, value in sorted(variables.items()):
+        conn.execute("INSERT INTO world_vars(key, value) VALUES (?,?)", (key, value))
+    backstory(conn)
+
+
+def backstory(conn: sqlite3.Connection) -> None:
+    """A secret the town starts with, as real history: long ago Yun took Mei's ring; Mei only knows it is gone.
+
+    It is Yun's goal to keep a secret, and because it is world truth, lies, notes and accusations about it can be
+    judged like anything else.
+    """
+    names = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM people UNION ALL SELECT id, name FROM objects")}
+    took, lost = Claim("yun", "take", "ring_mei"), Claim("mei", "lose", "ring_mei")
+    apply_event(conn, EventSpec(
+        timestamp=0, type="backstory", trigger_type="rule", location_id="apartment", importance=0.6,
+        truth={"actor": "yun", "object": "ring_mei", "rightful_owner": "mei", "text": "很久以前，小雲拿走了小美的戒指"},
+        participants=[("yun", "actor"), ("mei", "victim")],
+        changes=[Change("object", "ring_mei", "owner_person_id", value="yun"),
+                 Change("var", "missing.ring_mei", "value", delta=1.0)],
+        memories=[MemorySpec("yun", describe_claim(took, names), 1.0, claim=took),
+                  MemorySpec("mei", describe_claim(lost, names), 1.0, claim=lost)],
+        claims=[ClaimSpec(took), ClaimSpec(lost)],
+    ))

@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "SeedCandidate": {
+      "additionalProperties": false,
+      "properties": {
+        "affected_domains": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "candidate_hash": {
+          "type": "string"
+        },
+        "effects": {
+          "items": {
+            "$ref": "#/$defs/SeedEffect"
+          },
+          "type": "array"
+        },
+        "external_event_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "seed_id": {
+          "type": "string"
+        },
+        "seed_type": {
+          "enum": [
+            "stimulus",
+            "pressure",
+            "opportunity",
+            "disruption",
+            "information"
+          ]
+        },
+        "status": {
+          "enum": [
+            "adopted",
+            "rejected",
+            "expired"
+          ]
+        },
+        "version": {
+          "type": "integer"
+        },
+        "world_relevance": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "seed_id",
+        "external_event_id",
+        "seed_type",
+        "world_relevance",
+        "affected_domains",
+        "effects"
+      ],
+      "type": "object"
+    },
+    "SeedEffect": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": "string"
+        },
+        "audience": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "set_var",
+            "place_object",
+            "deliver_object",
+            "set_object_value",
+            "news"
+          ]
+        },
+        "revert_after_days": {
+          "type": "integer"
+        },
+        "text": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/SeedCandidate",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

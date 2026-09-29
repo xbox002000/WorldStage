@@ -8,17 +8,19 @@ ENTITIES: dict[str, tuple[str, tuple[str, ...]]] = {
     "person": ("people", ("id",)),
     "relationship": ("relationships", ("actor_id", "target_id")),
     "object": ("objects", ("id",)),
+    "var": ("world_vars", ("key",)),
 }
 
 # entity_type -> field -> value_kind. Integer fields must receive ints.
 NUMERIC_INT = {
     "person": {"energy", "money_cents", "hunger"},
     "relationship": {"debt_cents"},
+    "object": {"value_cents"},
 }
-NUMERIC_REAL = {"relationship": {"trust", "affection", "fear", "rivalry"}}
+NUMERIC_REAL = {"relationship": {"trust", "affection", "fear", "rivalry"}, "var": {"value"}}
 SET_FIELDS = {
     "person": {"location_id", "goal", "emotion", "status"},
-    "object": {"owner_person_id", "location_id", "status"},
+    "object": {"owner_person_id", "location_id", "status", "rightful_owner_id"},
 }
 
 TOLERANCE = 1e-6

@@ -16,16 +16,22 @@ ACT_FAMILY: dict[str, str] = {
     "steal": "acquire", "borrow": "acquire", "take": "acquire",
     "speak_warm": "speech", "speak_neutral": "speech", "speak_cold": "speech", "speak_hostile": "speech",
     "tell": "tell", "deceive": "deception", "conceal": "deception", "confront": "confront",
+    # World C
+    "find": "acquire", "lose": "loss", "give": "return", "win": "windfall",
+    "lend": "money", "repay": "money", "owe": "money",
+    "accuse": "accuse", "threaten": "threat",
 }
 # What the claim's `object` names: an item id (objects table) or a person id.
 ACT_OBJECT_KIND: dict[str, str] = {
     "steal": "item", "borrow": "item", "take": "item",
     "speak_warm": "person", "speak_neutral": "person", "speak_cold": "person", "speak_hostile": "person",
     "tell": "person", "deceive": "person", "conceal": "person", "confront": "person",
+    "find": "item", "lose": "item", "give": "item", "win": "item",
+    "lend": "person", "repay": "person", "owe": "person", "accuse": "person", "threaten": "person",
 }
 # Fixed, rule-owned distortions: the model never writes a proposition, it picks a mode.
 DISTORTION: dict[str, str] = {
-    "borrow": "steal", "take": "steal", "steal": "take",
+    "borrow": "steal", "take": "steal", "steal": "take", "find": "take",
     "speak_warm": "speak_cold", "speak_neutral": "speak_hostile", "speak_cold": "speak_hostile", "speak_hostile": "speak_cold",
 }
 

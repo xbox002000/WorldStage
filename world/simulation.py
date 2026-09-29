@@ -15,6 +15,7 @@ DAY = 1440
 DECISION_SLOTS = (730, 1090, 1270)  # after arrivals at cafe, park and home
 UPKEEP_SLOT = 1439
 JITTER_MAX = 25  # minutes: people never act on the dot
+MISPLACE_RATE = 0.06  # chance per carried item per departure, times the person's absent_minded trait
 
 
 class Decider(Protocol):
@@ -28,8 +29,12 @@ class Simulation:
     the next one. A day interrupted half-way cannot be resumed: restore the last good copy of the database.
     """
 
-    def __init__(self, conn: sqlite3.Connection, active: Decider, ambient: Decider, active_ids: set[str]) -> None:
+    def __init__(self, conn: sqlite3.Connection, active: Decider, ambient: Decider, active_ids: set[str],
+                 feed: str | None = None) -> None:
         self.conn = conn
+        self.feed = feed  # name of the outside-event feed (world/feeds/*.json); None = a closed town
+        self.economy = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() is not None
         self.active = active
         self.ambient = ambient
         self.active_ids = active_ids
@@ -39,7 +44,7 @@ class Simulation:
     # -- days ----------------------------------------------------------------------------------------------------
     def next_day(self) -> int:
         """The first day that has not been simulated. Raises if the last day was left unfinished."""
-        last_any = self.conn.execute("SELECT MAX(timestamp) FROM events").fetchone()[0]
+        last_any = self.conn.execute("SELECT MAX(timestamp) FROM events WHERE type <> 'backstory'").fetchone()[0]
         if last_any is None:
             return 0
         last_end = self.conn.execute("SELECT MAX(timestamp) FROM events WHERE type = 'day_end'").fetchone()[0]
@@ -58,6 +63,10 @@ class Simulation:
         ids = [r["id"] for r in self.conn.execute("SELECT id FROM people ORDER BY id")]
         schedules = {r["id"]: json.loads(r["schedule"]) for r in self.conn.execute("SELECT id, schedule FROM people")}
         slots = sorted({int(s) for sched in schedules.values() for s in sched} | set(DECISION_SLOTS))
+        if self.feed and self.economy:
+            from world.seeds import SeedLayer
+            for cand in SeedLayer(self.conn, self.feed).dawn(day):
+                self.stats[f"seed_{cand.status}"] += 1
         for i, slot in enumerate(slots):
             window = (slots[i + 1] if i + 1 < len(slots) else UPKEEP_SLOT) - slot
             base = day * DAY + slot
@@ -69,6 +78,11 @@ class Simulation:
                     scripted.append((self._stamp(pid, base, window), intent))
             for ts, intent in sorted(scripted, key=lambda s: intent_sort_key(s[0], s[1])):
                 self._apply(intent, ts, "schedule")
+            if slot in DECISION_SLOTS and self.economy:
+                from world.props import parrot_events
+                for spec in parrot_events(self.conn, base):
+                    apply_event(self.conn, spec)
+                    self.stats["parrot_speaks"] += 1
             if slot in DECISION_SLOTS:
                 # Each person decides at their own moment inside the slot; earlier deciders shape what later ones see.
                 for ts, pid in sorted((self._stamp(p, base, window), p) for p in ids):
@@ -104,6 +118,8 @@ class Simulation:
         except WorldError:
             self.stats[f"rejected_{trigger}"] += 1
             return
+        if intent.action == "move" and self.economy:
+            self._maybe_misplace(intent.actor, now)
         spec = resolve(self.conn, intent, now, trigger)
         apply_event(self.conn, spec)
         self.stats[f"applied_{intent.action}"] += 1
@@ -112,8 +128,24 @@ class Simulation:
         elif intent.action == "confront":
             self.stats[f"confront_{spec.truth['outcome']}"] += 1
 
+    def _maybe_misplace(self, pid: str, now: int) -> None:
+        """Leaving a place, an absent-minded person may leave something behind. Nobody decides this."""
+        from world.items import misplace
+        from world.attention import world_seed
+        row = self.conn.execute("SELECT traits FROM personas WHERE person_id = ?", (pid,)).fetchone()
+        absent = json.loads(row[0]).get("absent_minded", 0.0) if row else 0.0
+        for obj in self.conn.execute(
+            "SELECT id, tags FROM objects WHERE owner_person_id = ? AND status = 'normal' ORDER BY id", (pid,)).fetchall():
+            tags = json.loads(obj["tags"])
+            if "fixed" in tags or "animal" in tags:
+                continue
+            if make_rng(world_seed(self.conn), now, f"{pid}:{obj['id']}", "misplace").random() < MISPLACE_RATE * absent:
+                apply_event(self.conn, misplace(self.conn, pid, obj["id"], now))
+                self.stats["misplaced"] += 1
+
     def _upkeep(self, ids: list[str], now: int) -> None:
-        """Overnight: everyone goes home, sleeps and gets hungry. One event per person."""
+        """Overnight: everyone goes home, pays rent, sleeps and gets hungry (one event per person); then props do
+        what they do, and people notice what they no longer have."""
         for pid in ids:
             p = self.conn.execute("SELECT * FROM people WHERE id = ?", (pid,)).fetchone()
             changes = []
@@ -123,8 +155,23 @@ class Simulation:
                 changes.append(Change("person", pid, "energy", delta=min(60, 100 - p["energy"])))
             if p["hunger"] < 100:
                 changes.append(Change("person", pid, "hunger", delta=min(30, 100 - p["hunger"])))
+            if self.economy:
+                from world.money import rent_changes
+                changes += rent_changes(self.conn, pid)
             if changes:
                 apply_event(self.conn, EventSpec(
                     timestamp=now, type="upkeep", trigger_type="rule", location_id="apartment",
                     importance=0.0, truth={"actor": pid}, participants=[(pid, "actor")], changes=changes,
                 ))
+        if not self.economy:
+            return
+        from world.items import missing_items, notice_missing
+        from world.props import overnight
+        for pid in ids:
+            for spec in overnight(self.conn, pid, now):
+                apply_event(self.conn, spec)
+                self.stats[spec.type] += 1
+        for pid in ids:
+            for obj in missing_items(self.conn, pid):
+                apply_event(self.conn, notice_missing(self.conn, pid, obj["id"], now))
+                self.stats["noticed_missing"] += 1

@@ -1,0 +1,14 @@
+{
+  "feed_id": "synthetic_v1",
+  "note": "Synthetic seed benchmark: neutral facts about the outside world, one per topic. The adapter in world/seeds.py decides what each can change in the town; nothing here names a townsperson or an outcome.",
+  "events": [
+    {"external_event_id": "syn-01", "source": "synthetic", "day": 1, "title": "某寵物店的鸚鵡逃走了，據說很會學人說話", "topic": "exotic_pet_escape", "magnitude": 1.0, "salience": 0.6},
+    {"external_event_id": "syn-02", "source": "synthetic", "day": 2, "title": "有人在咖啡店掉了一張樂透彩券", "topic": "lottery_ticket_lost", "magnitude": 1.0, "salience": 0.1},
+    {"external_event_id": "syn-03", "source": "synthetic", "day": 3, "title": "全國食品價格大漲", "topic": "food_prices_up", "magnitude": 1.0, "salience": 0.8},
+    {"external_event_id": "syn-04", "source": "synthetic", "day": 5, "title": "樂透開獎：頭獎彩券是在鎮上咖啡店賣出的", "topic": "lottery_draw", "magnitude": 1.0, "salience": 0.9},
+    {"external_event_id": "syn-05", "source": "synthetic", "day": 6, "title": "電力公司線路故障，區域停電", "topic": "power_outage", "magnitude": 1.0, "salience": 0.7},
+    {"external_event_id": "syn-06", "source": "synthetic", "day": 8, "title": "產業不景氣，多家公司傳出裁員", "topic": "sector_layoffs", "magnitude": 1.0, "salience": 0.7},
+    {"external_event_id": "syn-07", "source": "synthetic", "day": 9, "title": "物流業者系統出錯，大量包裹送錯地址", "topic": "courier_mixup", "magnitude": 1.0, "salience": 0.4},
+    {"external_event_id": "syn-08", "source": "synthetic", "day": 11, "title": "流浪動物收容所爆滿，街上流浪狗變多", "topic": "stray_animals", "magnitude": 1.0, "salience": 0.5}
+  ]
+}

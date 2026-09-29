@@ -13,7 +13,8 @@ from contracts.tell import TellIntent
 from world.claims import claim_dict, describe_claim, evaluate, labels, load_claim, truth_claims
 from world.confront import find_grounds
 from world.events import Change, ClaimSpec, EventSpec, MemorySpec
-from world.helpers import RelDeltas, bystanders, person, rel
+from world.attention import LOUD, QUIET, noticers
+from world.helpers import RelDeltas, person, rel
 from world.intent import Intent
 from world.tell import asserted_claim, best_memory
 
@@ -109,8 +110,9 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
     claims.append(ClaimSpec(asserted, "asserted"))
     for cid in t.withheld_claim_ids:
         claims.append(ClaimSpec(load_claim(conn, cid), "withheld"))
+    overheard = noticers(conn, here, now, f"tell:{a}:{b}:{t.source_claim_id}", QUIET, a, b)
     memories += [MemorySpec(w, describe_claim(tell_claim, names), WITNESS_CONFIDENCE, claim=tell_claim)
-                 for w in bystanders(conn, here, a, b)]
+                 for w in overheard]
 
     return EventSpec(
         timestamp=now, trigger_type=trigger, location_id=here, type="tell", parent_event_id=src["event_id"],
@@ -123,7 +125,7 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
             "text": describe_claim(asserted, names),
             "withheld_text": [describe_claim(load_claim(conn, cid), names) for cid in t.withheld_claim_ids],
         },
-        participants=[(a, "actor"), (b, "target")] + [(w, "witness") for w in bystanders(conn, here, a, b)],
+        participants=[(a, "actor"), (b, "target")] + [(w, "witness") for w in overheard],
         changes=changes, memories=memories, claims=claims,
     )
 
@@ -153,7 +155,7 @@ def resolve_confront(conn: sqlite3.Connection, it: Intent, now: int, trigger: st
 
     names = labels(conn)
     here = person(conn, a)["location_id"]
-    watchers = bystanders(conn, here, a, b)
+    watchers = noticers(conn, here, now, f"confront:{a}:{b}", LOUD, a, b)
     deceit = EXPOSED_DECEPTION.get(outcome)
 
     deltas = RelDeltas()

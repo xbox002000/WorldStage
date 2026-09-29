@@ -36,8 +36,53 @@ def _summary(row: sqlite3.Row, truth: dict, names: dict[str, str]) -> str:
     if kind == "talk":
         return f"{who}對{other}說話（{truth.get('tone')}）"
     if kind == "steal":
-        return f"{who}偷了{names.get(truth.get('object', ''), '東西')}"
+        seen = "" if truth.get("owner_noticed", True) else "（失主沒發現）"
+        return f"{who}偷了{names.get(truth.get('object', ''), '東西')}{seen}"
+    thing = names.get(truth.get("object") or "", truth.get("object") or "")
+    owner = names.get(truth.get("rightful_owner") or "", "")
+    place = names.get(row["location_id"] or "", row["location_id"] or "")
+    tone = {"warm": "親切地", "neutral": "", "cold": "冷淡地", "hostile": "敵意地"}
+    if kind == "talk":
+        return f"{who}{tone.get(truth.get('tone'), '')}對{other}說話"
+    if kind == "misplace":
+        return f"{who}把{thing}忘在{place}"
+    if kind == "take":
+        return f"{who}撿走了{thing}" + (f"（{owner}的）" if owner else "") + ("" if truth.get("witnessed") else "，沒人看見")
+    if kind == "find":
+        return f"{who}找回了自己的{thing}"
+    if kind == "give":
+        return f"{who}把{thing}還給{other}"
+    if kind == "notice_missing":
+        guess = names.get(truth.get("suspect") or "", "")
+        return f"{who}發現{thing}不見了" + (f"，懷疑是{guess}" + ("（猜對了）" if truth.get("suspect_guilty") else "（猜錯了）")
+                                          if guess else "")
+    if kind == "accuse":
+        result = {"caught": "人贓俱獲", "denied": "對方矢口否認", "false": "冤枉了人"}.get(truth.get("outcome"), "")
+        return f"{who}指控{other}：{truth.get('text', '')}——{result}"
+    if kind == "lend":
+        return f"{who}借了{truth.get('amount_cents', 0) // 100}元給{other}"
+    if kind == "repay":
+        return f"{who}還了{truth.get('amount_cents', 0) // 100}元給{other}"
+    if kind == "parrot_speaks":
+        return truth.get("text", "鸚鵡說話了")
+    if kind == "seed":
+        return f"［外面的事］{truth.get('title', '')}"
+    if kind == "seed_wears_off":
+        return f"［外面的事］{truth.get('var')}恢復原狀"
+    if kind == "cash_prize":
+        return f"{who}兌了樂透，拿到{truth.get('amount_cents', 0) // 100}元"
+    if kind == "backstory":
+        return truth.get("text", "很久以前的事")
     return f"{who}{kind}" if who else kind
+
+
+def summarize(conn: sqlite3.Connection, event_id: int) -> str:
+    """One line in plain Traditional Chinese: 第3天 12:41 咖啡店 阿俊撿走了手錶（阿明的），沒人看見."""
+    row = _event(conn, event_id)
+    names = labels(conn)
+    names.update({r[0]: r[1] for r in conn.execute("SELECT id, name FROM locations")})
+    return (f"第{_day(row['timestamp'])}天 {_clock(row['timestamp'])} {names.get(row['location_id'] or '', '')} "
+            f"{_summary(row, json.loads(row['truth']), names)}")
 
 
 def causes(conn: sqlite3.Connection, event_id: int, limit: int = 60) -> list[dict]:

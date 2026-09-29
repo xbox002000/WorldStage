@@ -5,13 +5,14 @@ import hashlib
 import json
 from pathlib import Path
 
-KERNEL_VERSION = "0.2.0"
+KERNEL_VERSION = "0.3.0"
 ROOT = Path(__file__).resolve().parent.parent
 RULESET_FILES = (
-    "world/rules.py", "world/intent.py", "world/seed.py", "world/simulation.py", "world/events.py",
-    "world/state.py", "world/claims.py", "world/rng.py", "world/db.py", "world/schema.sql",
+    "world/schema.sql",
+    # rule-based motives decide like a rule, so they are part of the ruleset (a model's answers are recorded instead)
+    "agent/volition.py", "agent/perception.py",
 )
-RULESET_GLOBS = ("world/migrations/*.sql", "contracts/*.py")
+RULESET_GLOBS = ("world/*.py", "world/migrations/*.sql", "world/feeds/*.json", "contracts/*.py")
 
 
 def file_hash(path: Path) -> str:

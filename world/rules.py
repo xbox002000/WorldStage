@@ -5,8 +5,10 @@ import sqlite3
 from contracts.claim import Claim
 from world.claims import describe_claim, labels
 from world.events import Change, ClaimSpec, EventSpec, MemorySpec
-from world.helpers import bystanders, clamp_delta, last_event_between, person, rel, trust_change  # noqa: F401
-from world.intent import EAT_COST_CENTS, WORK_ENERGY, Intent
+from world.attention import LOUD, NORMAL, noticers, var, world_seed
+from world.helpers import clamp_delta, last_event_between, person, rel, trust_change
+from world.intent import WORK_ENERGY, Intent, food_price
+from world.rng import rng as make_rng
 
 # tone -> (target's trust in actor, target's affection for actor, actor's affection for target)
 TONE_EFFECT = {
@@ -20,6 +22,7 @@ TONE_EMOTION = {"warm": "happy", "cold": "hurt", "hostile": "angry"}
 
 STEAL_TRUST_OWNER = -0.5
 STEAL_TRUST_WITNESS = -0.2
+OWNER_NOTICES_THEFT = 0.7  # a pickpocket can go unnoticed; the loss is then found at night
 
 
 def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> EventSpec:
@@ -43,7 +46,7 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
             **base, type="eat", importance=0.1, truth={"actor": it.actor},
             participants=[(it.actor, "actor")],
             changes=[
-                Change("person", it.actor, "money_cents", delta=-EAT_COST_CENTS),
+                Change("person", it.actor, "money_cents", delta=-food_price(conn)),
                 Change("person", it.actor, "hunger", delta=-min(40, actor["hunger"])),
             ],
         )
@@ -71,6 +74,13 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
     if it.action == "confront":
         from world.social import resolve_confront
         return resolve_confront(conn, it, now, trigger)
+    if it.action in ("take", "give", "accuse"):
+        from world import items
+        return {"take": items.resolve_take, "give": items.resolve_give, "accuse": items.resolve_accuse}[it.action](
+            conn, it, now, trigger)
+    if it.action in ("lend", "repay"):
+        from world import money
+        return (money.resolve_lend if it.action == "lend" else money.resolve_repay)(conn, it, now, trigger)
     return _steal(conn, it, base)
 
 
@@ -93,7 +103,8 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
 
     claim = Claim(a, f"speak_{tone}", b)
     text = describe_claim(claim, labels(conn))
-    watchers = bystanders(conn, base["location_id"], a, b)
+    watchers = noticers(conn, base["location_id"], base["timestamp"], f"talk:{a}:{b}",
+                        LOUD if tone == "hostile" else NORMAL, a, b)
     memories = [
         MemorySpec(b, text, 0.9, claim=claim),
         MemorySpec(a, text, 1.0, claim=claim),
@@ -111,23 +122,27 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
 def _steal(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
     obj = conn.execute("SELECT * FROM objects WHERE id = ?", (it.target,)).fetchone()
     owner, thief = obj["owner_person_id"], it.actor
-    witnesses = bystanders(conn, base["location_id"], thief, owner)
+    key = f"steal:{thief}:{obj['id']}"
+    owner_noticed = make_rng(world_seed(conn), base["timestamp"], key, "owner_notices").random() < (
+        OWNER_NOTICES_THEFT * var(conn, "visibility", 1.0))
+    witnesses = noticers(conn, base["location_id"], base["timestamp"], key, NORMAL, thief, owner)
 
     changes = [Change("object", obj["id"], "owner_person_id", value=thief)]
-    for observer, delta in [(owner, STEAL_TRUST_OWNER)] + [(w, STEAL_TRUST_WITNESS) for w in witnesses]:
+    observers = ([(owner, STEAL_TRUST_OWNER)] if owner_noticed else []) + [(w, STEAL_TRUST_WITNESS) for w in witnesses]
+    for observer, delta in observers:
         ch = trust_change(conn, observer, thief, delta)
         if ch:
             changes.append(ch)
     claim = Claim(thief, "steal", obj["id"])
     text = describe_claim(claim, labels(conn))
-    memories = [
-        MemorySpec(owner, text, 0.95, claim=claim),
+    memories = ([MemorySpec(owner, text, 0.95, claim=claim)] if owner_noticed else []) + [
         MemorySpec(thief, text, 1.0, claim=claim),
     ] + [MemorySpec(w, text, 0.8, claim=claim) for w in witnesses]
 
     return EventSpec(
         **base, type="steal", parent_event_id=last_event_between(conn, thief, owner), importance=0.8,
-        truth={"actor": thief, "victim": owner, "object": obj["id"], "reason": it.reason, "source": it.source},
+        truth={"actor": thief, "victim": owner, "object": obj["id"], "reason": it.reason, "source": it.source,
+               "owner_noticed": owner_noticed, "witnessed": bool(witnesses) or owner_noticed},
         participants=[(thief, "actor"), (owner, "victim")] + [(w, "witness") for w in witnesses],
         changes=changes, memories=memories,
         claims=[ClaimSpec(claim)],
