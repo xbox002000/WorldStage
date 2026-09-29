@@ -44,7 +44,8 @@ class RngTests(unittest.TestCase):
             for name in os.listdir(os.path.join(ROOT, folder)):
                 if not name.endswith(".py") or name == "rng.py":
                     continue
-                text = open(os.path.join(ROOT, folder, name), encoding="utf-8").read()
+                with open(os.path.join(ROOT, folder, name), encoding="utf-8") as f:
+                    text = f.read()
                 if " hash(" in text or "=hash(" in text or "random.Random(" in text or "random.random(" in text:
                     offenders.append(f"{folder}/{name}")
         self.assertEqual(offenders, [])

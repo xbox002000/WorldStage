@@ -15,6 +15,13 @@ AFFIRM, DENY = "affirm", "deny"
 ACT_FAMILY: dict[str, str] = {
     "steal": "acquire", "borrow": "acquire", "take": "acquire",
     "speak_warm": "speech", "speak_neutral": "speech", "speak_cold": "speech", "speak_hostile": "speech",
+    "tell": "tell", "deceive": "deception", "conceal": "deception", "confront": "confront",
+}
+# What the claim's `object` names: an item id (objects table) or a person id.
+ACT_OBJECT_KIND: dict[str, str] = {
+    "steal": "item", "borrow": "item", "take": "item",
+    "speak_warm": "person", "speak_neutral": "person", "speak_cold": "person", "speak_hostile": "person",
+    "tell": "person", "deceive": "person", "conceal": "person", "confront": "person",
 }
 # Fixed, rule-owned distortions: the model never writes a proposition, it picks a mode.
 DISTORTION: dict[str, str] = {
@@ -54,9 +61,26 @@ def negate(claim: Claim) -> Claim:
     return replace(claim, polarity=DENY if claim.polarity == AFFIRM else AFFIRM)
 
 
+def can_distort(claim: Claim) -> bool:
+    return claim.act in DISTORTION
+
+
 def distort(claim: Claim) -> Claim:
     """The `distortion` transform: a different act from the same family."""
     return replace(claim, act=DISTORTION[claim.act])
+
+
+def contradicts(a: Claim, b: Claim) -> bool:
+    """Two accounts of the same subject and object that cannot both stand as told.
+
+    Same act with opposite polarity ("he stole it" / "he did not steal it"), or two different acts from one
+    family, both affirmed ("he stole it" / "he only took it").
+    """
+    if a.subject != b.subject or a.object != b.object:
+        return False
+    if a.act == b.act:
+        return a.polarity != b.polarity
+    return a.family == b.family and a.polarity == AFFIRM and b.polarity == AFFIRM
 
 
 TRUE, FALSE, PARTIAL, UNKNOWN = "TRUE", "FALSE", "PARTIAL", "UNKNOWN"

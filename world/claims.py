@@ -52,3 +52,37 @@ def evaluate(conn: sqlite3.Connection, claim: Claim, about_event_id: int | None 
     if opposite:
         return FALSE
     return PARTIAL if near else UNKNOWN
+
+
+# act -> (affirmed phrase, denied phrase); {o} is the object's display name
+PHRASE: dict[str, tuple[str, str]] = {
+    "steal": ("偷了{o}", "沒有偷{o}"),
+    "take": ("拿走了{o}", "沒有拿走{o}"),
+    "borrow": ("借走了{o}", "沒有借{o}"),
+    "speak_warm": ("親切地對{o}說話", "沒有親切地對{o}說話"),
+    "speak_neutral": ("和{o}閒聊", "沒有和{o}閒聊"),
+    "speak_cold": ("冷淡地對{o}說話", "沒有冷淡地對{o}說話"),
+    "speak_hostile": ("敵意地質問{o}", "沒有敵意地質問{o}"),
+    "tell": ("告訴了{o}一些事", "沒有告訴{o}任何事"),
+    "deceive": ("欺騙了{o}", "沒有欺騙{o}"),
+    "conceal": ("對{o}隱瞞了事情", "沒有對{o}隱瞞事情"),
+    "confront": ("當面質問了{o}", "沒有當面質問{o}"),
+}
+
+
+def labels(conn: sqlite3.Connection) -> dict[str, str]:
+    """Display names for every person and item id (the two id spaces never overlap)."""
+    out = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM objects ORDER BY id")}
+    out.update({r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM people ORDER BY id")})
+    return out
+
+
+def describe_claim(claim: Claim, names: dict[str, str]) -> str:
+    """A claim in plain Traditional Chinese, e.g. 阿明偷了手機 / 阿明沒有偷手機."""
+    affirm, deny = PHRASE[claim.act]
+    phrase = affirm if claim.polarity == AFFIRM else deny
+    return names.get(claim.subject, claim.subject) + phrase.format(o=names.get(claim.object, claim.object))
+
+
+def claim_dict(claim: Claim) -> dict:
+    return {"subject": claim.subject, "act": claim.act, "object": claim.object, "polarity": claim.polarity}

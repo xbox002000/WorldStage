@@ -33,3 +33,22 @@ def dump_state(conn: sqlite3.Connection) -> list[tuple]:
     for table in ("people", "relationships", "objects", "events", "event_deltas", "memories"):
         out += [tuple(r) for r in conn.execute(f"SELECT * FROM {table} ORDER BY 1, 2")]
     return out
+
+
+def social_world(world_seed: int = 1) -> sqlite3.Connection:
+    """john, mary, tom at the cafe; ben and anna at home. Everyone knows everyone (trust 0.2). mary owns a phone."""
+    conn = connect()
+    init_db(conn, world_seed)
+    conn.execute("INSERT INTO locations VALUES ('home','Home',0,0,10,'[]')")
+    conn.execute("INSERT INTO locations VALUES ('cafe','Cafe',2,0,20,'[]')")
+    conn.execute("INSERT INTO location_edges VALUES ('home','cafe',10)")
+    conn.execute("INSERT INTO location_edges VALUES ('cafe','home',10)")
+    people = (("john", "cafe"), ("mary", "cafe"), ("tom", "cafe"), ("ben", "home"), ("anna", "home"))
+    for pid, loc in people:
+        conn.execute("INSERT INTO people VALUES (?,?,?,100,10000,10,'goal','calm','{}','active')", (pid, pid.title(), loc))
+    for a, _ in people:
+        for b, _ in people:
+            if a != b:
+                conn.execute("INSERT INTO relationships(actor_id, target_id, trust, affection) VALUES (?,?,0.2,0.1)", (a, b))
+    conn.execute("INSERT INTO objects(id, name, owner_person_id) VALUES ('phone','Phone','mary')")
+    return conn

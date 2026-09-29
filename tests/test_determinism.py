@@ -31,7 +31,7 @@ class OrderIndependenceTests(unittest.TestCase):
     def test_candidate_options_have_unique_keys(self):
         conn = run(184729, 1, False)
         for actor in [r[0] for r in conn.execute("SELECT id FROM people ORDER BY id")]:
-            keys = [(c["action"], c.get("target")) for c in candidates(conn, actor)]
+            keys = [(c["action"], c.get("target"), c.get("claim_id"), c.get("memory_id")) for c in candidates(conn, actor)]
             self.assertEqual(len(keys), len(set(keys)), actor)
 
 

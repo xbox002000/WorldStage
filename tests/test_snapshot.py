@@ -134,7 +134,8 @@ def _insert_v1_rows(conn):
 class MigrationTests(unittest.TestCase):
     def v1_database(self):
         conn = connect()
-        conn.executescript(open(os.path.join(ROOT, "world", "migrations", "v001_schema.sql"), encoding="utf-8").read())
+        with open(os.path.join(ROOT, "world", "migrations", "v001_schema.sql"), encoding="utf-8") as f:
+            conn.executescript(f.read())
         _insert_v1_rows(conn)
         return conn
 

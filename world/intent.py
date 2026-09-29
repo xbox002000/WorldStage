@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from world.state import WorldError
 
-ACTIONS = ("move", "eat", "work", "rest", "talk", "steal")
+ACTIONS = ("move", "eat", "work", "rest", "talk", "steal", "tell", "confront")
 TONES = ("warm", "neutral", "cold", "hostile")
 
 EAT_COST_CENTS = 800
@@ -25,11 +25,16 @@ class Intent:
     reason: str = ""
     priority: float = 0.5
     source: str = ""  # which model proposed it; empty for rule/seeded decisions
+    claim_id: int | None = None  # tell: the held claim to pass on
+    mode: str | None = None  # tell: truth | omission | lie | distortion
+    withheld: tuple[int, ...] = ()  # tell (omission): other held claims to keep quiet about
+    memory_id: int | None = None  # confront: the told memory being challenged
 
 
 def intent_hash(it: Intent) -> str:
     """Identity of a proposed action, independent of who wrote the reason text."""
-    payload = json.dumps([it.actor, it.action, it.target, it.tone], separators=(",", ":"), ensure_ascii=False)
+    payload = json.dumps([it.actor, it.action, it.target, it.tone, it.claim_id, it.mode, list(it.withheld), it.memory_id],
+                         separators=(",", ":"), ensure_ascii=False)
     return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -49,6 +54,16 @@ def parse_intent(actor: str, raw: dict) -> Intent:
         priority = float(raw.get("priority", 0.5))
     except (TypeError, ValueError):
         raise WorldError("priority must be a number")
+    def integer(name: str) -> int | None:
+        value = raw.get(name)
+        if value in (None, "", 0):  # ids start at 1, so 0 means "not given"
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            raise WorldError(f"{name} must be an integer")
+
+    withheld = integer("withheld_claim_id")
     return Intent(
         actor=actor,
         action=str(raw.get("action", "")),
@@ -56,6 +71,10 @@ def parse_intent(actor: str, raw: dict) -> Intent:
         tone=raw.get("tone") or None,
         reason=str(raw.get("reason", ""))[:300],
         priority=min(1.0, max(0.0, priority)),
+        claim_id=integer("claim_id"),
+        mode=raw.get("mode") or None,
+        withheld=(withheld,) if withheld else (),
+        memory_id=integer("memory_id"),
     )
 
 
@@ -116,3 +135,12 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
         owner_row = conn.execute("SELECT location_id FROM people WHERE id = ?", (owner,)).fetchone()
         if owner_row["location_id"] != here:
             raise WorldError("owner is not here")
+    elif it.action == "tell":
+        from contracts.tell import TellIntent
+        from world.tell import validate_tell
+        if it.claim_id is None or not it.target:
+            raise WorldError("a tell needs a target and a claim")
+        validate_tell(conn, TellIntent(it.actor, it.target, it.mode or "", it.claim_id, list(it.withheld)))
+    elif it.action == "confront":
+        from world.confront import validate_confront
+        validate_confront(conn, it.actor, it.target, it.memory_id)
