@@ -18,8 +18,14 @@ from contracts.stylepack import StylePack
 from world.ruleset import ROOT, file_hash, ruleset_hash
 from world.toolchain import simulation_toolchain_hash
 
-PIPELINE_GLOBS = ("narrative/*.py", "contracts/*.py", "render/packet_html.py", "audio/*.py",
-                  "production/qa.py", "production/series.py", "production/publisher.py", "channel/daily.py")
+# What decides which stories get told is frozen. How they look and sound is only recorded: restyling the
+# episodes mid-run does not change what the world did or which of it was chosen.
+STORY_FILES = ("narrative/arcs.py", "narrative/scorer.py", "narrative/selector.py", "narrative/continuity.py",
+               "narrative/scene_spec.py", "contracts/scene_spec.py", "contracts/stylepack.py",
+               "production/series.py", "channel/daily.py")
+PRESENTATION_GLOBS = ("narrative/compiler.py", "narrative/audio_plan.py", "narrative/color.py", "contracts/packet.py",
+                      "render/packet_html.py", "audio/*.py", "production/qa.py", "production/publisher.py")
+INFORMATIONAL = {"days", "presentation_hash", "render"}
 
 
 class ExperimentDrift(RuntimeError):
@@ -28,10 +34,19 @@ class ExperimentDrift(RuntimeError):
         super().__init__("frozen experiment config no longer matches: " + ", ".join(sorted(differences)))
 
 
-def pipeline_hash() -> str:
-    """Everything after the world that decides which story is told and how it looks and sounds."""
-    files = sorted({p for pattern in PIPELINE_GLOBS for p in ROOT.glob(pattern)})
+def _hash_of(patterns) -> str:
+    files = sorted({p for pattern in patterns for p in ROOT.glob(pattern)})
     return content_hash({p.relative_to(ROOT).as_posix(): file_hash(p) for p in files})
+
+
+def story_hash() -> str:
+    """The code that chooses which of the world's events become an episode."""
+    return _hash_of(STORY_FILES)
+
+
+def presentation_hash() -> str:
+    """The code that decides how an episode looks, sounds and is described."""
+    return _hash_of(PRESENTATION_GLOBS)
 
 
 def build_config(*, experiment_id: str, world_seed: int | str, active_ids: set[str] | list[str], style: StylePack,
@@ -42,7 +57,8 @@ def build_config(*, experiment_id: str, world_seed: int | str, active_ids: set[s
         "world_seed": str(world_seed),
         "active_ids": sorted(active_ids),
         "ruleset_hash": ruleset_hash(),
-        "pipeline_hash": pipeline_hash(),
+        "story_hash": story_hash(),
+        "presentation_hash": presentation_hash(),
         "stylepack": {"id": style.id, "version": style.version, "hash": style.hash()},
         "scorer_weights": dict(sorted(style.weights.items())),
         "prompt_version": PROMPT_VERSION,
@@ -76,6 +92,7 @@ def check_frozen(conn: sqlite3.Connection, experiment_id: str, current: dict) ->
     if row is None:
         raise KeyError(f"experiment {experiment_id!r} has not been frozen yet")
     diff = differences(json.loads(row[0]), json.loads(canonical_json(current)))
-    diff.pop("days", None)  # how many days to run is not part of what makes the runs comparable
+    for key in INFORMATIONAL:  # how many days, and how they look, do not make runs incomparable
+        diff.pop(key, None)
     if diff:
         raise ExperimentDrift(diff)

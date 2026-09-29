@@ -9,7 +9,7 @@ from world.claims import load_claim
 from world.state import WorldError
 
 
-MIN_TELLING_IMPORTANCE = 0.25  # idle chatter is not worth passing on
+MIN_TELLING_IMPORTANCE = 0.35  # warm and idle chatter is not worth passing on; friction, theft and lies are
 
 
 def held_claim_ids(conn: sqlite3.Connection, person: str) -> set[int]:

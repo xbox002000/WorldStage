@@ -15,6 +15,7 @@ from world.tell import already_told, best_memory, holds, tellable
 
 MEMORY_RECENT = 5
 MEMORY_IMPORTANT = 3
+MAX_STEAL_OPTIONS = 2
 
 
 def source_label(memory: sqlite3.Row | None, names: dict[str, str]) -> str:
@@ -68,9 +69,12 @@ def social_options(conn: sqlite3.Connection, actor: str) -> dict:
     obs = observe(conn, actor)
     names = labels(conn)
     here_ids = [o["id"] for o in obs["others_here"]]
+    # Theft is only worth listing against the people the actor trusts least, and never more than a couple of them.
     steal = [{"target": r["id"], "object": r["name"], "owner": r["owner_person_id"]} for r in conn.execute(
         "SELECT o.id, o.name, o.owner_person_id FROM objects o JOIN people p ON p.id = o.owner_person_id "
-        "WHERE p.location_id = ? AND o.owner_person_id <> ? ORDER BY o.id", (obs["me"]["location_id"], actor))]
+        "LEFT JOIN relationships rel ON rel.actor_id = ? AND rel.target_id = o.owner_person_id "
+        "WHERE p.location_id = ? AND o.owner_person_id <> ? ORDER BY COALESCE(rel.trust, 0), o.id LIMIT ?",
+        (actor, obs["me"]["location_id"], actor, MAX_STEAL_OPTIONS))]
 
     tell = []
     for row in tellable(conn, actor):

@@ -189,6 +189,21 @@ class ExperimentTests(Workspace):
             freeze(conn, changed)
 
 
+    def test_only_the_story_is_frozen_not_the_look(self):
+        from production.experiment import check_frozen, presentation_hash, story_hash
+        conn = prod.open_production_db()
+        cfg = build_config(experiment_id="A", world_seed=1, active_ids={"ming"}, style=SUSPENSE_V1, models=["m"], days=7,
+                           orientation="portrait", quality="looks")
+        freeze(conn, cfg)
+        restyled = {**cfg, "presentation_hash": "sha256:other", "render": {"orientation": "landscape", "quality": "delivery"}, "days": 30}
+        check_frozen(conn, "A", restyled)  # no error: how it looks, and how many days, do not matter
+        with self.assertRaises(ExperimentDrift) as ctx:
+            check_frozen(conn, "A", {**cfg, "story_hash": "sha256:other"})
+        self.assertEqual(set(ctx.exception.differences), {"story_hash"})
+        self.assertNotEqual(story_hash(), presentation_hash())
+        self.assertEqual(story_hash(), story_hash())
+
+
 class ListingTests(Workspace):
     def test_listing_is_deterministic_honest_and_within_limits(self):
         from tests.world_fixture import build_specs, compile_all

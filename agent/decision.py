@@ -15,7 +15,7 @@ from world.rng import rng as make_rng
 from world.social import belief_effect
 from world.state import WorldError
 
-PROMPT_VERSION = "p1.2"
+PROMPT_VERSION = "p1.3"
 
 INTENT_SCHEMA = {
     "type": "object",
@@ -48,10 +48,15 @@ What you remember (the words in brackets say how you know it):
 What you could do right now (choose exactly one; use the ids exactly as given):
 {options}
 
-Real people are not always friendly. Choose what your personality, your feelings toward the people here and what you remember justify. Warm is not a default: if someone slighted you, stands in the way of your goal, or you distrust them (trust below 0), cold or hostile is natural. People lie to protect themselves or someone they care about, or to hurt someone they dislike; they pass on what they know to people they trust; they confront someone only when what that person told them does not add up. Never lie or confront without a reason grounded in your personality, feelings and memories. Do not act on things you have no memory of.
+Guidance:
+- People who are together usually interact: they chat, trade news and pursue what they want. Staying silent (idle) is the exception, for a moment when you would truly say and do nothing.
+- Choose what your personality, your goal, your feelings toward the people here and what you remember justify. Warm is not a default: if someone slighted you, stands in the way of your goal, or you distrust them (trust below 0), cold or hostile is natural.
+- Information matters to you. If you know something that others here do not, and it touches someone you care about or resent, you will usually say something about it: truthfully, or bent to suit you. People lie to protect themselves or someone they care about, or to hurt someone they dislike.
+- If two things you saw or were told do not add up, you may confront the person who told you.
+- Do not act on things you have no memory of.
 
 Reply as JSON: action, target (an id from the options), tone (talk only), claim_id and mode (tell only; withheld_claim_id too when the mode is omission), memory_id (confront only), reason (one short sentence in Traditional Chinese).
-Pick "idle" if nothing you know gives you a reason to act."""
+"""
 
 MODE_HELP = {
     "truth": "say it as you know it",
