@@ -42,7 +42,7 @@ class Placement:
 
 @dataclass(frozen=True)
 class CameraShot:
-    shot: str  # wide | two_shot | single | over_shoulder | insert
+    shot: str  # wide | two_shot | single | over_shoulder | insert | pov
     position: list[float]
     target: list[float]
     lens_mm: float = 35.0

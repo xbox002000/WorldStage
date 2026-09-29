@@ -35,6 +35,13 @@ def migrate_packet(data: dict) -> dict:
             cue.setdefault("duration", 0.0)
             cue.setdefault("intensity", 0.5)
         data["version"] = 2
+    if data.get("version") == 2:  # v2 -> v3: shots can carry the director's intent; the packet names its plan
+        for shot in data["shots"]:
+            for key in ("function", "direction_note", "relation", "angle", "focalizer", "spatial_camera", "music"):
+                shot.setdefault(key, "")
+            shot.setdefault("dialogue", "full")
+        data.setdefault("direction_hash", "")
+        data["version"] = 3
     if data.get("version") != PACKET_VERSION:
         raise ValueError(f"cannot migrate packet version {data.get('version')}")
     data["packet_hash"] = ""

@@ -74,7 +74,7 @@ def _camera_index(plan: SpatialPlan, shot: Shot) -> tuple[int, int] | None:
     beat = next((b for b in plan.beats if b.event_id == shot.event_id), None)
     if beat is None or not beat.cameras:
         return None
-    want = CAMERA_FOR.get(shot.camera.shot_type, "wide")
+    want = shot.spatial_camera or CAMERA_FOR.get(shot.camera.shot_type, "wide")
     cam = next((i for i, c in enumerate(beat.cameras) if c.shot == want), 0)
     return beat.beat_index, cam
 

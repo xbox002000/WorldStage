@@ -190,6 +190,12 @@ def _cameras(loc: str, placements: list[Placement], principals: list[str], beat:
         mirror = [round(b.position[0] + 0.7 * ax / n - 0.35 * px, 3), round(b.position[1] + 0.7 * ay / n - 0.35 * py, 3), 1.5]
         shots.append(CameraShot("over_shoulder", _first_clear(loc, [behind, mirror] + corners, [a], objects), _head(a),
                                 50.0, "static", None, [a.id]))
+    # a point of view: through the first witness's eyes (at their own eye height: a dog sees from the floor)
+    watchers = [p for p in placements if p.id in {q.id for q in beat.participants if q.role in ("witness", "sensed")}]
+    actor = next((p for p in placements if principals and p.id == principals[0]), None)
+    if watchers and actor is not None:
+        w = watchers[0]
+        shots.append(CameraShot("pov", _head(w), _chest(actor), 28.0, "static", None, [actor.id]))
     prop = next((p for p in placements if beat.prop is not None and p.id == beat.prop.id), None)
     if prop is not None:
         shots.append(CameraShot("insert", [prop.position[0] + 0.4, prop.position[1] - 0.6, 1.3], prop.position, 85.0,

@@ -254,6 +254,9 @@
         "continuity_locks": {
           "$ref": "#/$defs/ContinuityLocks"
         },
+        "direction_hash": {
+          "type": "string"
+        },
         "episode": {
           "$ref": "#/$defs/Episode"
         },
@@ -365,6 +368,9 @@
         "action": {
           "type": "string"
         },
+        "angle": {
+          "type": "string"
+        },
         "camera": {
           "$ref": "#/$defs/Camera"
         },
@@ -399,6 +405,12 @@
         "day": {
           "type": "integer"
         },
+        "dialogue": {
+          "type": "string"
+        },
+        "direction_note": {
+          "type": "string"
+        },
         "duration_seconds": {
           "type": "integer"
         },
@@ -407,6 +419,12 @@
         },
         "event_id": {
           "type": "integer"
+        },
+        "focalizer": {
+          "type": "string"
+        },
+        "function": {
+          "type": "string"
         },
         "intent": {
           "type": "string"
@@ -417,11 +435,17 @@
         "location": {
           "$ref": "#/$defs/Place"
         },
+        "music": {
+          "type": "string"
+        },
         "props": {
           "items": {
             "$ref": "#/$defs/Prop"
           },
           "type": "array"
+        },
+        "relation": {
+          "type": "string"
         },
         "render_backend": {
           "type": "string"
@@ -430,6 +454,9 @@
           "type": "string"
         },
         "shot_id": {
+          "type": "string"
+        },
+        "spatial_camera": {
           "type": "string"
         },
         "start_seconds": {

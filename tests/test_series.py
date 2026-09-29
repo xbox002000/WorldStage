@@ -271,11 +271,13 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual([b.variant for b in spec.beats], old_tones)  # `tone` became `variant`, values preserved
         self.assertTrue(all(b.detail is None and b.incident is None for b in spec.beats))
 
-    def test_v1_packet_loads_as_v2(self):
+    def test_v1_packet_loads_as_current(self):
         data = json.loads((FIXTURES / "legacy_packet_v1.json").read_text(encoding="utf-8"))
         self.assertEqual(data["version"], 1)
         migrated = from_dict(ProductionPacket, migrate_packet(data))
-        self.assertEqual(migrated.version, 2)
+        self.assertEqual(migrated.version, 3)
+        self.assertEqual(migrated.direction_hash, "")
+        self.assertTrue(all(s.function == "" and s.dialogue == "full" for s in migrated.shots))
         self.assertEqual(len(migrated.shots), len(data["shots"]))
         self.assertEqual(migrated.packet_hash, "")  # a migrated document is new: it gets stamped when re-finalised
 

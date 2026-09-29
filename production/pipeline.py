@@ -22,6 +22,7 @@ from contracts.capability import Policy, Requirement
 from contracts.render_request import RenderRequest, Take
 from contracts.stylepack import SUSPENSE_V1, StylePack
 from narrative.compiler import compile_packet
+from narrative.direction import plan_direction
 from narrative.scene_spec import build_scene_specs, validate_spec
 from narrative.selector import Candidate, select_top
 from narrative.spatial import compile_spatial
@@ -77,8 +78,12 @@ def _render(conn: sqlite3.Connection, composer, request: RenderRequest) -> Take:
 def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: Path, candidates: list[Candidate], *,
                   scene_ids: list[str] | None = None, sim_day: int | None = None, orientation: str = "portrait",
                   style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True, route: str = "procedural",
-                  registry: CapabilityRegistry | None = None, policy: Policy = Policy()) -> list[EpisodeResult]:
-    """Turn chosen arcs into episodes, one after another (a later episode's recap can cite an earlier one)."""
+                  registry: CapabilityRegistry | None = None, policy: Policy = Policy(),
+                  threads: list | None = None, shown: set[int] | frozenset[int] = frozenset()) -> list[EpisodeResult]:
+    """Turn chosen arcs into episodes, one after another (a later episode's recap can cite an earlier one).
+
+    With `threads` (one StoryThread per candidate, from the story director) each scene gets a DirectorPlan first,
+    and the packet's shots follow it. `shown`: events earlier episodes showed (what the audience already knows)."""
     if route not in ROUTES:
         raise ValueError(f"unknown route {route!r} (one of {ROUTES})")
     registry = registry or default_registry(lambda h: prod.load_packet(conn, h))
@@ -89,7 +94,9 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         spec = build_scene_specs(world, [cand], [ids[i]])[0]
         validate_spec(world, spec)
         recap = series.build_recap(conn, spec)
-        packet = compile_packet(spec, style, orientation, recap=recap)
+        thread = threads[i] if threads else None
+        direction = plan_direction(world, spec, thread, set(shown)) if thread is not None else None
+        packet = compile_packet(spec, style, orientation, recap=recap, direction=direction)
         prod.save_scene_spec(conn, spec)
         prod.save_packet(conn, packet)
         total, w, h = packet.qa.total_seconds, packet.canvas.width, packet.canvas.height
@@ -144,6 +151,8 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                 (target / "subtitles.srt").write_text(to_srt(packet), encoding="utf-8")
                 (target / "packet.json").write_text(canonical_json(packet), encoding="utf-8")
                 (target / "scene_spec.json").write_text(canonical_json(spec), encoding="utf-8")
+                if direction is not None:
+                    (target / "director_plan.json").write_text(canonical_json(direction), encoding="utf-8")
                 episode_id = series.record_episode(
                     conn, scene_hash=spec.scene_hash, take_id=take.take_id, title=spec.title, sim_day=sim_day,
                     arc_kind=cand.arc.kind, score=cand.score, continuity=cand.continuity, qa_status=qa_status, recap=recap)

@@ -143,7 +143,7 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
         conn.close()
 
 
-def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread) -> None:
+def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown: set[int]) -> None:
     """How the chosen scene is staged in space (read-only), for a spatial backend such as Blender later."""
     spec = build_scene_specs(world, [cand], [folder.name])[0]
     plan = compile_spatial(spec)
@@ -151,7 +151,7 @@ def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread) -> Non
     (folder / "spatial_plan.json").write_text(canonical_json(plan), encoding="utf-8")
     (folder / "thread.json").write_text(canonical_json(thread), encoding="utf-8")
     from narrative.direction import plan_direction
-    (folder / "director_plan.json").write_text(canonical_json(plan_direction(world, spec, thread)), encoding="utf-8")
+    (folder / "director_plan.json").write_text(canonical_json(plan_direction(world, spec, thread, shown)), encoding="utf-8")
 
 
 def _freeze(cfg: DailyConfig, live: Path, conn: sqlite3.Connection) -> None:
@@ -213,15 +213,17 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
             cand, _ = select_daily(world, day, cfg.protagonists, cfg.style.weights, series.used_event_ids(conn))
         status, episode = "quiet_day", None
         if cand is not None:
+            shown = series.used_event_ids(conn)
             (episode,) = make_episodes(world, conn, Path(cfg.out_dir), [cand], scene_ids=[f"day_{day + 1:02d}"],
                                        sim_day=day, orientation=cfg.orientation, style=cfg.style,
-                                       quality=cfg.quality, render=cfg.render)
+                                       quality=cfg.quality, render=cfg.render,
+                                       threads=[thread] if cfg.world_c else None, shown=shown)
             status = ("episode" if episode.episode_id else
                       "render_failed" if episode.qa_status == "render_failed" else "qa_failed")
             if episode.video is not None:
                 LocalPublisher(conn, episode.episode_id).publish(episode.video.parent)
             if cfg.world_c:
-                _write_spatial(world, cand, Path(cfg.out_dir) / f"day_{day + 1:02d}", thread)
+                _write_spatial(world, cand, Path(cfg.out_dir) / f"day_{day + 1:02d}", thread, shown)
         conn.execute("INSERT INTO daily_runs(experiment_id, sim_day, world_revision, snapshot_hash, episode_id, status, usage_json, "
                      "created_at) VALUES (?,?,?,?,?,?,?,strftime('%s','now'))",
                      (cfg.experiment, day, revision, snap, episode.episode_id if episode else None, status,

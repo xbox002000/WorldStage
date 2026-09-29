@@ -7,6 +7,7 @@ from pathlib import Path
 from contracts.backends import ShotRequest
 from contracts.base import schema_for
 from contracts.capability import ProviderManifest, Selection
+from contracts.director import DirectorPlan
 from contracts.mechanic import NarrativeMechanicPack
 from contracts.packet import ProductionPacket
 from contracts.render_request import RenderRequest, Take
@@ -23,6 +24,7 @@ CONTRACTS = {"scene_spec": SceneSpec, "production_packet": ProductionPacket, "re
              "take": Take, "stylepack": StylePack, "tell_intent": TellIntent,
              "external_event": ExternalEvent, "seed_candidate": SeedCandidate, "story_thread": StoryThread,
              "spatial_plan": SpatialPlan, "narrative_mechanic_pack": NarrativeMechanicPack,
+             "director_plan": DirectorPlan,
              "provider_manifest": ProviderManifest, "provider_selection": Selection, "shot_request": ShotRequest,
              "visual_failure": VisualFailure, "repair_request": RepairRequest}
 

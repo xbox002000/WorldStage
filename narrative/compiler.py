@@ -12,12 +12,13 @@ from contracts.packet import (
     LocationLock, ProductionPacket, QARequirements, Shot, ShotCharacter, StylePackRef, SubtitleCue, finalize)
 from contracts.scene_spec import Beat, SceneSpec
 from contracts.stylepack import SUSPENSE_V1, StylePack
-from narrative.audio_plan import compile_audio_plan
+from narrative.audio_plan import compile_audio_plan, compile_directed_audio
 from narrative.color import avatar_color
 from world.ruleset import ROOT, file_hash
 
-COMPILER_VERSION = "1.0.0"
-COMPILER_FILES = ("narrative/compiler.py", "narrative/audio_plan.py", "narrative/color.py", "contracts/packet.py", "contracts/stylepack.py")
+COMPILER_VERSION = "1.1.0"
+COMPILER_FILES = ("narrative/compiler.py", "narrative/audio_plan.py", "narrative/color.py", "contracts/packet.py",
+                  "contracts/stylepack.py", "narrative/direction.py", "contracts/director.py")
 
 # (event type, tone) -> (actor action, target action, actor emotion, target emotion, shot, movement, seconds)
 BEATS = {
@@ -152,17 +153,64 @@ def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePac
 RECAP_SECONDS = 2.0  # extra time on the title card to read the recap
 
 
+# DirectorPlan scale/relation -> the packet's shot sizes (the renderers and the shot route know these five)
+SCALE_TO_SHOT = {"EWS": "wide", "WS": "wide", "MS": "medium", "MCU": "close_up", "CU": "close_up", "ECU": "close_up",
+                 "INSERT": "insert"}
+MOTION_TO_MOVEMENT = {"push_in": "slow_push_in"}
+LONE_ACTS = ("take", "misplace", "notice_missing", "find", "cash_prize", "feed_pet", "seed")
+
+
+def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[str, str], start: float) -> list[Shot]:
+    """One packet shot per DirectorPlan shot. The first shot of each beat carries its caption; the others are
+    coverage of the same moment (a reaction, an insert, a point of view)."""
+    shots, t, seen = [], start, set()
+    sound = {c.shot_index: c for c in direction.sound}
+    last_beat = len(spec.beats) - 1
+    for n, cs in enumerate(direction.shots):
+        beat = spec.beats[cs.beat_index]
+        base = _shot(spec, beat, n, t, style, names, spec.beats[cs.beat_index - 1] if cs.beat_index else None,
+                     last=False)
+        shot_type = "two_shot" if cs.relation == "two_shot" and cs.scale in ("MS", "WS") else SCALE_TO_SHOT[cs.scale]
+        shot_type = _tighten(shot_type, style.camera_bias)
+        seconds = max(1, round(cs.seconds * style.duration_scale)) + (1 if beat.trust_flipped and cs.function == "reveal" else 0)
+        if cs.beat_index == last_beat and n == len(direction.shots) - 1 and style.ending == "unresolved":
+            seconds += 1
+        present = [c for c in base.characters if beat.event_type not in LONE_ACTS or c.role in ("actor", "witness")]
+        first = cs.beat_index not in seen
+        seen.add(cs.beat_index)
+        cue = sound.get(n)
+        shots.append(replace(
+            base, shot_id=f"s{n:02d}", intent=f"{cs.function}: {cs.reason}",
+            camera=Camera(shot_type, MOTION_TO_MOVEMENT.get(cs.motion, cs.motion), FOCAL_MM[shot_type]),
+            start_seconds=round(t, 3), duration_seconds=seconds, caption=base.caption if first else "",
+            thought=base.thought if first else None, characters=present or base.characters,
+            continuity_note=base.continuity_note if first else f"same moment, {cs.function}",
+            function=cs.function, direction_note=cs.reason, relation=cs.relation, angle=cs.angle,
+            focalizer=direction.focalization.focalizer, spatial_camera=cs.spatial_camera,
+            music=cue.music if cue else "", dialogue=cue.dialogue if cue else "full"))
+        t += seconds
+    return shots
+
+
 def compile_packet(spec: SceneSpec, style: StylePack = SUSPENSE_V1, orientation: str = "portrait",
-                   fps: int = 30, recap: str = "") -> ProductionPacket:
+                   fps: int = 30, recap: str = "", direction=None) -> ProductionPacket:
+    """With a DirectorPlan (narrative/direction.py) the shots follow the director: several per beat, each with its
+    function and reason. Without one, one shot per beat from the BEATS table (the older behaviour)."""
     width, height = CANVAS[orientation]
     names = {pid: p.name for pid, p in spec.characters.items()}
     title_seconds = style.title_seconds + (RECAP_SECONDS if recap else 0.0)
-    shots, t, previous = [], title_seconds, None
-    for i, beat in enumerate(spec.beats):
-        shot = _shot(spec, beat, i, t, style, names, previous, last=(i == len(spec.beats) - 1))
-        shots.append(shot)
-        t += shot.duration_seconds
-        previous = beat
+    if direction is not None:
+        if direction.scene_hash != spec.scene_hash:
+            raise ValueError("the DirectorPlan was made for another scene")
+        shots = _directed_shots(spec, direction, style, names, title_seconds)
+        t = shots[-1].start_seconds + shots[-1].duration_seconds if shots else title_seconds
+    else:
+        shots, t, previous = [], title_seconds, None
+        for i, beat in enumerate(spec.beats):
+            shot = _shot(spec, beat, i, t, style, names, previous, last=(i == len(spec.beats) - 1))
+            shots.append(shot)
+            t += shot.duration_seconds
+            previous = beat
     total = round(t + style.end_seconds, 3)
 
     locks = ContinuityLocks(
@@ -172,7 +220,8 @@ def compile_packet(spec: SceneSpec, style: StylePack = SUSPENSE_V1, orientation:
                    for loc in spec.map.locations},
     )
     required = sorted({ref for s in shots for ref in s.continuity_refs})
-    audio_plan = compile_audio_plan(spec.beats, shots, title_seconds, total)
+    audio_plan = (compile_audio_plan(spec.beats, shots, title_seconds, total) if direction is None
+                  else compile_directed_audio(spec.beats, shots, title_seconds, total))
     packet = ProductionPacket(
         version=PACKET_VERSION, scene_hash=spec.scene_hash,
         stylepack=StylePackRef(style.id, style.version, style.hash()), compiler=compiler_ref(),
@@ -180,11 +229,27 @@ def compile_packet(spec: SceneSpec, style: StylePack = SUSPENSE_V1, orientation:
                         end_seconds=style.end_seconds),
         canvas=Canvas(width, height, fps), map=spec.map, continuity_locks=locks, shots=shots,
         audio_plan=audio_plan,
-        subtitle_plan=[SubtitleCue(round(s.start_seconds + 0.3, 3), round(s.start_seconds + s.duration_seconds - 0.3, 3), s.caption)
-                       for s in shots],
+        subtitle_plan=_subtitles(shots),
         qa=QARequirements(width, height, fps, total, required, require_audio=bool(audio_plan.cues)),
     )
+    if direction is not None:
+        packet = replace(packet, direction_hash=direction.plan_hash)
     return finalize(packet)
+
+
+def _subtitles(shots: list[Shot]) -> list[SubtitleCue]:
+    """A caption stays up over the coverage of its beat (the shots that follow without a caption of their own)."""
+    cues, i = [], 0
+    while i < len(shots):
+        s = shots[i]
+        j = i + 1
+        while j < len(shots) and not shots[j].caption:
+            j += 1
+        end = shots[j - 1].start_seconds + shots[j - 1].duration_seconds
+        if s.caption:
+            cues.append(SubtitleCue(round(s.start_seconds + 0.3, 3), round(end - 0.3, 3), s.caption))
+        i = j
+    return cues
 
 
 def with_backend(packet: ProductionPacket, shot_id: str, backend: str, reason: str) -> ProductionPacket:

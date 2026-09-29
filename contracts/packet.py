@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from contracts.base import hash_without
 from contracts.scene_spec import Place, Prop, WorldMap
 
-PACKET_VERSION = 2
+PACKET_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -100,6 +100,15 @@ class Shot:
     continuity_refs: list[str]
     continuity_note: str | None
     trust_flipped: bool
+    # v3, from the DirectorPlan (empty when a packet is compiled without one)
+    function: str = ""  # reveal | hide | escalate | misdirect ...
+    direction_note: str = ""  # why this shot exists, in plain words
+    relation: str = ""  # frontal | over_shoulder | two_shot | subjective ...
+    angle: str = ""  # eye_level | high | low | ground ...
+    focalizer: str = ""  # whose view the scene is told through
+    spatial_camera: str = ""  # which SpatialPlan camera stages it: wide | two_shot | over_shoulder | insert | pov
+    music: str = ""  # none | tension | release | sting | silence
+    dialogue: str = "full"  # full | muffled | none
 
 
 @dataclass(frozen=True)
@@ -155,6 +164,7 @@ class ProductionPacket:
     subtitle_plan: list[SubtitleCue]
     qa: QARequirements
     packet_hash: str = ""
+    direction_hash: str = ""  # the DirectorPlan it was compiled from (v3); empty without one
 
 
 def finalize(packet: ProductionPacket) -> ProductionPacket:

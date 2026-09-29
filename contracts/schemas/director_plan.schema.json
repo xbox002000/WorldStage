@@ -1,0 +1,491 @@
+{
+  "$defs": {
+    "AudienceKnowledgePlan": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "reveal_beat": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KnowledgeState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strategy": {
+          "enum": [
+            "irony",
+            "mystery",
+            "plain"
+          ]
+        },
+        "withheld_beats": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "strategy",
+        "reason",
+        "state",
+        "reveal_beat",
+        "withheld_beats"
+      ],
+      "type": "object"
+    },
+    "CameraShot": {
+      "additionalProperties": false,
+      "properties": {
+        "angle": {
+          "enum": [
+            "eye_level",
+            "high",
+            "low",
+            "overhead",
+            "ground"
+          ]
+        },
+        "attention": {
+          "enum": [
+            "face",
+            "eyes",
+            "hands",
+            "object",
+            "space",
+            "body"
+          ]
+        },
+        "beat_index": {
+          "type": "integer"
+        },
+        "function": {
+          "enum": [
+            "orient",
+            "escalate",
+            "reveal",
+            "hide",
+            "reaction",
+            "payoff",
+            "misdirect",
+            "foreshadow",
+            "isolate",
+            "connect",
+            "contrast",
+            "observe"
+          ]
+        },
+        "motion": {
+          "enum": [
+            "static",
+            "pan",
+            "tilt",
+            "truck",
+            "dolly",
+            "push_in",
+            "pull_out",
+            "arc",
+            "tracking",
+            "handheld"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "relation": {
+          "enum": [
+            "frontal",
+            "profile",
+            "rear",
+            "over_shoulder",
+            "two_shot",
+            "subjective"
+          ]
+        },
+        "scale": {
+          "enum": [
+            "EWS",
+            "WS",
+            "MS",
+            "MCU",
+            "CU",
+            "ECU",
+            "INSERT"
+          ]
+        },
+        "seconds": {
+          "type": "number"
+        },
+        "shot_index": {
+          "type": "integer"
+        },
+        "spatial_camera": {
+          "type": "string"
+        },
+        "speed": {
+          "enum": [
+            "slow",
+            "medium",
+            "fast"
+          ]
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shot_index",
+        "beat_index",
+        "function",
+        "scale",
+        "angle",
+        "relation",
+        "motion",
+        "speed",
+        "subject",
+        "attention",
+        "seconds",
+        "spatial_camera",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "Cut": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "enum": [
+            "open",
+            "attention_shift",
+            "reaction",
+            "information_reveal",
+            "time_jump",
+            "location_change",
+            "causal_continuity",
+            "emotional_break",
+            "contrast",
+            "hold"
+          ]
+        },
+        "to_shot": {
+          "type": "integer"
+        },
+        "transition": {
+          "enum": [
+            "cut",
+            "match_cut",
+            "smash_cut",
+            "dissolve",
+            "hold"
+          ]
+        }
+      },
+      "required": [
+        "to_shot",
+        "reason",
+        "transition"
+      ],
+      "type": "object"
+    },
+    "DirectorPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/DramaticBeat"
+          },
+          "type": "array"
+        },
+        "compiler_version": {
+          "type": "string"
+        },
+        "cuts": {
+          "items": {
+            "$ref": "#/$defs/Cut"
+          },
+          "type": "array"
+        },
+        "dramatic_goal": {
+          "type": "string"
+        },
+        "focalization": {
+          "$ref": "#/$defs/FocalizationPlan"
+        },
+        "knowledge": {
+          "$ref": "#/$defs/AudienceKnowledgePlan"
+        },
+        "plan_hash": {
+          "type": "string"
+        },
+        "scene_hash": {
+          "type": "string"
+        },
+        "scene_id": {
+          "type": "string"
+        },
+        "shots": {
+          "items": {
+            "$ref": "#/$defs/CameraShot"
+          },
+          "type": "array"
+        },
+        "sound": {
+          "items": {
+            "$ref": "#/$defs/SoundCue"
+          },
+          "type": "array"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "scene_id",
+        "scene_hash",
+        "thread_id",
+        "compiler_version",
+        "dramatic_goal",
+        "knowledge",
+        "focalization",
+        "beats",
+        "shots",
+        "cuts",
+        "sound"
+      ],
+      "type": "object"
+    },
+    "DramaticBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_index": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "functions": {
+          "items": {
+            "enum": [
+              "orient",
+              "escalate",
+              "reveal",
+              "hide",
+              "reaction",
+              "payoff",
+              "misdirect",
+              "foreshadow",
+              "isolate",
+              "connect",
+              "contrast",
+              "observe"
+            ]
+          },
+          "type": "array"
+        },
+        "inner": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "beat_index",
+        "event_id",
+        "functions",
+        "inner",
+        "note"
+      ],
+      "type": "object"
+    },
+    "FocalizationPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "audience_only": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "focalizer": {
+          "type": "string"
+        },
+        "in_scope": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "person",
+            "animal",
+            "device",
+            "none"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "omniscient",
+            "limited",
+            "subjective",
+            "witness"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "transitions": {
+          "items": {
+            "$ref": "#/$defs/POVTransition"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "focalizer",
+        "kind",
+        "mode",
+        "reason",
+        "in_scope",
+        "audience_only"
+      ],
+      "type": "object"
+    },
+    "KnowledgeState": {
+      "additionalProperties": false,
+      "properties": {
+        "audience_knew_before": {
+          "type": "boolean"
+        },
+        "knows": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "question": {
+          "type": "string"
+        },
+        "truth": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "unaware": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "wrong": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "question",
+        "truth",
+        "knows",
+        "wrong",
+        "unaware",
+        "audience_knew_before"
+      ],
+      "type": "object"
+    },
+    "POVTransition": {
+      "additionalProperties": false,
+      "properties": {
+        "at_beat": {
+          "type": "integer"
+        },
+        "from_focalizer": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "cut",
+            "look",
+            "drop"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "to_focalizer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "at_beat",
+        "from_focalizer",
+        "to_focalizer",
+        "kind",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "SoundCue": {
+      "additionalProperties": false,
+      "properties": {
+        "ambience": {
+          "type": "string"
+        },
+        "dialogue": {
+          "enum": [
+            "full",
+            "muffled",
+            "none"
+          ]
+        },
+        "music": {
+          "enum": [
+            "none",
+            "tension",
+            "release",
+            "sting",
+            "silence"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "shot_index": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shot_index",
+        "music",
+        "dialogue",
+        "ambience",
+        "reason"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/DirectorPlan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

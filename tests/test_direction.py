@@ -79,5 +79,38 @@ class DirectionTests(unittest.TestCase):
         w.close()
 
 
+
+class DirectedPacketTests(unittest.TestCase):
+    def test_the_packet_follows_the_director(self):
+        from narrative.compiler import compile_packet
+        c, spec, thread = lost_wallet_scene()
+        plan = plan_direction(c, spec, thread)
+        packet = compile_packet(spec, direction=plan)
+        self.assertEqual(packet.direction_hash, plan.plan_hash)
+        self.assertEqual(len(packet.shots), len(plan.shots))
+        self.assertEqual([s.function for s in packet.shots], [s.function for s in plan.shots])
+        captioned = [s for s in packet.shots if s.caption]
+        self.assertEqual(len(captioned), len(spec.beats))  # one caption per beat, coverage shots carry none
+        self.assertEqual(len(packet.subtitle_plan), len(spec.beats))
+        for s, cue in zip(packet.shots, plan.sound):
+            if cue.music == "silence":
+                self.assertFalse([a for a in packet.audio_plan.cues if a.kind == "music" and a.t == s.start_seconds])
+
+    def test_a_plan_for_another_scene_is_refused(self):
+        from dataclasses import replace
+        from narrative.compiler import compile_packet
+        c, spec, thread = lost_wallet_scene()
+        plan = plan_direction(c, spec, thread)
+        with self.assertRaises(ValueError):
+            compile_packet(replace(spec, scene_hash="sha256:other"), direction=plan)
+
+    def test_without_a_plan_the_packet_is_as_before(self):
+        from narrative.compiler import compile_packet
+        c, spec, thread = lost_wallet_scene()
+        packet = compile_packet(spec)
+        self.assertEqual(len(packet.shots), len(spec.beats))
+        self.assertEqual(packet.direction_hash, "")
+
+
 if __name__ == "__main__":
     unittest.main()

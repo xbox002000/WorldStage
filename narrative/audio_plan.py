@@ -43,6 +43,51 @@ def compile_audio_plan(beats: list[Beat], shots: list[Shot], title_seconds: floa
         if beat.trust_flipped:
             cues.append(AudioCue(round(start + 0.5, 3), "sfx", "flip", 0.0, 0.6))
 
+    _ambience(shots, cues)
+    return AudioPlan(sorted(cues, key=lambda c: (c.t, c.kind, c.name)))
+
+
+# the director's music intent -> a synth mood; "silence" and "none" leave the beat mood or nothing at all
+INTENT_MOOD = {"tension": "tense", "release": "warm", "sting": "clash"}
+
+
+def compile_directed_audio(beats: list[Beat], shots: list[Shot], title_seconds: float, total: float) -> AudioPlan:
+    """Audio for a directed packet: music per shot from the director's cue (silence is no music at all), effects
+    once per beat on its first shot, muffled points of view kept under the music."""
+    cues = [AudioCue(0.0, "music", "mood:title", title_seconds, 0.3), AudioCue(0.3, "sfx", "title_hit", 0.0, 0.7)]
+    beat_of = {}
+    for s in shots:
+        beat_of.setdefault(s.event_id, next(b for b in beats if b.event_id == s.event_id))
+    seen: set[int] = set()
+    for i, shot in enumerate(shots):
+        beat = beat_of[shot.event_id]
+        start = shot.start_seconds
+        end = total if i == len(shots) - 1 else start + shot.duration_seconds
+        intensity = round(min(1.0, 0.25 + 0.7 * beat.importance), 2)
+        if shot.music != "silence":
+            mood = INTENT_MOOD.get(shot.music) or MOOD.get((beat.event_type, beat.variant if beat.event_type != "steal" else None), "calm")
+            cues.append(AudioCue(start, "music", f"mood:{mood}", round(end - start, 3),
+                                 round(intensity * (0.6 if shot.dialogue == "muffled" else 1.0), 2)))
+        if i:
+            cues.append(AudioCue(start, "sfx", "whoosh", MOVE, 0.3 if shot.event_id in seen else 0.5))
+        if shot.music == "sting":
+            cues.append(AudioCue(round(start + MOVE, 3), "sfx", "reveal", 0.0, 1.0))
+        if shot.event_id in seen:
+            continue
+        seen.add(shot.event_id)
+        cues.append(AudioCue(round(start + 0.3, 3), "sfx", "tick", 0.0, 0.3))
+        impact = _impact(beat.importance)
+        if impact:
+            cues.append(AudioCue(round(start + MOVE, 3), "sfx", f"hit_{impact}", 0.0, intensity))
+        if beat.event_type in ("steal", "take"):
+            cues.append(AudioCue(round(start + MOVE, 3), "sfx", "snatch", 0.0, 0.6))
+        if beat.trust_flipped:
+            cues.append(AudioCue(round(start + 0.5, 3), "sfx", "flip", 0.0, 0.6))
+    _ambience(shots, cues)
+    return AudioPlan(sorted(cues, key=lambda c: (c.t, c.kind, c.name)))
+
+
+def _ambience(shots: list[Shot], cues: list[AudioCue]) -> None:
     # Ambience: one bed per run of shots that share weather, and one under night scenes.
     def beds(kind_of):
         run_start, run_kind = None, None
@@ -59,4 +104,3 @@ def compile_audio_plan(beats: list[Beat], shots: list[Shot], title_seconds: floa
         cues.append(AudioCue(s, "ambience", kind, round(e - s, 3), 0.4))
     for kind, s, e in beds(lambda sh: "night" if sh.lighting.time_of_day == "night" else None):
         cues.append(AudioCue(s, "ambience", kind, round(e - s, 3), 0.4))
-    return AudioPlan(sorted(cues, key=lambda c: (c.t, c.kind, c.name)))
