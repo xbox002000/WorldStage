@@ -150,6 +150,8 @@ def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread) -> Non
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "spatial_plan.json").write_text(canonical_json(plan), encoding="utf-8")
     (folder / "thread.json").write_text(canonical_json(thread), encoding="utf-8")
+    from narrative.direction import plan_direction
+    (folder / "director_plan.json").write_text(canonical_json(plan_direction(world, spec, thread)), encoding="utf-8")
 
 
 def _freeze(cfg: DailyConfig, live: Path, conn: sqlite3.Connection) -> None:

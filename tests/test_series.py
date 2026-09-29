@@ -189,7 +189,8 @@ class CaptionAndCompileTests(unittest.TestCase):
     def test_every_beat_type_compiles(self):
         from narrative.compiler import BEATS
         for (event_type, variant) in BEATS:
-            self.assertIn(event_type, ("talk", "steal", "tell", "confront"))
+            self.assertIn(event_type, ("talk", "steal", "tell", "confront", "take", "misplace", "find", "give",
+                                       "notice_missing", "accuse", "lend", "repay", "parrot_speaks", "seed"))
         specs = build_specs()
         for spec in specs:
             compile_packet(spec)  # no beat in the fixture world may break the compiler

@@ -1,0 +1,135 @@
+"""DirectorPlan: how the audience experiences a scene. SceneSpec says what happened; this says what the audience
+should know, through whose eyes, what each beat is for, what the camera does, why each cut, and what is heard.
+
+It sits between SceneSpec and the ProductionPacket, and never changes the story: every beat it plans points at an
+event of the scene, and a focalizer can only show what they took part in or noticed. Backends (a video model, a
+spatial backend, a camera-trajectory DSL such as LAMP's) read it; none of them is part of it.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Literal
+
+from contracts.base import hash_without
+
+DIRECTOR_VERSION = 1
+
+Strategy = Literal["irony", "mystery", "plain"]  # audience knows more / less / the same as the characters
+FocalMode = Literal["omniscient", "limited", "subjective", "witness"]
+FocalKind = Literal["person", "animal", "device", "none"]
+Function = Literal["orient", "escalate", "reveal", "hide", "reaction", "payoff", "misdirect", "foreshadow",
+                   "isolate", "connect", "contrast", "observe"]
+Scale = Literal["EWS", "WS", "MS", "MCU", "CU", "ECU", "INSERT"]
+Angle = Literal["eye_level", "high", "low", "overhead", "ground"]
+Relation = Literal["frontal", "profile", "rear", "over_shoulder", "two_shot", "subjective"]
+Motion = Literal["static", "pan", "tilt", "truck", "dolly", "push_in", "pull_out", "arc", "tracking", "handheld"]
+CutReason = Literal["open", "attention_shift", "reaction", "information_reveal", "time_jump", "location_change",
+                    "causal_continuity", "emotional_break", "contrast", "hold"]
+Transition = Literal["cut", "match_cut", "smash_cut", "dissolve", "hold"]
+
+
+@dataclass(frozen=True)
+class KnowledgeState:
+    question: str  # the thread's open question
+    truth: list[str]  # claim triples
+    knows: list[str]
+    wrong: list[str]
+    unaware: list[str]
+    audience_knew_before: bool  # shown in an earlier episode
+
+
+@dataclass(frozen=True)
+class AudienceKnowledgePlan:
+    strategy: Strategy
+    reason: str
+    state: KnowledgeState | None
+    reveal_beat: int | None  # the beat where the truth reaches the audience (irony: early; mystery: late or never)
+    withheld_beats: list[int]  # beats the audience does not see directly (mystery keeps the culprit off screen)
+
+
+@dataclass(frozen=True)
+class POVTransition:
+    at_beat: int
+    from_focalizer: str
+    to_focalizer: str
+    kind: Literal["cut", "look", "drop"]  # a cut, following a glance, or the camera dropping to a lower viewpoint
+    reason: str
+
+
+@dataclass(frozen=True)
+class FocalizationPlan:
+    focalizer: str  # entity id, or "" for omniscient
+    kind: FocalKind
+    mode: FocalMode
+    reason: str
+    in_scope: list[int]  # beats the focalizer took part in or noticed
+    audience_only: list[int]  # beats shown although the focalizer does not know them (limited mode, irony)
+    transitions: list[POVTransition] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class DramaticBeat:
+    beat_index: int
+    event_id: int
+    functions: list[Function]
+    inner: str  # whose inner state this beat is about
+    note: str  # plain words: what the audience should feel or learn here
+
+
+@dataclass(frozen=True)
+class CameraShot:
+    shot_index: int
+    beat_index: int
+    function: Function
+    scale: Scale
+    angle: Angle
+    relation: Relation
+    motion: Motion
+    speed: Literal["slow", "medium", "fast"]
+    subject: str  # entity id in frame (or a prop id for an insert)
+    attention: Literal["face", "eyes", "hands", "object", "space", "body"]
+    seconds: float
+    spatial_camera: str  # which SpatialPlan camera stages it: wide | two_shot | over_shoulder | insert | pov
+    reason: str
+
+
+@dataclass(frozen=True)
+class Cut:
+    to_shot: int
+    reason: CutReason
+    transition: Transition
+
+
+@dataclass(frozen=True)
+class SoundCue:
+    shot_index: int
+    music: Literal["none", "tension", "release", "sting", "silence"]
+    dialogue: Literal["full", "muffled", "none"]
+    ambience: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class DirectorPlan:
+    version: int
+    scene_id: str
+    scene_hash: str
+    thread_id: str
+    compiler_version: str
+    dramatic_goal: str  # what the audience should come away with
+    knowledge: AudienceKnowledgePlan
+    focalization: FocalizationPlan
+    beats: list[DramaticBeat]
+    shots: list[CameraShot]
+    cuts: list[Cut]
+    sound: list[SoundCue]
+    plan_hash: str = ""
+
+
+def finalize(plan: DirectorPlan) -> DirectorPlan:
+    import dataclasses
+    return dataclasses.replace(plan, plan_hash=hash_without(plan, "plan_hash"))
+
+
+def verify(plan: DirectorPlan) -> bool:
+    return plan.plan_hash == hash_without(plan, "plan_hash")

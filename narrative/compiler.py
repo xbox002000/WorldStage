@@ -36,6 +36,19 @@ BEATS = {
     ("confront", "misinformed"): ("question", "explain", "uneasy", "uneasy", "medium", "static", 4),
     ("confront", "unfounded"): ("accuse", "hurt_by_accusation", "embarrassed", "hurt", "medium", "slow_push_in", 5),
     ("confront", "inconclusive"): ("question", "shrug", "uneasy", "uneasy", "medium", "static", 4),
+    # World C acts (before these, they all fell back to a neutral wide shot)
+    ("take", None): ("pick_up", "unaware", "tense", "calm", "insert", "static", 4),
+    ("misplace", None): ("walk_away", "unaware", "calm", "calm", "insert", "static", 3),
+    ("find", None): ("pick_up", "relieved", "relieved", "calm", "medium", "static", 3),
+    ("give", None): ("hand_over", "receive", "uneasy", "relieved", "two_shot", "static", 4),
+    ("notice_missing", None): ("search", "unaware", "uneasy", "calm", "medium", "slow_push_in", 4),
+    ("accuse", "caught"): ("accuse", "caught_out", "angry", "ashamed", "close_up", "slow_push_in", 6),
+    ("accuse", "denied"): ("accuse", "deny", "angry", "uneasy", "close_up", "slow_push_in", 5),
+    ("accuse", "false"): ("accuse", "hurt_by_accusation", "angry", "hurt", "medium", "slow_push_in", 5),
+    ("lend", None): ("hand_over", "receive", "calm", "relieved", "two_shot", "static", 3),
+    ("repay", None): ("hand_over", "receive", "calm", "calm", "two_shot", "static", 3),
+    ("parrot_speaks", None): ("squawk", "startled", "calm", "shocked", "medium", "static", 4),
+    ("seed", None): ("establish", "unaware", "calm", "calm", "wide", "static", 3),
 }
 FOCAL_MM = {"wide": 24, "two_shot": 35, "medium": 35, "close_up": 85, "insert": 50}
 CANVAS = {"portrait": (1080, 1920), "landscape": (1920, 1080)}
@@ -92,7 +105,9 @@ def caption(beat: Beat, names: dict[str, str]) -> str:
 
 def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePack, names: dict[str, str],
           previous: Beat | None, last: bool) -> Shot:
-    key = (beat.event_type, beat.variant if beat.event_type != "steal" else None)
+    key = (beat.event_type, beat.variant if beat.event_type not in ("steal", "take", "misplace", "find", "give",
+                                                                    "notice_missing", "lend", "repay", "parrot_speaks",
+                                                                    "seed") else None)
     a_act, t_act, a_emo, t_emo, shot_type, movement, seconds = BEATS.get(key, BEATS[("talk", "neutral")])
     shot_type = _tighten(shot_type, style.camera_bias)
     duration = max(1, round(seconds * style.duration_scale)) + (2 if beat.trust_flipped else 0)

@@ -69,7 +69,8 @@ def knowledge_of(conn: sqlite3.Connection, t: StoryThread, shown_events: set[int
             "SELECT m.memory_id, m.observer_id, m.confidence, c.subject, c.act, c.object, c.polarity FROM memories m "
             "JOIN claims c USING (claim_id) WHERE c.object = ? AND c.act IN ('take', 'steal', 'find') ORDER BY m.memory_id",
             (obj,)).fetchall()
-        question = f"誰拿了{obj}？"
+        name = conn.execute("SELECT name FROM objects WHERE id = ?", (obj,)).fetchone()[0]
+        question = f"誰拿了{name}？"
     elif t.kind == "rumor":
         root = int(t.thread_id.split(":", 1)[1])
         truths = [Claim(*tuple(r)) for r in conn.execute(
