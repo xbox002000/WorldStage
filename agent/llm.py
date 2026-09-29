@@ -15,6 +15,9 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+FAILED = "__failed__"  # a cache entry meaning "every model failed to answer this request"
+
+
 class CacheMiss(RuntimeError):
     """Replay mode asked for a request that was never recorded."""
 
@@ -110,6 +113,12 @@ class LLMClient:
 
     def lookup(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict | None:
         return self.cache.get(self.request(prompt, schema, temperature)[1]) if self.cache else None
+
+    def record_failure(self, prompt: str, schema: dict, error: Exception, temperature: float = 0.8) -> None:
+        """Remember that this request could not be answered, so a replay follows the same path (no answer)."""
+        if self.mode == "record":
+            req, h = self.request(prompt, schema, temperature)
+            self.cache.put(h, req, {FAILED: True, "error": str(error)[:200]})
 
     def generate_json(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict:
         req, h = self.request(prompt, schema, temperature)
@@ -212,6 +221,11 @@ class FallbackClient:
     @property
     def model(self) -> str:
         return self.last_model
+
+    def record_failure(self, prompt: str, schema: dict, error: Exception, temperature: float = 0.8) -> None:
+        """Called when the whole chain failed: recorded under the primary model's request hash, which is the
+        first place a replay looks."""
+        self.clients[0].record_failure(prompt, schema, error, temperature)
 
     def generate_json(self, prompt: str, schema: dict, temperature: float = 0.8) -> dict:
         if any(c.mode == "replay" for c in self.clients):

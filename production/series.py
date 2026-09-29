@@ -49,14 +49,15 @@ def build_recap(conn: sqlite3.Connection, spec: SceneSpec, lines: int = RECAP_LI
 
 
 def record_episode(conn: sqlite3.Connection, *, scene_hash: str, take_id: int | None, title: str, sim_day: int | None,
-                   arc_kind: str, score: float, continuity: dict | None, qa_status: str, recap: str) -> int:
+                   arc_kind: str, score: float, continuity: dict | None, qa_status: str, recap: str,
+                   status: str = "draft") -> int:
     existing = conn.execute("SELECT episode_id FROM episodes WHERE scene_hash = ? AND take_id IS ?", (scene_hash, take_id)).fetchone()
     if existing:
         return int(existing[0])
     cur = conn.execute(
         "INSERT INTO episodes(scene_hash, take_id, title, status, created_at, sim_day, arc_kind, score, continuity_json, "
         "qa_status, recap) VALUES (?,?,?,?,strftime('%s','now'),?,?,?,?,?,?)",
-        (scene_hash, take_id, title, "draft", sim_day, arc_kind, score,
+        (scene_hash, take_id, title, status, sim_day, arc_kind, score,
          json.dumps(continuity, sort_keys=True) if continuity else None, qa_status, recap))
     conn.commit()
     return int(cur.lastrowid)

@@ -97,6 +97,11 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                 episode_id = series.record_episode(
                     conn, scene_hash=spec.scene_hash, take_id=take.take_id, title=spec.title, sim_day=sim_day,
                     arc_kind=cand.arc.kind, score=cand.score, continuity=cand.continuity, qa_status=qa_status, recap=recap)
+        elif take.status == "queued":  # planned but not rendered: still counts as told, so the series moves on
+            episode_id = series.record_episode(
+                conn, scene_hash=spec.scene_hash, take_id=take.take_id, title=spec.title, sim_day=sim_day,
+                arc_kind=cand.arc.kind, score=cand.score, continuity=cand.continuity, qa_status="not_rendered",
+                recap=recap, status="planned")
         elif take.status == "failed":
             qa_status = "render_failed"
         results.append(EpisodeResult(spec.scene_id, spec.title, take.take_id or 0, request.request_hash,

@@ -105,6 +105,14 @@ class ProductionCannotTouchTheWorldTests(unittest.TestCase):
                     offenders.append(f"{folder}/{path.name}")
         self.assertEqual(offenders, [])
 
+    def test_the_channel_orchestrator_is_where_the_two_sides_meet(self):
+        text = (ROOT / "channel" / "daily.py").read_text(encoding="utf-8")
+        self.assertIn("from world.simulation import Simulation", text)  # it may write the world (on a copy)...
+        self.assertIn("from production import db as prod", text)  # ...and it is the only one that also drives production
+        for folder in ("production", "render", "narrative"):
+            for path in (ROOT / folder).glob("*.py"):
+                self.assertNotIn("from channel", path.read_text(encoding="utf-8"), path.name)  # nothing depends back on it
+
     def test_running_the_pipeline_leaves_the_world_unchanged(self):
         r = reader()
         before = snapshot_hash(r)

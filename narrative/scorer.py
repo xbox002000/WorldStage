@@ -28,7 +28,7 @@ def _pair_tension(arc: Arc, events: dict[int, Ev]) -> float:
     return 1.0
 
 
-def _unresolved(arc: Arc, events: dict[int, Ev]) -> float:
+def unresolved_tension(arc: Arc, events: dict[int, Ev]) -> float:
     if arc.kind == "incident":
         exposed = any(e.outcome in EXPOSED for e in arc.events)
         if any(e.deceptive for e in arc.events) and not exposed:
@@ -61,7 +61,7 @@ def score_arc(conn: sqlite3.Connection, arc: Arc, events: dict[int, Ev], protago
                         + 0.5 * any(e.outcome in EXPOSED for e in arc.events)),
         "causality": min(1.0, (len(arc.events) - 1) / 4),
         "character_importance": 0.3 + 0.7 * len(social_people & protagonists) / len(social_people),
-        "unresolved_tension": _unresolved(arc, events),
+        "unresolved_tension": unresolved_tension(arc, events),
         "visual_potential": min(1.0, 0.4 + 0.3 * ("social" in _location_tags(conn, arc.peak.location_id))
                                 + 0.3 * min(len(arc.peak.people), 4) / 4),
         "revelation": _revelation(arc),

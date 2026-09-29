@@ -107,3 +107,27 @@ CREATE TRIGGER IF NOT EXISTS render_requests_immutable BEFORE UPDATE ON render_r
 BEGIN SELECT RAISE(ABORT, 'render_requests are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS experiments_immutable BEFORE UPDATE ON experiments
 BEGIN SELECT RAISE(ABORT, 'experiments are immutable'); END;
+
+-- One row per simulated day the channel processed: what the world looked like and what the day cost.
+CREATE TABLE IF NOT EXISTS daily_runs (
+  run_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  experiment_id  TEXT,
+  sim_day        INTEGER NOT NULL,
+  world_revision INTEGER NOT NULL,
+  snapshot_hash  TEXT NOT NULL,
+  episode_id     INTEGER REFERENCES episodes(episode_id),
+  status         TEXT NOT NULL,      -- episode | quiet_day | render_failed | qa_failed
+  usage_json     TEXT NOT NULL CHECK (json_valid(usage_json)),
+  created_at     INTEGER NOT NULL
+);
+
+-- A viewer's verdict on an episode (1 = boring .. 5 = gripping). The latest row for an episode is its rating.
+CREATE TABLE IF NOT EXISTS episode_ratings (
+  rating_id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  episode_id    INTEGER NOT NULL REFERENCES episodes(episode_id),
+  rating        INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  most_dramatic INTEGER NOT NULL DEFAULT 0 CHECK (most_dramatic IN (0, 1)),
+  most_boring   INTEGER NOT NULL DEFAULT 0 CHECK (most_boring IN (0, 1)),
+  note          TEXT NOT NULL DEFAULT '',
+  created_at    INTEGER NOT NULL
+);

@@ -5,7 +5,7 @@ import json
 import sqlite3
 from dataclasses import replace
 
-from agent.llm import CacheMiss, LLMClient
+from agent.llm import FAILED, CacheMiss, LLMClient
 from agent.perception import observe, social_options
 from contracts.claim import Claim
 from contracts.tell import TELL_MODES
@@ -111,11 +111,16 @@ class GeminiDecider:
     def decide(self, conn: sqlite3.Connection, actor: str, now: int) -> Intent | None:
         if not observe(conn, actor)["others_here"]:
             return None
+        prompt = build_prompt(conn, actor)
         try:
-            raw = self.client.generate_json(build_prompt(conn, actor), INTENT_SCHEMA)
+            raw = self.client.generate_json(prompt, INTENT_SCHEMA)
         except CacheMiss:
             raise
-        except Exception:  # noqa: BLE001 - a failed call must not stop the world
+        except Exception as e:  # noqa: BLE001 - a failed call must not stop the world
+            self.errors += 1
+            self.client.record_failure(prompt, INTENT_SCHEMA, e)  # so a replay reproduces the missing decision
+            return None
+        if raw.get(FAILED):  # a recorded failure, replayed
             self.errors += 1
             return None
         if raw.get("action") == "idle":

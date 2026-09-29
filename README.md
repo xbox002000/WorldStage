@@ -17,7 +17,9 @@ SceneSpec ──(+ StylePack)──▶ ProductionPacket ──▶ RenderRequest 
 | `agent/` | LLM clients (Gemini, OpenRouter fallback), request-hash cache (live/record/replay), perception, decision tiers |
 | `narrative/` | causal arcs, scoring, selection, SceneSpec builder, ProductionCompiler |
 | `contracts/` | frozen dataclasses + generated JSON Schemas (`contracts/schemas/`) — the ABI |
-| `production/` | `production.db`, provenance tracing, deterministic QA, pipeline |
+| `production/` | `production.db`, provenance tracing, deterministic QA, pipeline, series memory, experiment freeze, metrics. Read-only towards the world |
+| `channel/` | the daily job and the replay check: the only place that drives both the world (on a copy) and production |
+| `audio/` | deterministic synthesised score and effects |
 | `render/` | packet → HyperFrames project, local render backend |
 | `tests/` | `python -m unittest discover -s tests -t .` |
 
