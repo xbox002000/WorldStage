@@ -1,6 +1,11 @@
 """World (read-only) -> SceneSpec -> ProductionPacket -> RenderRequest -> Take -> deterministic QA -> episode files.
 
 Nothing here can write to the world: it only ever holds a read-only connection (world.reader).
+Renderers, synthesisers and models come from the capability registry (capability/defaults.py), never by name.
+Two routes:
+  procedural  a composition provider that draws every shot itself (HyperFrames today);
+  shots       each shot from a visual.generate provider, staged by the SpatialPlan, diagnosed and repaired
+              (production/shots.py), then a composition provider that takes clips.
 """
 from __future__ import annotations
 
@@ -10,19 +15,26 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+from capability.defaults import default_registry
+from capability.registry import CapabilityRegistry
 from contracts.base import canonical_json
-from contracts.render_request import Take
+from contracts.capability import Policy, Requirement
+from contracts.render_request import RenderRequest, Take
 from contracts.stylepack import SUSPENSE_V1, StylePack
 from narrative.compiler import compile_packet
 from narrative.scene_spec import build_scene_specs, validate_spec
 from narrative.selector import Candidate, select_top
+from narrative.spatial import compile_spatial
 from production import db as prod
 from production import series
 from production.provenance import file_sha256
 from production.qa import preflight
-from render.hyperframes_backend import FFMPEG_DIR, HyperFramesBackend
+from production.shots import ShotOutcome, render_shot
 from render.packet_html import to_srt
 from world.reader import open_world_reader
+
+FFMPEG_DIR = Path(__file__).resolve().parent.parent / "tools" / "ffmpeg" / "bin"
+ROUTES = ("procedural", "shots")
 
 
 @dataclass(frozen=True)
@@ -40,14 +52,36 @@ class EpisodeResult:
     episode_id: int | None = None
     recap: str = ""
     continuity: dict | None = None
+    providers: dict | None = None  # capability -> the provider(s) that did the job
+    shots: list[ShotOutcome] | None = None  # shots route: per-shot attempts, failures and repairs
+
+
+def _pick(conn: sqlite3.Connection, registry: CapabilityRegistry, req: Requirement, policy: Policy):
+    providers, sel = registry.choose(req, policy)
+    prod.record_selection(conn, sel, sel.chosen[0])
+    return providers[0]
+
+
+def _render(conn: sqlite3.Connection, composer, request: RenderRequest) -> Take:
+    try:
+        take = composer.render(request)
+        if take.status == "ready":
+            take = Take(request.request_hash, "ready", None, take.artifact_path, file_sha256(Path(take.artifact_path)),
+                        take.provider_job_id)
+    except Exception as e:  # noqa: BLE001 - recorded, and the run carries on with the next scene
+        take = Take(request.request_hash, "failed", error=str(e)[:500])
+    return Take(take.request_hash, take.status, prod.record_take(conn, take), take.artifact_path, take.artifact_hash,
+                take.provider_job_id, take.error)
 
 
 def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: Path, candidates: list[Candidate], *,
                   scene_ids: list[str] | None = None, sim_day: int | None = None, orientation: str = "portrait",
-                  style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True) -> list[EpisodeResult]:
+                  style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True, route: str = "procedural",
+                  registry: CapabilityRegistry | None = None, policy: Policy = Policy()) -> list[EpisodeResult]:
     """Turn chosen arcs into episodes, one after another (a later episode's recap can cite an earlier one)."""
-    backend = HyperFramesBackend(lambda h: prod.load_packet(conn, h))
-    ffprobe = FFMPEG_DIR / "ffprobe"
+    if route not in ROUTES:
+        raise ValueError(f"unknown route {route!r} (one of {ROUTES})")
+    registry = registry or default_registry(lambda h: prod.load_packet(conn, h))
     results: list[EpisodeResult] = []
 
     ids = scene_ids or [f"scene_{i + 1:02d}" for i in range(len(candidates))]
@@ -56,33 +90,49 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         validate_spec(world, spec)
         recap = series.build_recap(conn, spec)
         packet = compile_packet(spec, style, orientation, recap=recap)
-        request = backend.make_request(packet, quality=quality)
         prod.save_scene_spec(conn, spec)
         prod.save_packet(conn, packet)
-        prod.save_request(conn, request)
+        total, w, h = packet.qa.total_seconds, packet.canvas.width, packet.canvas.height
+        audio = _pick(conn, registry, Requirement(
+            "audio.score", ["music", "sfx"] if packet.audio_plan.cues else [], total), policy)
+        composer = _pick(conn, registry, Requirement(
+            "composition.render", ["procedural_visuals"] if route == "procedural" else ["clips"], total, w, h), policy)
+        composer.audio = audio  # the composition carries the chosen soundtrack; its hash goes into the request
+        providers: dict = {"audio.score": audio.name, "composition.render": composer.name}
 
         started = time.perf_counter()
-        cached = prod.ready_take(conn, request.request_hash)
+        shots: list[ShotOutcome] | None = None
+        request: RenderRequest | None = None
+        if route == "procedural":
+            request = composer.make_request(packet, quality=quality)
+        elif render:
+            workdir = getattr(composer, "workdir", out_dir / "_work")
+            plan = compile_spatial(spec)
+            shots = [render_shot(conn, packet, s, registry, workdir, plan=plan, policy=policy) for s in packet.shots]
+            providers["visual.generate"] = sorted({o.provider for o in shots if o.provider})
+            if all(o.ok for o in shots):
+                request = composer.make_request(packet, clips={o.shot_id: (o.clip, o.clip_hash) for o in shots},
+                                                quality=quality)
+        if request is not None:
+            prod.save_request(conn, request)
+
+        cached = prod.ready_take(conn, request.request_hash) if request else None
         hit = bool(cached and cached.artifact_path and Path(cached.artifact_path).exists()
                    and file_sha256(Path(cached.artifact_path)) == cached.artifact_hash)
         if hit:
             take = cached
-        elif not render:
-            take = Take(request.request_hash, "queued", prod.record_take(conn, Take(request.request_hash, "queued")))
+        elif not render:  # planned only (the shots route plans no request: its clips do not exist yet)
+            take = Take(request.request_hash, "queued", prod.record_take(conn, Take(request.request_hash, "queued"))) \
+                if request else Take("", "queued")
+        elif request is None:  # some shot could not be made by any provider, even after repairs
+            take = Take("", "failed", error="shots failed: " + ", ".join(o.shot_id for o in shots if not o.ok))
         else:
-            try:
-                job = backend.submit(request, idempotency_key=request.request_hash)
-                mp4 = backend.poll(job).artifact_path
-                take = Take(request.request_hash, "ready", None, mp4, file_sha256(Path(mp4)))
-            except Exception as e:  # noqa: BLE001 - recorded, and the run carries on with the next scene
-                take = Take(request.request_hash, "failed", error=str(e)[:500])
-            take = Take(take.request_hash, take.status, prod.record_take(conn, take), take.artifact_path,
-                        take.artifact_hash, error=take.error)
+            take = _render(conn, composer, request)
         elapsed = time.perf_counter() - started
 
         video, qa_status, episode_id = None, "not_rendered", None
         if take.status == "ready" and take.artifact_path:
-            qa = preflight(packet, Path(take.artifact_path), ffprobe)
+            qa = preflight(packet, Path(take.artifact_path), FFMPEG_DIR / "ffprobe")
             if not hit:
                 prod.record_qa(conn, take.take_id, "deterministic", qa.passed, qa.status, {"checks": qa.checks, **qa.detail})
             qa_status = qa.status + "_visual_unchecked" if qa.passed else qa.status
@@ -104,22 +154,24 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                 recap=recap, status="planned")
         elif take.status == "failed":
             qa_status = "render_failed"
-        results.append(EpisodeResult(spec.scene_id, spec.title, take.take_id or 0, request.request_hash,
+        results.append(EpisodeResult(spec.scene_id, spec.title, take.take_id or 0, take.request_hash,
                                      packet.packet_hash, spec.scene_hash, video, hit, qa_status, elapsed,
-                                     episode_id, recap, cand.continuity))
+                                     episode_id, recap, cand.continuity, providers, shots))
     return results
 
 
 def produce(world_db: str | Path, prod_db: str | Path, out_dir: Path, *, top: int = 3, orientation: str = "portrait",
             style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True,
-            prod_conn: sqlite3.Connection | None = None, exclude_used: bool = True) -> list[EpisodeResult]:
+            prod_conn: sqlite3.Connection | None = None, exclude_used: bool = True, route: str = "procedural",
+            registry: CapabilityRegistry | None = None, policy: Policy = Policy()) -> list[EpisodeResult]:
     """Batch: the best `top` stories not yet told. With exclude_used=False the same stories are picked again
     (and, being content-addressed, cost nothing to re-render)."""
     world = open_world_reader(world_db)
     conn = prod_conn or prod.open_production_db(prod_db)
     used = series.used_event_ids(conn) if exclude_used else set()
     chosen, _ = select_top(world, top, weights=style.weights, exclude=used)
-    results = make_episodes(world, conn, out_dir, chosen, orientation=orientation, style=style, quality=quality, render=render)
+    results = make_episodes(world, conn, out_dir, chosen, orientation=orientation, style=style, quality=quality,
+                            render=render, route=route, registry=registry, policy=policy)
     world.close()
     if prod_conn is None:
         conn.close()

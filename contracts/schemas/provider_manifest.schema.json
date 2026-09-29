@@ -1,0 +1,80 @@
+{
+  "$defs": {
+    "ProviderManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cost_per_second": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "deterministic": {
+          "type": "boolean"
+        },
+        "features": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "latency_seconds": {
+          "type": "number"
+        },
+        "local": {
+          "type": "boolean"
+        },
+        "max_height": {
+          "type": "integer"
+        },
+        "max_seconds": {
+          "type": "number"
+        },
+        "max_width": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "provider_id": {
+          "type": "string"
+        },
+        "quality": {
+          "type": "number"
+        },
+        "transport": {
+          "enum": [
+            "local",
+            "cli",
+            "http",
+            "mcp"
+          ]
+        },
+        "version": {
+          "type": "string"
+        },
+        "version_of_manifest": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "provider_id",
+        "version",
+        "capabilities",
+        "features",
+        "transport",
+        "local",
+        "deterministic"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/ProviderManifest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

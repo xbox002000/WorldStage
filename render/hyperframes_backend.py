@@ -1,4 +1,5 @@
-"""VisualBackend "procedural": renders a ProductionPacket to MP4 with HyperFrames (headless Chrome + FFmpeg), locally.
+"""composition.render provider "hyperframes": draws every shot procedurally and renders the episode to MP4 with
+HyperFrames (headless Chrome + FFmpeg), locally. The soundtrack comes from whichever audio.score provider it is given.
 
 Local and deterministic in the sense of the contract: same request + same toolchain -> same artifact. It runs
 against the Chrome that hyperframes manages itself (pinned), never the auto-updating system Chrome.
@@ -14,7 +15,8 @@ from pathlib import Path
 from typing import Callable
 
 from audio.backend import SynthAudioBackend
-from contracts.backends import Capabilities, CostEstimate
+from contracts.backends import AudioBackend, CostEstimate
+from contracts.capability import ProviderManifest
 from contracts.base import content_hash
 from contracts.packet import ProductionPacket
 from contracts.render_request import RenderRequest, Take, Toolchain, make_request
@@ -46,12 +48,13 @@ def _run(cmd: list[str], env: dict | None = None) -> str:
 class HyperFramesBackend:
     name = "hyperframes"
 
-    def __init__(self, packet_lookup: Callable[[str], ProductionPacket], workdir: Path | None = None) -> None:
+    def __init__(self, packet_lookup: Callable[[str], ProductionPacket], workdir: Path | None = None,
+                 audio: AudioBackend | None = None) -> None:
         self._lookup = packet_lookup
         self.workdir = workdir or RENDER_DIR / "projects"
         self._toolchain: Toolchain | None = None
         self._chrome: str | None = None
-        self.audio = SynthAudioBackend(packet_lookup)
+        self.audio = audio or SynthAudioBackend(packet_lookup)
 
     # -- toolchain ---------------------------------------------------------------------------------------------
     def chrome_path(self) -> str:
@@ -68,19 +71,28 @@ class HyperFramesBackend:
             pkg = json.loads((RENDER_DIR / "node_modules" / "hyperframes" / "package.json").read_text(encoding="utf-8"))
             ffmpeg = _run([str(FFMPEG_DIR / "ffmpeg"), "-version"]).splitlines()[0]
             chrome = _run([self.chrome_path(), "--version"]).strip()
-            self._toolchain = Toolchain(hyperframes=pkg["version"], ffmpeg=ffmpeg, chrome=chrome, encoder="libx264",
-                                        audio=self.audio.toolchain())
+            self._toolchain = {"hyperframes": pkg["version"], "ffmpeg": ffmpeg, "chrome": chrome, "encoder": "libx264",
+                               **self.audio.toolchain()}
         return self._toolchain
 
-    # -- VisualBackend -----------------------------------------------------------------------------------------
-    def capabilities(self) -> Capabilities:
-        return Capabilities(self.name, ["episode_master"], max_seconds=600, supports_reference_images=False,
-                            deterministic=True, remote=False)
+    # -- CompositionBackend ------------------------------------------------------------------------------------
+    def manifest(self) -> ProviderManifest:
+        return ProviderManifest(self.name, "1", ["composition.render"], ["procedural_visuals"], transport="cli",
+                                local=True, deterministic=True, max_seconds=600, latency_seconds=60, quality=0.3,
+                                notes="vector characters and places drawn in HTML; cannot embed external clips")
+
+    def available(self) -> tuple[bool, str]:
+        missing = [str(p) for p in (CLI, GSAP, FFMPEG_DIR / "ffmpeg.exe" if os.name == "nt" else FFMPEG_DIR / "ffmpeg")
+                   if not p.exists()]
+        return (False, "missing " + ", ".join(missing)) if missing else (True, "")
 
     def estimate_cost(self, request: RenderRequest) -> CostEstimate:
         return CostEstimate("USD", 0.0, "local CPU render")
 
-    def make_request(self, packet: ProductionPacket, *, quality: str = "looks", seed: int = 0) -> RenderRequest:
+    def make_request(self, packet: ProductionPacket, *, clips: dict | None = None, quality: str = "looks",
+                     seed: int = 0) -> RenderRequest:
+        if clips:
+            raise ValueError("hyperframes draws every shot itself and cannot embed external clips")
         assets = {"gsap": file_hash(GSAP)}
         for pid, lock in packet.continuity_locks.characters.items():
             assets[lock.asset_id] = content_hash(lock)
@@ -90,9 +102,9 @@ class HyperFramesBackend:
                       "fps": str(packet.canvas.fps), "quality": quality}
         if packet.audio_plan.cues:  # the soundtrack is part of the request: its bytes are pinned by hash
             assets["score"] = "sha256:" + hashlib.sha256(self.audio.score_bytes(packet, seed)).hexdigest()
-            parameters["score"] = "synth"
+            parameters["score"] = self.audio.name
         return make_request(
-            kind="episode_master", backend=self.name, backend_version=self.toolchain().hyperframes,
+            kind="episode_master", backend=self.name, backend_version=self.toolchain()["hyperframes"],
             parameters=parameters,
             packet_hash=packet.packet_hash, seed=seed, asset_hashes=assets, toolchain=self.toolchain())
 
@@ -120,6 +132,9 @@ class HyperFramesBackend:
     def poll(self, job_id: str) -> Take:
         _, mp4 = self._paths(job_id)
         return Take(job_id, "ready" if mp4.exists() else "failed", None, str(mp4) if mp4.exists() else None, None, job_id)
+
+    def render(self, request: RenderRequest, dest_dir: Path | None = None) -> Take:
+        return self.poll(self.submit(request, idempotency_key=request.request_hash))
 
     def fetch(self, job_id: str, dest: Path) -> Path:
         _, mp4 = self._paths(job_id)

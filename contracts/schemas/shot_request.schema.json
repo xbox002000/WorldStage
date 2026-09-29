@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "ShotRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "camera": {
+          "type": "string"
+        },
+        "controls": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "duration_seconds": {
+          "type": "number"
+        },
+        "environment": {
+          "type": "string"
+        },
+        "fps": {
+          "type": "integer"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "reference_asset_ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "shot_id": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "width": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shot_id",
+        "prompt",
+        "duration_seconds",
+        "width",
+        "height",
+        "fps",
+        "seed"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/ShotRequest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

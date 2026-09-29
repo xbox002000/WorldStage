@@ -12,8 +12,9 @@ from contracts.render_request import RenderRequest, Take
 from contracts.scene_spec import SceneSpec
 
 SCHEMA = Path(__file__).with_name("schema.sql")
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 # v1 -> v2: episodes gained series bookkeeping columns
+# v2 -> v3: provider_selections, visual_failures, repair_requests (new tables only: CREATE IF NOT EXISTS adds them)
 V2_COLUMNS = (("sim_day", "INTEGER"), ("arc_kind", "TEXT"), ("score", "REAL"), ("continuity_json", "TEXT"),
               ("qa_status", "TEXT"), ("recap", "TEXT NOT NULL DEFAULT ''"))
 
@@ -75,6 +76,34 @@ def ready_take(conn: sqlite3.Connection, request_hash: str) -> Take | None:
     if r is None:
         return None
     return Take(r["request_hash"], r["status"], r["take_id"], r["artifact_path"], r["artifact_hash"], r["provider_job_id"], r["error"])
+
+
+def set_take_status(conn: sqlite3.Connection, take_id: int, status: str) -> None:
+    """A take that failed QA becomes 'rejected', so a later run can never reuse it as a cache hit."""
+    conn.execute("UPDATE takes SET status = ? WHERE take_id = ?", (status, take_id))
+    conn.commit()
+
+
+def record_selection(conn: sqlite3.Connection, selection, chosen: str | None) -> None:
+    conn.execute("INSERT OR REPLACE INTO provider_selections(selection_hash, capability, chosen, selection_json, created_at) "
+                 "VALUES (?,?,?,?,?)", (selection.selection_hash, selection.requirement.capability, chosen,
+                                        canonical_json(selection), _now()))
+    conn.commit()
+
+
+def record_failures(conn: sqlite3.Connection, take_id: int, failures: list) -> None:
+    conn.executemany(
+        "INSERT INTO visual_failures(take_id, shot_id, code, detector, evidence_json, created_at) VALUES (?,?,?,?,?,?)",
+        [(take_id, f.shot_id, f.code, f.detector, canonical_json(f.evidence), _now()) for f in failures])
+    conn.commit()
+
+
+def record_repair(conn: sqlite3.Connection, repair, next_request_hash: str | None) -> None:
+    conn.execute("INSERT OR IGNORE INTO repair_requests(repair_hash, shot_id, attempt, parent_request_hash, next_request_hash, "
+                 "repair_json, created_at) VALUES (?,?,?,?,?,?,?)",
+                 (repair.repair_hash, repair.shot_id, repair.attempt, repair.parent_request_hash, next_request_hash,
+                  canonical_json(repair), _now()))
+    conn.commit()
 
 
 def record_qa(conn: sqlite3.Connection, take_id: int, layer: str, passed: bool, status: str, detail: dict) -> None:

@@ -34,7 +34,10 @@
           "type": "integer"
         },
         "toolchain": {
-          "$ref": "#/$defs/Toolchain"
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
         },
         "toolchain_hash": {
           "type": "string"
@@ -54,33 +57,6 @@
         "asset_hashes",
         "toolchain",
         "toolchain_hash"
-      ],
-      "type": "object"
-    },
-    "Toolchain": {
-      "additionalProperties": false,
-      "properties": {
-        "audio": {
-          "type": "string"
-        },
-        "chrome": {
-          "type": "string"
-        },
-        "encoder": {
-          "type": "string"
-        },
-        "ffmpeg": {
-          "type": "string"
-        },
-        "hyperframes": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "hyperframes",
-        "ffmpeg",
-        "chrome",
-        "encoder"
       ],
       "type": "object"
     }

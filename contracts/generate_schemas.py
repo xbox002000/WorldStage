@@ -4,9 +4,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from contracts.backends import ShotRequest
 from contracts.base import schema_for
+from contracts.capability import ProviderManifest, Selection
+from contracts.mechanic import NarrativeMechanicPack
 from contracts.packet import ProductionPacket
 from contracts.render_request import RenderRequest, Take
+from contracts.repair import RepairRequest, VisualFailure
 from contracts.scene_spec import SceneSpec
 from contracts.seed import ExternalEvent, SeedCandidate
 from contracts.spatial import SpatialPlan
@@ -18,7 +22,9 @@ OUT = Path(__file__).with_name("schemas")
 CONTRACTS = {"scene_spec": SceneSpec, "production_packet": ProductionPacket, "render_request": RenderRequest,
              "take": Take, "stylepack": StylePack, "tell_intent": TellIntent,
              "external_event": ExternalEvent, "seed_candidate": SeedCandidate, "story_thread": StoryThread,
-             "spatial_plan": SpatialPlan}
+             "spatial_plan": SpatialPlan, "narrative_mechanic_pack": NarrativeMechanicPack,
+             "provider_manifest": ProviderManifest, "provider_selection": Selection, "shot_request": ShotRequest,
+             "visual_failure": VisualFailure, "repair_request": RepairRequest}
 
 
 def render_all() -> dict[str, str]:

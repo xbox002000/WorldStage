@@ -1,0 +1,104 @@
+{
+  "$defs": {
+    "RepairRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "type": "integer"
+        },
+        "failures": {
+          "items": {
+            "$ref": "#/$defs/VisualFailure"
+          },
+          "type": "array"
+        },
+        "ops": {
+          "items": {
+            "enum": [
+              "reseed",
+              "fallback_provider",
+              "conform_duration",
+              "restage",
+              "increase_reference_strength",
+              "lock_object_identity",
+              "preserve_hand_state"
+            ]
+          },
+          "type": "array"
+        },
+        "parent_request_hash": {
+          "type": "string"
+        },
+        "repair_hash": {
+          "type": "string"
+        },
+        "shot_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "shot_id",
+        "failures",
+        "ops",
+        "attempt",
+        "parent_request_hash"
+      ],
+      "type": "object"
+    },
+    "VisualFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "FORMAT_ERROR",
+            "DURATION_ERROR",
+            "FROZEN_FRAMES",
+            "BLACK_FRAMES",
+            "AUDIO_MISSING",
+            "SPATIAL_ERROR",
+            "PROVIDER_ERROR",
+            "IDENTITY_DRIFT",
+            "OBJECT_CONTINUITY_ERROR",
+            "ACTION_ORDER_ERROR",
+            "POSE_ERROR",
+            "CAMERA_ERROR",
+            "TEMPORAL_JITTER",
+            "PHYSICS_ERROR",
+            "LIGHTING_ERROR",
+            "AUDIO_SYNC_ERROR",
+            "LIP_SYNC_ERROR",
+            "TEXT_RENDER_ERROR",
+            "NARRATIVE_CONTINUITY_ERROR"
+          ]
+        },
+        "detector": {
+          "type": "string"
+        },
+        "evidence": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "request_hash": {
+          "type": "string"
+        },
+        "shot_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "shot_id",
+        "request_hash",
+        "detector"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/RepairRequest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

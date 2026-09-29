@@ -131,3 +131,33 @@ CREATE TABLE IF NOT EXISTS episode_ratings (
   note          TEXT NOT NULL DEFAULT '',
   created_at    INTEGER NOT NULL
 );
+
+-- v3: the capability layer. Which provider was chosen for a job and why the others were not.
+CREATE TABLE IF NOT EXISTS provider_selections (
+  selection_hash TEXT PRIMARY KEY,
+  capability     TEXT NOT NULL,
+  chosen         TEXT,               -- the provider that ended up doing the job (null: none could)
+  selection_json TEXT NOT NULL CHECK (json_valid(selection_json)),
+  created_at     INTEGER NOT NULL
+);
+
+-- v3: Render -> Diagnose -> Repair. Typed failures found in a take, and the targeted re-render each one led to.
+CREATE TABLE IF NOT EXISTS visual_failures (
+  failure_id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  take_id       INTEGER NOT NULL REFERENCES takes(take_id),
+  shot_id       TEXT NOT NULL,
+  code          TEXT NOT NULL,
+  detector      TEXT NOT NULL,
+  evidence_json TEXT NOT NULL CHECK (json_valid(evidence_json)),
+  created_at    INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS repair_requests (
+  repair_hash         TEXT PRIMARY KEY,
+  shot_id             TEXT NOT NULL,
+  attempt             INTEGER NOT NULL,
+  parent_request_hash TEXT NOT NULL REFERENCES render_requests(request_hash),
+  next_request_hash   TEXT,          -- the request the repair produced (null: no repair left to try)
+  repair_json         TEXT NOT NULL CHECK (json_valid(repair_json)),
+  created_at          INTEGER NOT NULL
+);

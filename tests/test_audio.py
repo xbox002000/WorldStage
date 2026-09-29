@@ -144,7 +144,7 @@ class BackendTests(unittest.TestCase):
         wav = SynthAudioBackend(lambda h: packet).score_bytes(packet, 0)
         self.assertEqual(request.asset_hashes["score"], "sha256:" + hashlib.sha256(wav).hexdigest())
         self.assertEqual(request.parameters["score"], "synth")
-        self.assertIn("synth-", request.toolchain.audio)
+        self.assertIn("synth-", request.toolchain["audio"])
         self.assertNotEqual(request.request_hash, backend.make_request(packet, seed=1).request_hash)  # another seed, another score
 
     def test_the_audio_backend_writes_the_same_file_as_it_hashes(self):
@@ -154,7 +154,7 @@ class BackendTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = audio.render(backend.make_request(packet), Path(tmp) / "score.wav")
             self.assertEqual(out.read_bytes(), audio.score_bytes(packet, 0))
-        self.assertTrue(audio.capabilities().deterministic and not audio.capabilities().remote)
+        self.assertTrue(audio.manifest().deterministic and audio.manifest().local)
 
     @unittest.skipUnless(FFMPEG.exists(), "local ffmpeg not installed")
     def test_a_real_episode_score_has_broadcast_loudness(self):

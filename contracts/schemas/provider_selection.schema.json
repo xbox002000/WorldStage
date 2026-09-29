@@ -1,0 +1,114 @@
+{
+  "$defs": {
+    "Policy": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_remote": {
+          "type": "boolean"
+        },
+        "deny": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "max_cost": {
+          "type": "number"
+        },
+        "order": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "prefer": {
+          "enum": [
+            "cheap",
+            "quality",
+            "fast"
+          ]
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Rejection": {
+      "additionalProperties": false,
+      "properties": {
+        "provider_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider_id",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "Requirement": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "type": "string"
+        },
+        "features": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "height": {
+          "type": "integer"
+        },
+        "seconds": {
+          "type": "number"
+        },
+        "width": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "capability"
+      ],
+      "type": "object"
+    },
+    "Selection": {
+      "additionalProperties": false,
+      "properties": {
+        "chosen": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "policy": {
+          "$ref": "#/$defs/Policy"
+        },
+        "rejected": {
+          "items": {
+            "$ref": "#/$defs/Rejection"
+          },
+          "type": "array"
+        },
+        "requirement": {
+          "$ref": "#/$defs/Requirement"
+        },
+        "selection_hash": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "requirement",
+        "policy",
+        "chosen",
+        "rejected"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/Selection",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

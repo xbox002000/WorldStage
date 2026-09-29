@@ -69,7 +69,7 @@ class RoundTripTests(unittest.TestCase):
 
 
 class RenderRequestTests(unittest.TestCase):
-    TOOLCHAIN = Toolchain("0.8.91", "ffmpeg 9.0.2", "chrome 152", "libx264")
+    TOOLCHAIN = {"hyperframes": "0.8.91", "ffmpeg": "ffmpeg 9.0.2", "chrome": "chrome 152", "encoder": "libx264", "audio": ""}
 
     def request(self, **over):
         args = dict(kind="episode_master", backend="hyperframes", backend_version="0.8.91",
@@ -88,8 +88,9 @@ class RenderRequestTests(unittest.TestCase):
         base = self.request().request_hash
         changes = [dict(kind="shot"), dict(backend="wan"), dict(backend_version="0.9"), dict(parameters={"fps": "24", "quality": "looks"}),
                    dict(packet_hash="sha256:q"), dict(seed=1), dict(asset_hashes={"char_a": "sha256:9", "gsap": "sha256:2"}),
-                   dict(toolchain=Toolchain("0.8.91", "ffmpeg 9.0.3", "chrome 152", "libx264")),
-                   dict(toolchain=Toolchain("0.8.91", "ffmpeg 9.0.2", "chrome 153", "libx264"))]
+                   dict(toolchain={**self.TOOLCHAIN, "ffmpeg": "ffmpeg 9.0.3"}),
+                   dict(toolchain={**self.TOOLCHAIN, "chrome": "chrome 153"}),
+                   dict(toolchain={**self.TOOLCHAIN, "model": "wan-2.2"})]
         for change in changes:
             with self.subTest(change):
                 self.assertNotEqual(base, self.request(**change).request_hash)

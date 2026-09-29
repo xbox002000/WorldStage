@@ -12,15 +12,12 @@ REQUEST_VERSION = 2
 TakeStatus = Literal["queued", "submitted", "generating", "ready", "failed", "selected", "rejected", "needs_reconciliation"]
 
 
-@dataclass(frozen=True)
-class Toolchain:
-    """What the renderer ran on. Local backends promise: same request + same toolchain -> same artifact."""
+Toolchain = dict[str, str]
+"""What the renderer ran on, as component -> version (e.g. hyperframes, ffmpeg, chrome, encoder, audio, model).
 
-    hyperframes: str
-    ffmpeg: str
-    chrome: str
-    encoder: str
-    audio: str = ""  # the audio synthesiser and its numeric library, when the master has a soundtrack
+Each provider names its own components, so no provider's tools leak into the contract. Local backends promise:
+same request + same toolchain -> same artifact. (Until v2 this was a class with HyperFrames' fields; the JSON of
+those requests is identical to a dict with the same keys, so their hashes still verify.)"""
 
 
 @dataclass(frozen=True)
@@ -33,7 +30,7 @@ class RenderRequest:
     packet_hash: str
     seed: int
     asset_hashes: dict[str, str]
-    toolchain: Toolchain
+    toolchain: dict[str, str]
     toolchain_hash: str
     request_hash: str = ""
 
@@ -42,7 +39,7 @@ def make_request(*, kind: str, backend: str, backend_version: str, parameters: d
                  seed: int, asset_hashes: dict[str, str], toolchain: Toolchain) -> RenderRequest:
     """Build a request and stamp its hash. The hash covers everything that can change the artifact."""
     req = RenderRequest(REQUEST_VERSION, kind, backend, backend_version, dict(parameters), packet_hash, seed,
-                        dict(asset_hashes), toolchain, content_hash(toolchain))
+                        dict(asset_hashes), dict(toolchain), content_hash(toolchain))
     return dataclasses.replace(req, request_hash=hash_without(req, "request_hash"))
 
 
