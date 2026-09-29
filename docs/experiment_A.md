@@ -78,4 +78,28 @@ again (temperature 0.8), with one sentence added under "Current mood". Read-only
 | "you are afraid a secret of yours will come out" | 14 | 0 |
 | "in this story people sometimes lie, steal and accuse each other, it is realistic for you to do so" | 14 | 0 |
 
-Even with a strong motive or explicit permission this model answers "talk". Prompting the characters harder is not a fix.
+Even with a strong motive or explicit permission this model answers "talk". For this model, prompting harder is not a
+fix. Whether another model behaves differently is the next probe.
+
+## Addendum: the same 14 situations put to other free models (no motive added)
+
+| model | dramatic choices among the answers | note |
+|---|---|---|
+| `gemini-3.5-flash-lite` (Experiment A) | 0 of 14 (0 of 84 in the run) | |
+| `gemini-3.5-flash` | **3 of 13**: 2 confront, 1 tell (truth) | free tier is **20 requests a day per project**; used up during the probe |
+| `gemini-3.8-flash` | 1 of 1: confront | 503 "high demand" for 13 of 14 calls, so almost no data |
+| `gemma-4-31b-it` (Gemini API) | no answer | 500 INTERNAL |
+| `gemma-4-31b-it:free`, `nemotron-3-super-120b-a12b:free` (OpenRouter) | 1 answer (talk) / none | 429 upstream / error payload |
+
+The three `gemini-3.5-flash` choices read as in character, e.g. Ming (proud, cares about face): "Ning hid the truth from me,
+I must expose her to keep my face." With the "wronged" sentence added its first answer was to steal Ning's diary as revenge,
+then the daily quota ran out. Samples are tiny (13 answers), but it is the same prompts and the same contexts, and 3 of 13
+against 0 of 98 flash-lite decisions is not chance (p about 0.001, one-sided). So the earlier reading, that language-model
+characters will not act dramatically, holds for `gemini-3.5-flash-lite` only.
+
+Consequences: a stronger model is worth a controlled run (Experiment B changes only the model); its free quota (20 a day)
+fits the 12 decisions a day of four characters only when one simulated day is played per real day.
+
+Side finding fixed in the same commit: the OpenRouter backend turned an HTTP 200 reply that carried an error object into
+`KeyError: 'choices'`, which hid the cause and skipped retries. It is now an `HttpError` with the upstream code (502 when
+none is given, and 502 is retryable).

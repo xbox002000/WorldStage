@@ -8,7 +8,7 @@ from typing import Callable
 from agent.llm_cache import LLMCache, canonical_request, request_hash
 
 DEFAULT_MODEL = "gemini-3.5-flash-lite"
-RETRYABLE = {429, 500, 503, 504}
+RETRYABLE = {429, 500, 502, 503, 504}
 
 
 class BudgetExceeded(RuntimeError):
@@ -190,7 +190,13 @@ def _openrouter_backend(model: str, structured: bool) -> Callable[[str, dict, fl
         )
         if r.status_code >= 400:
             raise HttpError(r.status_code, r.text[:200])
-        return r.json()["choices"][0]["message"]["content"]
+        body = r.json()
+        if "choices" not in body:
+            # Some upstream failures come back as HTTP 200 with an error object instead of an answer.
+            err = body.get("error") or {}
+            code = err.get("code") if isinstance(err.get("code"), int) else 502
+            raise HttpError(code, str(err.get("message") or body)[:200])
+        return body["choices"][0]["message"]["content"]
 
     return call
 

@@ -100,10 +100,6 @@ class DeciderTests(unittest.TestCase):
         self.assertEqual(d.errors, 1)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class FallbackTests(unittest.TestCase):
     def chain(self, backends, cooldown=300.0, max_calls=None):
         from agent.llm import FallbackClient
@@ -158,3 +154,46 @@ class FallbackTests(unittest.TestCase):
         chain, _ = self.chain([down, down])
         with self.assertRaises(ApiError):
             chain.generate_json("p", {})
+
+
+class OpenRouterBackendTests(unittest.TestCase):
+    class Reply:
+        def __init__(self, status, body):
+            self.status_code, self._body, self.text = status, body, json.dumps(body)
+
+        def json(self):
+            return self._body
+
+    def call(self, reply):
+        from unittest import mock
+
+        from agent import llm
+
+        with mock.patch.object(llm, "load_api_key", return_value="k"), mock.patch("httpx.post", return_value=reply):
+            return llm._openrouter_backend("some/model", True)("p", {}, 0.5)
+
+    def test_returns_the_message_content(self):
+        body = {"choices": [{"message": {"content": '{"a": 1}'}}]}
+        self.assertEqual(self.call(self.Reply(200, body)), '{"a": 1}')
+
+    def test_http_200_carrying_an_error_becomes_a_retryable_http_error(self):
+        from agent.llm import RETRYABLE, HttpError
+
+        body = {"error": {"code": 429, "message": "rate limited upstream"}}
+        with self.assertRaises(HttpError) as cm:
+            self.call(self.Reply(200, body))
+        self.assertEqual(cm.exception.code, 429)
+        self.assertIn("rate limited upstream", str(cm.exception))
+        self.assertIn(429, RETRYABLE)
+
+    def test_an_answer_with_neither_choices_nor_error_code_is_a_bad_gateway(self):
+        from agent.llm import RETRYABLE, HttpError
+
+        with self.assertRaises(HttpError) as cm:
+            self.call(self.Reply(200, {"weird": True}))
+        self.assertEqual(cm.exception.code, 502)
+        self.assertIn(502, RETRYABLE)
+
+
+if __name__ == "__main__":
+    unittest.main()
