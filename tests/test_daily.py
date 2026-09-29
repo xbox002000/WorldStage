@@ -17,7 +17,7 @@ from production import db as prod
 from production import series
 from channel.daily import DailyConfig, LLMUnavailable, run_daily
 from production.experiment import ExperimentDrift, build_config, differences, freeze
-from production.publisher import DISCLOSURE, LocalPublisher, compose_listing
+from production.publisher import BASE_TAGS, DISCLOSURE, LocalPublisher, compose_listing
 from channel.replay import replay_check
 from world.db import connect
 from world.reader import open_world_reader
@@ -216,6 +216,11 @@ class ListingTests(Workspace):
         for shot in packet.shots:
             self.assertIn(shot.caption, a["description"])
         self.assertTrue(set(p.name for p in spec.characters.values()) <= set(a["tags"]))
+        peak = next(b for b in spec.beats if b.event_id == spec.peak_event_id)
+        lead = [spec.characters[p.id].name for p in peak.participants[:2]]
+        tags = a["tags"]
+        self.assertEqual(tags[len(BASE_TAGS):len(BASE_TAGS) + 2], lead)  # the story's own people come first
+        self.assertTrue(a["hashtags"].count("#") <= 8)
 
     def test_publishing_writes_the_files_and_records_it(self):
         from contracts.base import canonical_json

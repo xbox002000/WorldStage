@@ -42,9 +42,13 @@ def compose_listing(spec: SceneSpec, packet: ProductionPacket) -> dict:
         lines.append(f"前情提要：{packet.episode.recap}")
         lines.append("")
     lines.append("這一集：")
-    lines += [f"・{s.caption}" for s in packet.shots]
+    for s in packet.shots:
+        lines.append(f"・{s.caption}" + (f"（{s.thought}）" if s.thought else ""))
     lines += ["", DISCLOSURE]
-    people = list(dict.fromkeys(p.name for p in spec.characters.values()))
+    # The people the story is about come first (the peak's actor and target), then everyone else in a fixed order.
+    lead = [p.id for p in peak.participants[:2]]
+    order = lead + sorted(pid for pid in spec.characters if pid not in lead)
+    people = list(dict.fromkeys(spec.characters[pid].name for pid in order if pid in spec.characters))
     tags = BASE_TAGS + people + [f"第{peak.day}天"]
     return {
         "title": title, "description": "\n".join(lines), "tags": tags, "hashtags": " ".join("#" + t for t in tags[:8]),
