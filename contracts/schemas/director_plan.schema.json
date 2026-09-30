@@ -226,6 +226,12 @@
         "focalization": {
           "$ref": "#/$defs/FocalizationPlan"
         },
+        "forced": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
         "knowledge": {
           "$ref": "#/$defs/AudienceKnowledgePlan"
         },

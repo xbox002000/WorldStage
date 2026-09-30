@@ -35,7 +35,8 @@ from render.packet_html import to_srt
 from world.reader import open_world_reader
 
 FFMPEG_DIR = Path(__file__).resolve().parent.parent / "tools" / "ffmpeg" / "bin"
-ROUTES = ("procedural", "shots")
+ROUTES = ("procedural", "cast", "shots")  # cast: the directed cartoon look (needs a DirectorPlan)
+FEATURES = {"procedural": ["procedural_visuals"], "cast": ["directed_cast"], "shots": ["clips"]}
 
 
 @dataclass(frozen=True)
@@ -103,14 +104,15 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         audio = _pick(conn, registry, Requirement(
             "audio.score", ["music", "sfx"] if packet.audio_plan.cues else [], total), policy)
         composer = _pick(conn, registry, Requirement(
-            "composition.render", ["procedural_visuals"] if route == "procedural" else ["clips"], total, w, h), policy)
+            "composition.render", FEATURES[route] if direction is not None or route != "cast" else FEATURES["procedural"],
+            total, w, h), policy)
         composer.audio = audio  # the composition carries the chosen soundtrack; its hash goes into the request
         providers: dict = {"audio.score": audio.name, "composition.render": composer.name}
 
         started = time.perf_counter()
         shots: list[ShotOutcome] | None = None
         request: RenderRequest | None = None
-        if route == "procedural":
+        if route in ("procedural", "cast"):  # an undirected packet on the cast route falls back to the procedural look
             request = composer.make_request(packet, quality=quality)
         elif render:
             workdir = getattr(composer, "workdir", out_dir / "_work")

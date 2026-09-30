@@ -49,8 +49,23 @@ def _truth_beats(conn: sqlite3.Connection, spec: SceneSpec, truth: list[str]) ->
     return out
 
 
-def plan_knowledge(conn, spec: SceneSpec, thread: StoryThread | None, shown: set[int]) -> AudienceKnowledgePlan:
+def _giveaways(spec: SceneSpec, truth: list[str], truth_beats: list[int]) -> list[int]:
+    """Beats that would give the answer away: the truth's own beats, and any beat where its subject handles its object
+    (the culprit dropping the thing somewhere is as telling as taking it)."""
+    pairs = {(t.split(":")[0], t.split(":")[2]) for t in truth if t.count(":") >= 2}
+    out = set(truth_beats)
+    for i, b in enumerate(spec.beats):
+        actor = _role(b, "actor")
+        if b.prop is not None and (actor, b.prop.id) in pairs:
+            out.add(i)
+    return sorted(out)
+
+
+def plan_knowledge(conn, spec: SceneSpec, thread: StoryThread | None, shown: set[int],
+                   strategy: str | None = None) -> AudienceKnowledgePlan:
     k = knowledge_of(conn, thread, shown) if thread is not None else None
+    if strategy is not None:
+        return _forced_knowledge(conn, spec, k, strategy)
     if k is None or not (k.wrong or k.unaware):
         return AudienceKnowledgePlan("plain", "no one in the story is in the dark about its question", None, None, [])
     state = KnowledgeState(k.question, k.truth, k.knows, k.wrong, k.unaware, k.audience_knows)
@@ -58,19 +73,38 @@ def plan_knowledge(conn, spec: SceneSpec, thread: StoryThread | None, shown: set
     exposure = next((i for i, b in enumerate(spec.beats) if b.variant in EXPOSED), None)
     if truth and exposure is not None and exposure > truth[0] and not k.audience_knows:
         return AudienceKnowledgePlan("mystery", "the truth comes out later in this scene: keep the culprit's face back until then",
-                                     state, exposure, truth)
+                                     state, exposure, [i for i in _giveaways(spec, k.truth, truth) if i < exposure])
     if truth or k.audience_knows:
         return AudienceKnowledgePlan("irony", "show the audience what the person it concerns does not know", state,
                                      truth[0] if truth else None, [])
     return AudienceKnowledgePlan("mystery", "nobody on screen, and not the audience, knows the answer yet", state, None, [])
 
 
+def _forced_knowledge(conn, spec: SceneSpec, k, strategy: str) -> AudienceKnowledgePlan:
+    """The same facts, a different audience: irony shows the truth early, mystery keeps it back (until an exposure in
+    the scene, if there is one), plain tells it as it happens."""
+    if k is None:
+        raise ValueError("this scene has no knowledge question to play with")
+    state = KnowledgeState(k.question, k.truth, k.knows, k.wrong, k.unaware, k.audience_knows)
+    truth = _truth_beats(conn, spec, k.truth)
+    if strategy == "irony":
+        return AudienceKnowledgePlan("irony", "forced: the audience sees the truth before the person it concerns",
+                                     state, truth[0] if truth else None, [])
+    if strategy == "mystery":
+        exposure = next((i for i, b in enumerate(spec.beats) if b.variant in EXPOSED), None)
+        return AudienceKnowledgePlan("mystery", "forced: the audience does not see who did it", state, exposure,
+                                     [i for i in _giveaways(spec, k.truth, truth) if exposure is None or i < exposure])
+    return AudienceKnowledgePlan("plain", "forced: told as it happens", state, None, [])
+
+
 def _animals(spec: SceneSpec) -> set[str]:
     return {pid for pid, p in spec.characters.items() if p.asset_id.startswith("animal_")}
 
 
-def plan_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan) -> FocalizationPlan:
+def plan_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan, forced: str | None = None) -> FocalizationPlan:
     animals = _animals(spec)
+    if forced is not None:
+        return _forced_focal(spec, knowledge, forced, forced in animals)
     if animals and knowledge.state is not None and (knowledge.state.wrong or knowledge.state.unaware):
         # the animal did it or sensed it, while the people it concerns are in the dark: a witness that cannot speak
         for a in sorted(animals):
@@ -108,9 +142,29 @@ def plan_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan) -> Focalizatio
     return FocalizationPlan(focal, "person", "limited", why, in_scope, audience_only, transitions)
 
 
+def _forced_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan, who: str, animal: bool) -> FocalizationPlan:
+    """Through the eyes of `who`: only what they took part in, noticed or sensed is theirs; the rest is audience-only
+    (or withheld, if the knowledge plan keeps it back)."""
+    if who not in spec.characters:
+        raise ValueError(f"{who} is not in this scene")
+    there = [i for i, b in enumerate(spec.beats) if who in _people(b) or (animal and who in [p.id for p in b.participants])]
+    outside = [i for i in range(len(spec.beats)) if i not in there]
+    audience_only = [i for i in outside if i not in knowledge.withheld_beats]
+    transitions = []
+    for i in outside:
+        carrier = next((p.id for p in spec.beats[i].participants if p.role == "witness" and p.id != who), None)
+        if carrier:
+            transitions.append(POVTransition(i, who, carrier, "cut", f"{who} was not there; {carrier} saw it"))
+            transitions.append(POVTransition(i + 1, carrier, who, "cut", "back to the one the story follows"))
+    return FocalizationPlan(who, "animal" if animal else "person", "witness" if animal else "limited",
+                            "forced by the benchmark", there, audience_only, transitions)
+
+
 def beat_functions(i: int, b: Beat, spec: SceneSpec, knowledge: AudienceKnowledgePlan) -> list[str]:
     f = ["orient"] if i == 0 else []
     t, v = b.event_type, b.variant
+    if i in knowledge.withheld_beats:  # it would give the answer away: the act, never the face
+        return f + ["hide"]
     if t in ("take", "steal", "backstory"):
         # irony: let the audience see who did it; mystery: the act without the face
         f += ["hide"] if i in knowledge.withheld_beats else ["reveal"] if knowledge.strategy == "irony" else ["observe"]
@@ -199,6 +253,82 @@ def _shots_for(i: int, b: Beat, functions: list[str], focal: FocalizationPlan, s
     return out
 
 
+GRAMMARS = ("observational", "push_in", "subjective", "reaction")
+TIGHTER = {"EWS": "WS", "WS": "MS", "MS": "MCU", "MCU": "CU", "CU": "CU", "ECU": "ECU", "INSERT": "INSERT"}
+
+
+def regrammar(spec: SceneSpec, shots: list[CameraShot], focal: FocalizationPlan, grammar: str) -> list[CameraShot]:
+    """The same beats and functions, filmed in one camera grammar:
+    observational  from a distance: wide and medium, eye level, static, no inserts or reaction cuts
+    push_in        the scene closes in on the focalizer: tighter as it goes, every shot a slow push
+    subjective     through the focalizer's eyes wherever they are (ground height for an animal); outside them, wide
+    reaction       close and reaction-heavy: tighter coverage, and the focalizer's face after everything that lands
+    """
+    if grammar not in GRAMMARS:
+        raise ValueError(f"unknown camera grammar {grammar}")
+    who, animal, out = focal.focalizer, focal.kind == "animal", []
+    last = max((s.beat_index for s in shots), default=0) or 1
+    by_beat: dict[int, list[CameraShot]] = {}
+    for sh in shots:
+        by_beat.setdefault(sh.beat_index, []).append(sh)
+    for i, group in sorted(by_beat.items()):
+        b = spec.beats[i]
+        here = _people(b) + ([who] if animal and who in [p.id for p in b.participants] else [])
+        actor = _role(b, "actor") or (here[0] if here else "")
+        new: list[tuple] = []
+        for sh in group:
+            f = sh.function
+            if grammar == "observational":
+                if f == "reaction":
+                    continue
+                subj = sh.subject if sh.scale != "INSERT" or f == "hide" else actor
+                new.append((f, "WS" if f in ("orient", "isolate") or sh.scale == "WS" else "MS", "eye_level",
+                            "frontal" if f == "orient" else "profile", "static", "slow", subj,
+                            "space" if f in ("orient", "isolate") else "body", sh.seconds,
+                            "wide" if f in ("orient", "isolate") else "two_shot",
+                            "watched from a distance: no push, no close-up"))
+            elif grammar == "push_in":
+                steps = ["WS", "MS", "MCU", "CU"]
+                scale = steps[min(3, round(3 * i / last))] if sh.scale != "INSERT" else "INSERT"
+                subj = who if who in here and f not in ("hide", "foreshadow") and sh.scale != "INSERT" else sh.subject
+                new.append((f, scale, sh.angle if sh.angle != "ground" else "eye_level", "frontal", "push_in", "slow",
+                            subj, "face" if scale in ("MCU", "CU") else sh.attention, sh.seconds, sh.spatial_camera,
+                            f"the scene closes in on {who}" if who else "closing in"))
+            elif grammar == "subjective":
+                if who in here and f != "hide":
+                    look = actor if actor and actor != who else (b.prop.id if b.prop is not None else actor)
+                    new.append((f, "MCU" if look != actor else "MS", "ground" if animal else "eye_level", "subjective",
+                                "handheld", "slow", look, "object" if look != actor else "body", sh.seconds, "pov",
+                                f"through {who}'s eyes" + (": legs, hands, a thing, voices without words" if animal else "")))
+                elif f == "hide":
+                    new.append(tuple(getattr(sh, k) for k in _FIELDS))
+                else:
+                    new.append((f, "WS", "eye_level", "frontal", "static", "slow", sh.subject, "space", sh.seconds,
+                                "wide", f"outside {who}'s eyes: the audience alone sees it"))
+            else:  # reaction
+                if f == "reaction":
+                    continue
+                new.append((f, TIGHTER[sh.scale] if f != "orient" else "MS", sh.angle, sh.relation, sh.motion,
+                            sh.speed, sh.subject, sh.attention, sh.seconds, sh.spatial_camera, sh.reason))
+                close_on_them = sh.subject == who and TIGHTER[sh.scale] in ("MCU", "CU", "ECU")
+                if who in here and not close_on_them and f not in ("hide", "orient"):
+                    new.append(("reaction", "CU", "eye_level", "frontal", "static", "medium", who, "eyes", 1.5,
+                                "over_shoulder", f"how it lands on {who}"))
+        if not new:  # a beat always keeps one shot
+            sh = group[0]
+            new.append(tuple(getattr(sh, k) for k in _FIELDS))
+        dedup = []
+        for t in new:
+            if t not in dedup:
+                dedup.append(t)
+        out += [(i, t) for t in dedup[:4]]
+    return [CameraShot(n, i, *t) for n, (i, t) in enumerate(out)]
+
+
+_FIELDS = ("function", "scale", "angle", "relation", "motion", "speed", "subject", "attention", "seconds",
+           "spatial_camera", "reason")
+
+
 def plan_edit_and_sound(spec: SceneSpec, beats: list[DramaticBeat], shots: list[CameraShot],
                         knowledge: AudienceKnowledgePlan, focal: FocalizationPlan) -> tuple[list[Cut], list[SoundCue]]:
     cuts, sound = [], []
@@ -235,7 +365,9 @@ def plan_edit_and_sound(spec: SceneSpec, beats: list[DramaticBeat], shots: list[
             music, why = "tension", "pressure"
         else:
             music, why = "none", "let the place speak"
-        dialogue = ("muffled" if s.relation == "subjective" or focal.kind == "animal" else
+        far = s.relation == "subjective" and focal.focalizer in _people(b, ("witness",))  # watching, out of earshot
+        sensing = focal.kind == "animal" and focal.focalizer in [p.id for p in b.participants]  # voices, not words
+        dialogue = ("muffled" if far or sensing else
                     "none" if s.function in ("hide", "foreshadow", "isolate") else "full")
         sound.append(SoundCue(n, music, dialogue, b.location.name, why))
     if cuts:
@@ -262,9 +394,12 @@ def _character_turn(conn, focal: str, spec: SceneSpec) -> str:
 
 
 def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThread | None = None,
-                   shown: set[int] | frozenset[int] = frozenset()) -> DirectorPlan:
-    knowledge = plan_knowledge(conn, spec, thread, set(shown))
-    focal = plan_focal(spec, knowledge)
+                   shown: set[int] | frozenset[int] = frozenset(), *, focalizer: str | None = None,
+                   strategy: str | None = None, grammar: str | None = None) -> DirectorPlan:
+    """The director decides everything unless a benchmark forces a choice (focalizer, strategy, grammar). A forced
+    choice changes only how the scene is told; the scene, its events and its truth stay the same."""
+    knowledge = plan_knowledge(conn, spec, thread, set(shown), strategy)
+    focal = plan_focal(spec, knowledge, focalizer)
     beats = []
     for i, b in enumerate(spec.beats):
         fns = beat_functions(i, b, spec, knowledge)
@@ -273,6 +408,8 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     shots: list[CameraShot] = []
     for i, b in enumerate(spec.beats):
         shots += _shots_for(i, b, beats[i].functions, focal, len(shots))
+    if grammar is not None:
+        shots = regrammar(spec, shots, focal, grammar)
     cuts, sound = plan_edit_and_sound(spec, beats, shots, knowledge, focal)
     names = {pid: p.name for pid, p in spec.characters.items()}
     who = names.get(focal.focalizer, focal.focalizer)
@@ -288,7 +425,9 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     if turn:
         goal += f"。這幾天，{who}{turn}"
     return finalize(DirectorPlan(1, spec.scene_id, spec.scene_hash, thread.thread_id if thread else "", COMPILER_VERSION,
-                                 goal, knowledge, focal, beats, shots, cuts, sound))
+                                 goal, knowledge, focal, beats, shots, cuts, sound,
+                                 {k: v for k, v in (("focalizer", focalizer), ("strategy", strategy), ("grammar", grammar))
+                                  if v is not None}))
 
 
 def _note(fns: list[str], knowledge: AudienceKnowledgePlan) -> str:

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from contracts.base import hash_without
 from contracts.scene_spec import Place, Prop, WorldMap
 
-PACKET_VERSION = 3
+PACKET_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -109,6 +109,15 @@ class Shot:
     spatial_camera: str = ""  # which SpatialPlan camera stages it: wide | two_shot | over_shoulder | insert | pov
     music: str = ""  # none | tension | release | sting | silence
     dialogue: str = "full"  # full | muffled | none
+    # v4, so a renderer can film the director's intent from the packet alone
+    scale: str = ""  # EWS | WS | MS | MCU | CU | ECU | INSERT
+    subject_id: str = ""  # the entity or prop id the camera is on
+    attention: str = ""  # face | eyes | hands | object | space | body
+    event_type: str = ""
+    thought_by: str = ""  # whose inner text `thought` is
+    thought_kind: str = ""  # belief (a person's) | sense (an animal's percept: no words, no names of acts)
+    suspect_id: str = ""  # someone who is only in a character's head: the one they suspect
+    transition: str = ""  # how the cut into this shot is made: cut | dissolve | smash_cut | match_cut | hold
 
 
 @dataclass(frozen=True)

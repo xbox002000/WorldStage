@@ -104,7 +104,10 @@ class AnimalPointOfViewTests(unittest.TestCase):
         plan = plan_direction(c, spec, thread)
         self.assertEqual((plan.focalization.focalizer, plan.focalization.kind), ("dog", "animal"))
         self.assertTrue(any(s.angle == "ground" for s in plan.shots))
-        self.assertTrue(all(cue.dialogue != "full" for cue in plan.sound))  # a dog hears voices, not words
+        with_dog_there = {s.shot_index for s in plan.shots if "dog" in [p.id for p in spec.beats[s.beat_index].participants]}
+        self.assertTrue(with_dog_there)
+        # where the dog is, it hears voices, not words; where it is not, the audience alone hears them
+        self.assertTrue(all(cue.dialogue != "full" for cue in plan.sound if cue.shot_index in with_dog_there))
         staged = compile_spatial(spec)
         dog = [p for b in staged.beats for p in b.placements if p.id == "dog"]
         self.assertTrue(dog and all(p.height == 0.5 for p in dog))

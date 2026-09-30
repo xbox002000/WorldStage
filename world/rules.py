@@ -7,7 +7,7 @@ from contracts.claim import Claim
 from world.claims import describe_claim, labels
 from world.events import Change, ClaimSpec, EventSpec, MemorySpec
 from world.attention import LOUD, NORMAL, noticers, var, world_seed
-from world.helpers import clamp_delta, last_event_between, person, rel, trust_change
+from world.helpers import clamp_delta, last_event_between, person, rel, trust_change, trust_reversed
 from world.intent import WORK_ENERGY, Intent, food_price
 from world.rng import rng as make_rng
 
@@ -99,7 +99,7 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
     d_trust, d_aff, d_aff_self = TONE_EFFECT[tone]
     old_trust = rel(conn, b, a, "trust")
     trust_delta = clamp_delta(old_trust, d_trust, -1.0, 1.0)
-    flipped = old_trust * (old_trust + trust_delta) < 0
+    flipped = trust_reversed(conn, b, a, trust_delta)
 
     changes: list[Change] = []
     if trust_delta:

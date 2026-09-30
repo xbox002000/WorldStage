@@ -100,7 +100,7 @@ class SelectionTests(unittest.TestCase):
     def test_the_default_registry_covers_every_capability_with_two_providers_where_it_matters(self):
         cat = default_registry(lambda h: None).catalog()
         self.assertEqual(cat["audio.score"], ["silence", "synth"])
-        self.assertEqual(cat["composition.render"], ["ffmpeg-compose", "hyperframes"])
+        self.assertEqual(cat["composition.render"], ["cast", "ffmpeg-compose", "hyperframes"])
         self.assertEqual(cat["spatial.control"], ["whitebox"])
         self.assertEqual(cat["visual.generate"], ["mock-clip"])
 

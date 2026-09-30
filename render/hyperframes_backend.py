@@ -123,11 +123,14 @@ class HyperFramesBackend:
             score = self.audio.score_bytes(packet, request.seed)
             if "sha256:" + hashlib.sha256(score).hexdigest() != request.asset_hashes["score"]:
                 raise RuntimeError("the synthesised score no longer matches the request: audio is not deterministic here")
-        build_project(packet, project, GSAP, score=score)
+        self._build(packet, project, score)
         p = request.parameters
         _run([str(CLI), "render", str(project), "-o", str(mp4), "-q", p["quality"], "-f", p["fps"], "--quiet"],
              _env(self.chrome_path()))
         return request.request_hash
+
+    def _build(self, packet: ProductionPacket, project: Path, score: bytes | None) -> None:
+        build_project(packet, project, GSAP, score=score)
 
     def poll(self, job_id: str) -> Take:
         _, mp4 = self._paths(job_id)

@@ -26,6 +26,12 @@ from world.social import belief_effect
 
 TEMPERATURE = 0.35
 IDLE = 0.35
+# after a clash people need to recover: recent high-stakes events they were at the centre of make open conflict less
+# likely for a day or two (less so for the aggressive). This is what lets a world breathe between peaks.
+STRAIN_FROM = 0.7  # event weight that counts as a clash
+STRAIN_WEIGHT = 0.8
+STRAIN_DAYS = 2
+CONFLICT = ("accuse", "confront", "challenge")
 
 
 def traits(conn: sqlite3.Connection, pid: str) -> dict:
@@ -102,6 +108,28 @@ def _harms(conn: sqlite3.Connection, it: Intent, target: str) -> bool:
         return False
     row = conn.execute("SELECT subject, act, polarity FROM claims WHERE claim_id = ?", (it.claim_id,)).fetchone()
     return row is not None and row["subject"] == target and belief_effect(Claim(row["subject"], row["act"], "x", row["polarity"])) < 0
+
+
+def strain(conn: sqlite3.Connection, actor: str, now: int) -> float:
+    """How worn out someone is by recent clashes they were at the centre of (read-only, from events)."""
+    rows = conn.execute(
+        "SELECT e.timestamp, e.importance FROM events e JOIN event_participants p ON p.event_id = e.event_id "
+        "WHERE p.person_id = ? AND p.role IN ('actor', 'target', 'victim', 'suspect') AND e.importance >= ? "
+        "AND e.timestamp > ? AND e.timestamp <= ?", (actor, STRAIN_FROM, now - STRAIN_DAYS * 1440, now)).fetchall()
+    return round(sum(imp * math.exp(-(now - ts) / 1440) for ts, imp in rows), 6)
+
+
+def _conflict(it: Intent | None) -> bool:
+    return it is not None and (it.action in CONFLICT or (it.action == "talk" and it.tone == "hostile"))
+
+
+def recovery_bias(conn: sqlite3.Connection, actor: str, now: int, scored: list) -> list:
+    s = strain(conn, actor, now)
+    if not s:
+        return scored
+    from world.psyche import trait
+    k = STRAIN_WEIGHT * s * (1.0 - 0.6 * trait(conn, actor, "aggression"))
+    return [(score - k if _conflict(it) else score, it) for score, it in scored]
 
 
 def goal_bias(conn: sqlite3.Connection, actor: str, scored: list) -> list:
@@ -302,6 +330,7 @@ class VolitionDecider:
         for m in self.mechanics:
             scored = m.bias(conn, actor, now, scored + m.options(conn, actor, now))
         scored = goal_bias(conn, actor, scored)
+        scored = recovery_bias(conn, actor, now, scored)
         if len(scored) == 1:
             return None
         weights = [math.exp(s / self.temperature) for s, _ in scored]

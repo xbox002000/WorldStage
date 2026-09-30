@@ -137,12 +137,13 @@ def item_options(conn: sqlite3.Connection, actor: str, here: str, here_ids: list
     from world.recipes import enabled
     challenge = train = []
     if enabled(conn, "duel"):
-        from world.jianghu import DUEL_ENERGY, recent_duel
+        from world.jianghu import DUEL_ENERGY, injured, recent_duel
         now = conn.execute("SELECT COALESCE(MAX(timestamp), 0) FROM events").fetchone()[0]
         me = conn.execute("SELECT energy FROM people WHERE id = ?", (actor,)).fetchone()[0]
-        challenge = [{"target": p} for p in here_ids if me >= DUEL_ENERGY
+        hurt = injured(conn, actor, now)
+        challenge = [{"target": p} for p in here_ids if not hurt and me >= DUEL_ENERGY
                      and conn.execute("SELECT energy FROM people WHERE id = ?", (p,)).fetchone()[0] >= DUEL_ENERGY
-                     and not recent_duel(conn, actor, p, now)]
+                     and not recent_duel(conn, actor, p, now) and not injured(conn, p, now)]
     if enabled(conn, "martial_arts"):
         tags = conn.execute("SELECT tags FROM locations WHERE id = ?", (here,)).fetchone()[0]
         train = [{"here": here}] if '"training"' in tags else []

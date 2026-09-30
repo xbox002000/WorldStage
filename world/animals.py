@@ -37,6 +37,12 @@ PERCEPT = {
     "eat": "食物的味道",
     "lend": "{actor}把東西塞給了{target}",
 }
+# its own acts, as it would feel them: no names, no ownership, only the thing and the doing
+OWN_PERCEPT = {
+    "take": "叼起了{thing}，上面有{owner}的氣味",
+    "misplace": "把{thing}放下了",
+    "steal": "叼起了{thing}，上面有{owner}的氣味",
+}
 
 
 def species(conn: sqlite3.Connection, pid: str) -> str:
@@ -100,7 +106,12 @@ def with_senses(conn: sqlite3.Connection, spec: EventSpec) -> EventSpec:
         mine = a == t.get("actor")
         if not mine and make_rng(seed, spec.timestamp, f"sense:{spec.type}:{a}", "sense").random() >= SENSE_P[_loudness(spec)]:
             continue
-        if template:
+        own = OWN_PERCEPT.get(spec.type) if mine else None
+        if own:
+            text = own.format(thing=_thing(conn, t.get("object")),
+                              owner=names.get(t.get("rightful_owner") or t.get("victim") or t.get("owner"), "別人"))
+            memories.append(MemorySpec(a, text, 1.0))
+        elif template:
             text = template.format(thing=_thing(conn, t.get("object")), actor=names.get(t.get("actor"), "有人"),
                                    target=names.get(t.get("target") or t.get("victim"), "另一個人"))
             memories.append(MemorySpec(a, text, 0.9))

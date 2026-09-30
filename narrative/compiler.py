@@ -16,7 +16,7 @@ from narrative.audio_plan import compile_audio_plan, compile_directed_audio
 from narrative.color import avatar_color
 from world.ruleset import ROOT, file_hash
 
-COMPILER_VERSION = "1.1.0"
+COMPILER_VERSION = "1.3.0"
 COMPILER_FILES = ("narrative/compiler.py", "narrative/audio_plan.py", "narrative/color.py", "contracts/packet.py",
                   "contracts/stylepack.py", "narrative/direction.py", "contracts/director.py")
 
@@ -76,20 +76,54 @@ def _tighten(shot: str, bias: str) -> str:
     return shot
 
 
-def caption(beat: Beat, names: dict[str, str]) -> str:
+def caption(beat: Beat, names: dict[str, str], agentless: bool = False, animals: frozenset[str] = frozenset()) -> str:
+    """What the subtitle says about a beat. agentless: the audience must not learn who did it (a hidden beat in a
+    mystery), so the caption says what happened to the thing, not who did it."""
     role = {p.role: names[p.id] for p in beat.participants}
     a, b = role.get("actor", ""), role.get("target") or role.get("victim") or ""
-    if beat.event_type == "steal":
-        return f"{a} 拿走了 {b} 的{beat.prop.name if beat.prop else '東西'}"
-    detail = beat.detail or ""
-    if beat.event_type == "tell":
+    thing = beat.prop.name if beat.prop else "東西"
+    animal = any(p.role == "actor" and p.id in animals for p in beat.participants)
+    t, v, detail = beat.event_type, beat.variant, beat.detail or ""
+    if agentless:
+        return {"take": f"{thing}不見了", "steal": f"{thing}不見了", "misplace": f"{thing}被留在了{beat.location.name}",
+                "give": f"{thing}換了主人"}.get(t, f"{beat.location.name}，有事發生了")
+    if t == "steal":
+        return f"{a} 拿走了 {b} 的{thing}"
+    if t == "take":
+        return f"{a} 叼走了{b + '的' if b else ''}{thing}" if animal else f"{a} 撿走了{b + '的' if b else ''}{thing}"
+    if t == "misplace":
+        return f"{a} 把{thing}丟在{beat.location.name}" if animal else f"{a} 的{thing}掉在{beat.location.name}，他沒發現"
+    if t == "find":
+        return f"{a} 找到了{thing}"
+    if t == "notice_missing":
+        return f"{a} 發現{thing}不見了"
+    if t == "give":
+        return f"{a} 把{thing}交給 {b}"
+    if t == "lend":
+        return f"{a} 借錢給 {b}"
+    if t == "repay":
+        return f"{a} 還錢給 {b}"
+    if t == "accuse":
+        return {"caught": f"{a} 當場指認 {b} 拿了{thing}，{b} 無從抵賴", "denied": f"{a} 指控 {b} 拿了{thing}，{b} 否認",
+                "false": f"{a} 冤枉了 {b}，說 {b} 拿了{thing}"}.get(v or "", f"{a} 指控 {b} 拿了{thing}")
+    if t == "duel":
+        return f"{a} 向 {b} 挑戰比武"
+    if t == "train":
+        return f"{a} 獨自練功"
+    if t == "bark":
+        return f"{a} 對著 {b} 吠"
+    if t == "parrot_speaks":
+        return f"鸚鵡開口了：{detail}" if detail else "鸚鵡開口了"
+    if t in ("seed", "cash_prize", "feed_pet"):
+        return detail or f"{beat.location.name}的一天"
+    if t == "tell":
         return {
             "truth": f"{a} 告訴 {b}：{detail}",
             "lie": f"{a} 對 {b} 撒了謊：{detail}",
             "distortion": f"{a} 向 {b} 歪曲了事實：{detail}",
             "omission": f"{a} 告訴 {b}：{detail}" + (f"，卻沒提{beat.detail2}" if beat.detail2 else "，卻有所保留"),
-        }.get(beat.variant or "", f"{a} 對 {b} 說了些話")
-    if beat.event_type == "confront":
+        }.get(v or "", f"{a} 對 {b} 說了些話")
+    if t == "confront":
         return {
             "lie_exposed": f"{a} 揭穿了 {b} 的謊言：{detail}",
             "distortion_exposed": f"{a} 指出 {b} 歪曲了事實：{detail}",
@@ -97,13 +131,23 @@ def caption(beat: Beat, names: dict[str, str]) -> str:
             "misinformed": f"{a} 質問 {b}，才發現 {b} 也被蒙在鼓裡",
             "unfounded": f"{a} 誤會了 {b}，質問「{detail}」",
             "inconclusive": f"{a} 質問 {b}，沒有結果",
-        }.get(beat.variant or "", f"{a} 當面質問 {b}")
+        }.get(v or "", f"{a} 當面質問 {b}")
     return {
         "warm": f"{a} 親切地和 {b} 聊天",
         "neutral": f"{a} 和 {b} 閒聊",
         "cold": f"{a} 冷淡地回應 {b}",
         "hostile": f"{a} 當面質問 {b}",
-    }.get(beat.variant or "", f"{a} 對 {b} 說話")
+    }.get(v or "", f"{a} 和 {b} 說話" if b else f"{a} 在{beat.location.name}")
+
+
+def _animal_ids(spec: SceneSpec) -> frozenset[str]:
+    return frozenset(pid for pid, p in spec.characters.items() if p.asset_id.startswith("animal_"))
+
+
+def _suspicion(beat: Beat, names: dict[str, str]) -> str | None:
+    """A belief the scene should show: who the one who lost it suspects (the suspect is only in their head)."""
+    s = next((p.id for p in beat.participants if p.role == "suspect"), None)
+    return f"是{names[s]}拿的嗎？" if s and beat.event_type == "notice_missing" else None
 
 
 def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePack, names: dict[str, str],
@@ -143,8 +187,8 @@ def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePac
         subject=", ".join(c.name for c in characters if c.position != "background"),
         action=actor.action if actor else "establish", environment=f"{beat.location.name}, {beat.weather}, {tod}",
         camera=Camera(shot_type, movement, FOCAL_MM[shot_type]), lighting=Lighting(tod, beat.weather),
-        start_seconds=round(start, 3), duration_seconds=duration, caption=caption(beat, names),
-        thought=beat.motivation, characters=characters, props=[beat.prop] if beat.prop else [],
+        start_seconds=round(start, 3), duration_seconds=duration, caption=caption(beat, names, animals=_animal_ids(spec)),
+        thought=beat.motivation or _suspicion(beat, names), characters=characters, props=[beat.prop] if beat.prop else [],
         location=beat.location, day=beat.day, clock=beat.clock, render_backend="procedural",
         route_reason="procedural by default: no stock or AI backend enabled",
         continuity_refs=[c.asset_id for c in characters] + [f"loc_{beat.location.id}"] + ([beat.prop.asset_id] if beat.prop else []),
@@ -162,11 +206,30 @@ MOTION_TO_MOVEMENT = {"push_in": "slow_push_in"}
 LONE_ACTS = ("take", "misplace", "notice_missing", "find", "cash_prize", "feed_pet", "seed")
 
 
+def _inner(beat: Beat, focal, names: dict[str, str], hidden: bool) -> tuple[str | None, str, str]:
+    """The inner text a directed shot shows: a suspicion first (a belief the audience should see), else what the
+    focalizer thinks or, for an animal, senses in this beat. Nothing that would give a hidden beat away."""
+    if hidden:
+        return None, "", ""
+    suspicion = _suspicion(beat, names)
+    if suspicion:
+        return suspicion, _role_id(beat, "actor"), "belief"
+    mine = [t.belief for t in beat.thoughts if t.person == focal.focalizer]
+    if mine:
+        return "；".join(mine[:2]), focal.focalizer, "sense" if focal.kind == "animal" else "belief"
+    return beat.motivation, (_role_id(beat, "actor") if beat.motivation else ""), ("belief" if beat.motivation else "")
+
+
+def _role_id(beat: Beat, role: str) -> str:
+    return next((p.id for p in beat.participants if p.role == role), "")
+
+
 def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[str, str], start: float) -> list[Shot]:
     """One packet shot per DirectorPlan shot. The first shot of each beat carries its caption; the others are
     coverage of the same moment (a reaction, an insert, a point of view)."""
     shots, t, seen = [], start, set()
     sound = {c.shot_index: c for c in direction.sound}
+    cuts = {c.to_shot: c for c in direction.cuts}
     last_beat = len(spec.beats) - 1
     for n, cs in enumerate(direction.shots):
         beat = spec.beats[cs.beat_index]
@@ -180,12 +243,21 @@ def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[st
         present = [c for c in base.characters if beat.event_type not in LONE_ACTS or c.role in ("actor", "witness")]
         first = cs.beat_index not in seen
         seen.add(cs.beat_index)
+        hidden = cs.beat_index in direction.knowledge.withheld_beats
+        text = caption(beat, names, agentless=True) if hidden else base.caption
+        thought, by, kind = _inner(beat, direction.focalization, names, hidden)
         cue = sound.get(n)
         shots.append(replace(
             base, shot_id=f"s{n:02d}", intent=f"{cs.function}: {cs.reason}",
             camera=Camera(shot_type, MOTION_TO_MOVEMENT.get(cs.motion, cs.motion), FOCAL_MM[shot_type]),
-            start_seconds=round(t, 3), duration_seconds=seconds, caption=base.caption if first else "",
-            thought=base.thought if first else None, characters=present or base.characters,
+            start_seconds=round(t, 3), duration_seconds=seconds, caption=text if first else "",
+            thought=thought if first or cs.function == "misdirect" else None,
+            thought_by=by if first or cs.function == "misdirect" else "",
+            thought_kind=kind if first or cs.function == "misdirect" else "",
+            suspect_id=next((p.id for p in beat.participants if p.role == "suspect"), "") if not hidden else "",
+            scale=cs.scale, subject_id=cs.subject, attention=cs.attention, event_type=beat.event_type,
+            transition=cuts[n].transition if n in cuts else "cut",
+            characters=present or base.characters,
             continuity_note=base.continuity_note if first else f"same moment, {cs.function}",
             function=cs.function, direction_note=cs.reason, relation=cs.relation, angle=cs.angle,
             focalizer=direction.focalization.focalizer, spatial_camera=cs.spatial_camera,

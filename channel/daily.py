@@ -62,6 +62,7 @@ class DailyConfig:
     world_c: bool = False
     feed: str | None = None
     recipe: str = "town_v1"  # which world recipe a new world is built from (world/recipes/*.json)
+    look: str = "procedural"  # procedural | cast (the directed cartoon look; World C episodes only)
 
 
 @dataclass(frozen=True)
@@ -217,7 +218,7 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
             shown = series.used_event_ids(conn)
             (episode,) = make_episodes(world, conn, Path(cfg.out_dir), [cand], scene_ids=[f"day_{day + 1:02d}"],
                                        sim_day=day, orientation=cfg.orientation, style=cfg.style,
-                                       quality=cfg.quality, render=cfg.render,
+                                       quality=cfg.quality, render=cfg.render, route=cfg.look,
                                        threads=[thread] if cfg.world_c else None, shown=shown)
             status = ("episode" if episode.episode_id else
                       "render_failed" if episode.qa_status == "render_failed" else "qa_failed")

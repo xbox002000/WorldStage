@@ -26,6 +26,7 @@ TRAIN_ENERGY = 15
 DUEL_ENERGY = 30
 DUEL_SHARPNESS = 8.0  # how much a skill gap decides a duel (logistic slope)
 DUEL_COOLDOWN_DAYS = 3
+INJURY_DAYS = 2  # the loser of a duel is hurt: nobody fights them, and they fight nobody, until it heals
 FIGHTER = 0.2  # below this skill someone is not a fighter: nobody honourable duels them
 BULLY_GAP = 0.25  # beating someone this much weaker is no glory, it is shame
 
@@ -81,6 +82,13 @@ def validate_challenge(conn: sqlite3.Connection, it: Intent, actor: sqlite3.Row)
     now = conn.execute("SELECT COALESCE(MAX(timestamp), 0) FROM events").fetchone()[0]
     if recent_duel(conn, it.actor, it.target, now):
         raise WorldError("they fought too recently")
+    if injured(conn, it.actor, now) or injured(conn, it.target, now):
+        raise WorldError("still hurt from a duel")
+
+
+def injured(conn: sqlite3.Connection, pid: str, now: int) -> bool:
+    return conn.execute("SELECT 1 FROM events WHERE type = 'duel' AND json_extract(truth, '$.loser') = ? AND timestamp > ?",
+                        (pid, now - INJURY_DAYS * 1440)).fetchone() is not None
 
 
 def recent_duel(conn: sqlite3.Connection, a: str, b: str, now: int) -> bool:

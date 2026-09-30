@@ -15,7 +15,7 @@ from world.claims import claim_dict, describe_claim, evaluate, labels, load_clai
 from world.confront import find_grounds
 from world.events import Change, ClaimSpec, EventSpec, MemorySpec
 from world.attention import LOUD, QUIET, noticers
-from world.helpers import RelDeltas, person, rel
+from world.helpers import RelDeltas, person, rel, trust_reversed
 from world.intent import Intent
 from world.tell import asserted_claim, best_memory
 
@@ -107,9 +107,8 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
     if subject != b and conn.execute("SELECT 1 FROM people WHERE id = ?", (subject,)).fetchone():
         effect = belief_effect(asserted) * confidence
         if effect:
-            before = rel(conn, b, subject, "trust")
             deltas.add(b, subject, "trust", effect)
-            flipped = before * (before + effect) < 0 and abs(effect) > 0.05
+            flipped = trust_reversed(conn, b, subject, effect)
     changes = deltas.changes(conn)
 
     tell_claim = Claim(a, "tell", b)
@@ -187,9 +186,8 @@ def resolve_confront(conn: sqlite3.Connection, it: Intent, now: int, trigger: st
     if deceit:
         for w in watchers:  # onlookers draw their own conclusion about the one who was caught
             deltas.add(w, b, "trust", belief_effect(Claim(b, deceit, a)) * WITNESS_CONFIDENCE)
-    before = rel(conn, a, b, "trust")
     changes = deltas.changes(conn) + _emotion_change(conn, a, emo_a) + _emotion_change(conn, b, emo_b)
-    flipped = before * (before + a_trust) < 0
+    flipped = trust_reversed(conn, a, b, a_trust)
 
     confront_claim = Claim(a, "confront", b)
     memories = [MemorySpec(a, describe_claim(confront_claim, names), 1.0, claim=confront_claim),

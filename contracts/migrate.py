@@ -42,6 +42,12 @@ def migrate_packet(data: dict) -> dict:
             shot.setdefault("dialogue", "full")
         data.setdefault("direction_hash", "")
         data["version"] = 3
+    if data.get("version") == 3:  # v3 -> v4: what the camera is on, and whose thought or percept a shot shows
+        for shot in data["shots"]:
+            for key in ("scale", "subject_id", "attention", "event_type", "thought_by", "thought_kind", "suspect_id",
+                        "transition"):
+                shot.setdefault(key, "")
+        data["version"] = 4
     if data.get("version") != PACKET_VERSION:
         raise ValueError(f"cannot migrate packet version {data.get('version')}")
     data["packet_hash"] = ""

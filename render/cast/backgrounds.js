@@ -129,7 +129,38 @@
     };
   }
 
-  const PLACES = { cafe, park };
+  // -- 公寓（一個人的房間） -----------------------------------------------------------------------------------------------
+  function apartment(time, weather) {
+    const t = TOD[time], wall = uid("wall"), floor = uid("floor"), glow = uid("glow");
+    const boards = Array.from({ length: 12 }, (_, i) => {
+      const y = 1180 + Math.pow(i, 1.5) * 16 + i * 5;
+      return `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="#5a4636" stroke-width="${2 + i * 0.4}" opacity=".3"/>`;
+    }).join("");
+    return {
+      floorY: FLOOR_Y, indoor: true, window: { x: 130, y: 250, w: 360, h: 470 },
+      svg: `<defs>
+        <linearGradient id="${wall}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9e0ea"/><stop offset="1" stop-color="#b9c4d4"/></linearGradient>
+        <linearGradient id="${floor}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a88a6c"/><stop offset="1" stop-color="#7a5f47"/></linearGradient>
+        ${radial(glow, "#ffe0a0")}</defs>
+      <rect width="${W}" height="1180" fill="url(#${wall})"/>
+      ${Array.from({ length: 9 }, (_, i) => `<rect x="${i * 128}" y="0" width="64" height="1180" fill="#ffffff" opacity=".06"/>`).join("")}
+      <g transform="translate(110 230)"><rect width="400" height="510" rx="20" fill="#f4f1ea"/><g transform="translate(20 20)">${windowView(0, 0, 360, 470, time, weather)}</g>
+        <path d="M200 20 V490 M20 250 H380" stroke="#f4f1ea" stroke-width="12"/><rect x="-24" y="506" width="448" height="24" rx="8" fill="#e2ddd2"/></g>
+      <g transform="translate(560 300)"><rect width="160" height="210" rx="10" fill="#8a6440"/><rect x="12" y="12" width="136" height="186" rx="6" fill="#f2c9a0"/>
+        <circle cx="80" cy="84" r="34" fill="#e08a4c" opacity=".7"/><path d="M12 170 L60 120 L100 150 L148 110 V198 H12 Z" fill="#7fae6a" opacity=".8"/></g>
+      <rect y="1170" width="${W}" height="16" fill="#6d5644"/>
+      <rect y="1184" width="${W}" height="${H - 1184}" fill="url(#${floor})"/>${boards}
+      <g transform="translate(700 1060)"><rect x="0" y="0" width="380" height="120" rx="20" fill="#6f86b0"/><rect x="0" y="-40" width="380" height="60" rx="24" fill="#f4f1ea"/>
+        <rect x="20" y="-70" width="120" height="50" rx="20" fill="#ffffff"/><rect x="-10" y="-160" width="30" height="300" rx="10" fill="#5a4636"/></g>
+      <g transform="translate(560 1040)"><rect x="-60" y="0" width="120" height="100" rx="10" fill="#8a6440"/><rect x="-66" y="-10" width="132" height="16" rx="6" fill="#a37a52"/>
+        <rect x="-8" y="-120" width="16" height="110" fill="#3b3f4a"/><path d="M-50 -120 L50 -120 L30 -180 L-30 -180 Z" fill="#f2d07a"/>
+        ${lampGlow(0, -130, 320, 0.3 + t.lamp * 0.7, glow)}</g>
+      <ellipse cx="420" cy="${FLOOR_Y + 8}" rx="330" ry="54" fill="#5a6f94" opacity=".35"/>`,
+      overlay: finish(time, weather),
+    };
+  }
+
+  const PLACES = { cafe, park, apartment };
   function place(id, time, weather) { return (PLACES[id] || cafe)(time, weather); }
 
   window.PLACES = { place, FLOOR_Y, W, H };

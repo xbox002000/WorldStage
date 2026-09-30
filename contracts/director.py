@@ -123,6 +123,8 @@ class DirectorPlan:
     shots: list[CameraShot]
     cuts: list[Cut]
     sound: list[SoundCue]
+    # choices a benchmark forced instead of the director making them (focalizer, strategy, grammar); empty normally
+    forced: dict[str, str] = field(default_factory=dict)
     plan_hash: str = ""
 
 

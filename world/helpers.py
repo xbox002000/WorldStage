@@ -20,6 +20,30 @@ def rel(conn: sqlite3.Connection, actor: str, target: str, field: str) -> float:
     ).fetchone()[0]
 
 
+STANCE = 0.15  # trust inside (-STANCE, STANCE) is unsettled: drifting across zero there is not a change of heart
+
+
+def trust_reversed(conn: sqlite3.Connection, observer: str, subject: str, delta: float) -> bool:
+    """A real reversal: trust leaves one settled side for the other. The last settled side is the current value if it is
+    settled, else the latest settled value in the history (or the starting value)."""
+    cur = rel(conn, observer, subject, "trust")
+    new = cur + delta
+    if abs(new) < STANCE:
+        return False
+    last = cur if abs(cur) >= STANCE else None
+    if last is None:
+        key = f"{observer}:{subject}"
+        row = conn.execute("SELECT new_value FROM event_deltas WHERE entity_type = 'relationship' AND entity_id = ? "
+                           "AND field = 'trust' AND ABS(new_value) >= ? ORDER BY delta_id DESC LIMIT 1", (key, STANCE)).fetchone()
+        first = conn.execute("SELECT old_value FROM event_deltas WHERE entity_type = 'relationship' AND entity_id = ? "
+                             "AND field = 'trust' ORDER BY delta_id LIMIT 1", (key,)).fetchone()
+        if row is not None:
+            last = row[0]
+        elif first is not None and abs(first[0]) >= STANCE:
+            last = first[0]
+    return last is not None and last * new < 0
+
+
 def bystanders(conn: sqlite3.Connection, here: str, *exclude: str) -> list[str]:
     rows = conn.execute("SELECT id FROM people WHERE location_id = ? ORDER BY id", (here,)).fetchall()
     return [r["id"] for r in rows if r["id"] not in exclude]

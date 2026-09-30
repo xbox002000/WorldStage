@@ -371,6 +371,9 @@
         "angle": {
           "type": "string"
         },
+        "attention": {
+          "type": "string"
+        },
         "camera": {
           "$ref": "#/$defs/Camera"
         },
@@ -420,6 +423,9 @@
         "event_id": {
           "type": "integer"
         },
+        "event_type": {
+          "type": "string"
+        },
         "focalizer": {
           "type": "string"
         },
@@ -453,6 +459,9 @@
         "route_reason": {
           "type": "string"
         },
+        "scale": {
+          "type": "string"
+        },
         "shot_id": {
           "type": "string"
         },
@@ -465,6 +474,12 @@
         "subject": {
           "type": "string"
         },
+        "subject_id": {
+          "type": "string"
+        },
+        "suspect_id": {
+          "type": "string"
+        },
         "thought": {
           "anyOf": [
             {
@@ -474,6 +489,15 @@
               "type": "null"
             }
           ]
+        },
+        "thought_by": {
+          "type": "string"
+        },
+        "thought_kind": {
+          "type": "string"
+        },
+        "transition": {
+          "type": "string"
         },
         "trust_flipped": {
           "type": "boolean"

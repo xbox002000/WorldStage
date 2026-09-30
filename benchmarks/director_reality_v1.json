@@ -1,0 +1,27 @@
+{
+  "id": "director_reality_v1",
+  "question": "同一個世界真相、不同的導演計畫，觀眾是否真的經歷到不同的故事？",
+  "world": {"seed": 260934, "days": 20, "feed": "synthetic_v1", "recipe": "town_v1"},
+  "story": {"thread": "item:wallet_ming", "around": "first_animal_take"},
+  "main": ["ming_mystery_observe", "dog_irony_subjective", "kai_irony_reaction"],
+  "variants": [
+    {"id": "ming_mystery_observe", "focalizer": "ming", "strategy": "mystery", "grammar": "observational",
+     "badge": ["觀點：阿明", "觀眾：不知道是誰", "鏡頭：旁觀、不推近"]},
+    {"id": "dog_irony_subjective", "focalizer": "dog", "strategy": "irony", "grammar": "subjective",
+     "badge": ["觀點：小狗", "觀眾：知道真相", "鏡頭：主觀、貼地"]},
+    {"id": "kai_irony_reaction", "focalizer": "kai", "strategy": "irony", "grammar": "reaction",
+     "badge": ["觀點：阿凱", "觀眾：知道他被懷疑", "鏡頭：近、看反應"]},
+    {"id": "axis_focal_ming", "focalizer": "ming", "strategy": "irony", "grammar": null,
+     "badge": ["只換觀點：阿明", "觀眾：知道真相", "鏡頭：導演自選"]},
+    {"id": "axis_focal_dog", "focalizer": "dog", "strategy": "irony", "grammar": null,
+     "badge": ["只換觀點：小狗", "觀眾：知道真相", "鏡頭：導演自選"]},
+    {"id": "axis_knowledge_mystery", "focalizer": "ming", "strategy": "mystery", "grammar": null,
+     "badge": ["觀點：阿明", "只換觀眾知道的：謎團", "鏡頭：導演自選"]},
+    {"id": "axis_camera_static", "focalizer": "ming", "strategy": "irony", "grammar": "observational",
+     "badge": ["觀點：阿明", "觀眾：知道真相", "只換鏡頭：靜態旁觀"]},
+    {"id": "axis_camera_push", "focalizer": "ming", "strategy": "irony", "grammar": "push_in",
+     "badge": ["觀點：阿明", "觀眾：知道真相", "只換鏡頭：慢慢推近"]},
+    {"id": "axis_camera_pov", "focalizer": "ming", "strategy": "irony", "grammar": "subjective",
+     "badge": ["觀點：阿明", "觀眾：知道真相", "只換鏡頭：主觀視角"]}
+  ]
+}

@@ -22,3 +22,18 @@ html, body { width: 1080px; height: 1920px; overflow: hidden; background: #14101
 .title .sub { margin-top: 26px; font-size: 46px; color: #d9c8e6; }
 .title .recap { margin: 44px auto 0; max-width: 84%; font-size: 36px; line-height: 1.5; color: #e6d8c4; }
 .shot { transform: translate(calc(var(--cx, 0) * 1px), calc(var(--cy, 0) * 1px)) scale(var(--cs, 1)); transform-box: view-box; transform-origin: 0 0; }
+/* directed episodes (directed.js) */
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.cap { position: absolute; left: 44px; right: 44px; top: 1500px; padding: 34px 44px; border-radius: 30px;
+  background: rgba(24, 18, 32, .78); color: #fff8ec; opacity: 0; }
+.cap .txt { font-size: 54px; line-height: 1.34; font-weight: 700; letter-spacing: .02em; }
+.cap .muffle { margin-top: 14px; font-size: 34px; color: #bfb3cf; font-style: italic; letter-spacing: .08em; }
+.cap.sense { background: rgba(92, 60, 28, .86); padding-top: 62px; }
+.cap.sense .tag { position: absolute; left: 34px; top: -30px; padding: 8px 28px; border-radius: 30px; background: #d9a066; color: #2a1c10;
+  font-size: 34px; font-weight: 700; }
+.cap.sense .txt { font-weight: 400; font-style: italic; color: #ffe9c8; }
+.dlg.thought { top: 1170px; min-height: 0; padding: 56px 44px 28px; }
+.dlg.thought .txt { font-size: 46px; }
+.badge { position: absolute; right: 36px; top: 64px; max-width: 560px; padding: 14px 24px; border-radius: 22px; text-align: right;
+  background: rgba(24, 18, 32, .55); color: #f0c98a; font-size: 28px; line-height: 1.45; opacity: 0; }
+.why { position: absolute; left: 40px; right: 40px; top: 1840px; color: rgba(255, 248, 236, .55); font-size: 22px; opacity: 0; }

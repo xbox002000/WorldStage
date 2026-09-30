@@ -102,6 +102,13 @@ class SharedCoreTests(unittest.TestCase):
         self.assertTrue(kinds & {"surpass", "revenge"})
         self.assertNotEqual(rep(self.c, "lin"), 0.8)
 
+    def test_the_director_sees_what_a_thread_did_to_people(self):
+        from narrative.director import score_thread
+        from narrative.threads import derive_threads
+        scores = [score_thread(self.c, t, set()) for t in derive_threads(self.c)]
+        self.assertTrue(all("change" in s.parts for s in scores))
+        self.assertTrue(any(s.parts["change"] > 0 for s in scores))  # duels form goals: surpass, revenge
+
     def test_threads_director_spatial_plan_and_packet_run_unchanged(self):
         from narrative.compiler import compile_packet
         from narrative.direction import plan_direction

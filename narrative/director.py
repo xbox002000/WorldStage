@@ -8,7 +8,10 @@ asymmetry  the knowledge gap (narrative/knowledge.py): someone believes the wron
            does not know; more if the audience has already seen the truth (dramatic irony);
 crossing   how many other threads it touches;
 novelty    not shown in the last episodes;
-payoff     somebody holds grounds to accuse or confront, so the question may be settled soon.
+payoff     somebody holds grounds to accuse or confront, so the question may be settled soon;
+change     what the thread did to people: goals it formed, turned or broke, reflections that shifted a trait or a
+           self-image, trust that reversed, beliefs that flipped. A lost duel is an event; the loser deciding to train
+           in secret is a story.
 
 A thread qualifies only if its new material contains at least one event a character chose. A thread made only of
 rules, props and seeds is weather, not story (this is what `seed_direct_plot_rate` measures).
@@ -22,8 +25,9 @@ from narrative.arcs import Arc, Ev, load_events
 from narrative.selector import Candidate
 from narrative.threads import derive_threads
 
-WEIGHTS = {"momentum": 0.25, "tension": 0.20, "stakes": 0.15, "asymmetry": 0.15, "crossing": 0.10,
-           "novelty": 0.10, "payoff": 0.05}
+WEIGHTS = {"momentum": 0.20, "tension": 0.20, "stakes": 0.10, "asymmetry": 0.15, "crossing": 0.10,
+           "novelty": 0.10, "payoff": 0.05, "change": 0.10}
+TURN = {"formed": 1.0, "transformed": 1.5, "abandoned": 1.5, "completed": 1.0, "blocked": 0.8, "revised": 0.8}
 LIVE = ("forming", "active", "escalating", "climax")
 MAX_EVENTS = 6
 
@@ -39,6 +43,26 @@ def _payoff(conn: sqlite3.Connection, t: StoryThread) -> float:
     return 1.0 if row else 0.0
 
 
+def _change(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> float:
+    """How much the thread's new events changed people (read-only: goal changes and reflections cite their causes)."""
+    new = [e for e in t.event_ids if e not in shown]
+    if not new:
+        return 0.0
+    marks = ",".join("?" * len(new))
+    total = 0.0
+    for (to,) in conn.execute(f"SELECT json_extract(truth, '$.to') FROM events WHERE type = 'goal_change' "
+                              f"AND json_extract(truth, '$.cause_event') IN ({marks})", new):
+        total += TURN.get(to, 0.5)
+    for (truth,) in conn.execute("SELECT truth FROM events WHERE type = 'reflection' AND EXISTS (SELECT 1 FROM "
+                                 f"json_each(json_extract(truth, '$.cites')) WHERE value IN ({marks}))", new):
+        import json
+        d = json.loads(truth)
+        total += 1.0 if d.get("shifted") or d.get("self_model") else 0.2
+    total += 0.5 * conn.execute(f"SELECT COUNT(*) FROM events WHERE event_id IN ({marks}) "
+                                "AND json_extract(truth, '$.trust_flipped') = 1", new).fetchone()[0]
+    return min(1.0, total / 3)
+
+
 def score_thread(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> ThreadScore:
     from narrative.knowledge import knowledge_of
     new = [e for e in t.event_ids if e not in shown]
@@ -51,6 +75,7 @@ def score_thread(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> T
         "crossing": min(1.0, len(t.cross_threads) / 3),
         "novelty": len(new) / len(t.event_ids) if t.event_ids else 0.0,
         "payoff": _payoff(conn, t),
+        "change": _change(conn, t, shown),
     }
     from world.recipes import load_recipe, recipe_of
     bonus = load_recipe(recipe_of(conn)).director_prefers.get(t.kind, 0.0)

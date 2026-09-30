@@ -7,7 +7,7 @@ thread_duration           mean days from first to last event (threads with >= 3 
 cross_thread_rate         share of threads touching another thread
 delayed_consequence_rate  share of chosen thread events caused by something a day or more earlier
 information_asymmetry     share of threads with at least one belief the world does not support
-relationship_flips        trust sign changes per day
+relationship_flips        trust reversals per day (from one settled side to the other: world/helpers.trust_reversed)
 seed_influence_rate       share of adopted seeds whose thread later has a chosen act
 seed_direct_plot_rate     share of seed threads made only of rules, props and seeds (seed = plot: bad)
 flat_day_ratio            days without a chosen act of weight >= 0.6, no trust flip and no exposure
@@ -123,16 +123,15 @@ def measure(conn: sqlite3.Connection, days: int) -> dict:
                 continue
             total += 1
             delayed += any(day_of[e] - day_of[c] >= 1 for c in causes)
-    flips = conn.execute("SELECT COUNT(*) FROM event_deltas WHERE entity_type = 'relationship' AND field = 'trust' "
-                         "AND old_value * new_value < 0").fetchone()[0]
+    flips = conn.execute("SELECT COUNT(*) FROM events WHERE json_extract(truth, '$.trust_flipped') = 1").fetchone()[0]
     seeds = [r for r in ev.values() if r["type"] == "seed"]
     seed_threads = [t for t in threads if t.seed_origins]
     influenced = {o for t in seed_threads if t.decision_event_ids for o in t.seed_origins}
     flat = 0
     for d in range(days):
         strong = any(day_of[r["event_id"]] == d and r["importance"] >= 0.6 for r in chosen)
-        flip = conn.execute("SELECT 1 FROM event_deltas x JOIN events e USING (event_id) WHERE x.field = 'trust' "
-                            "AND x.old_value * x.new_value < 0 AND e.timestamp / 1440 = ? LIMIT 1", (d,)).fetchone()
+        flip = conn.execute("SELECT 1 FROM events WHERE json_extract(truth, '$.trust_flipped') = 1 "
+                            "AND timestamp / 1440 = ? LIMIT 1", (d,)).fetchone()
         exposed = any(day_of[i] == d and json.loads(r["truth"]).get("outcome") in EXPOSED for i, r in ev.items()
                       if r["type"] in ("confront", "accuse"))
         flat += not (strong or flip or exposed)

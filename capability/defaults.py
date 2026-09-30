@@ -16,6 +16,7 @@ def default_registry(packet_lookup: Callable[[str], ProductionPacket], *, workdi
                      mcp: bool = False, mock_defect_rate: float = 0.25) -> CapabilityRegistry:
     from audio.backend import SilentAudioBackend, SynthAudioBackend
     from render.ffmpeg_compose import FFmpegComposeBackend
+    from render.cast_backend import CastBackend
     from render.hyperframes_backend import HyperFramesBackend
     from render.mock_clip import MockClipBackend
     from render.whitebox import WhiteboxSpatialBackend
@@ -26,6 +27,7 @@ def default_registry(packet_lookup: Callable[[str], ProductionPacket], *, workdi
     reg.register(WhiteboxSpatialBackend())
     reg.register(MockClipBackend(defect_rate=mock_defect_rate))
     reg.register(HyperFramesBackend(packet_lookup, workdir))
+    reg.register(CastBackend(packet_lookup, workdir))
     reg.register(FFmpegComposeBackend(packet_lookup, workdir))
     if mcp:
         from capability.mcp_adapter import VISUAL_MOCK, McpVisualProvider
