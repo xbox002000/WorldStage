@@ -87,6 +87,7 @@ void main() { float d = clamp((vz - near) / (far - near), 0.0, 1.0); gl_FragColo
     m.rotation.y = THREE.MathUtils.degToRad(g.yaw || 0);
     m.castShadow = m.receiveShadow = true;
     if (g.kind === "door") m.visible = false;
+    m.userData = { kind: g.kind, id: g.id, place: g.place, geometry: true };  // a view can hide walls to look in
     forPass(m, g.mask || "#606060");
     scene.add(m);
   }

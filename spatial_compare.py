@@ -88,7 +88,9 @@ def story_measures(conn, days: int) -> dict:
             "peak_day_share": r["shape"]["peak"], "strip": r["strip"]}
 
 
-def run(seed: int, recipe: str, days: int, checkpoints: list[int]) -> list[dict]:
+def run(seed: int, recipe: str, days: int, checkpoints: list[int], out: Path | None = None) -> list[dict]:
+    """One world, measured at each checkpoint. With `out`, the world itself is kept at every checkpoint
+    (world_<day>.db) with a manifest, so any story or number can be traced back to the world it came from."""
     from runtime import nav
     from runtime.world_runtime import WorldRuntime
     from world.space import oracle
@@ -100,7 +102,7 @@ def run(seed: int, recipe: str, days: int, checkpoints: list[int]) -> list[dict]
     sim = Simulation(conn, d, d, set(), feed="synthetic_v1")
     space = oracle(conn)  # a spatial world plays its runtime along; the town without space gets one played after
     rt = space.rt if space is not None else WorldRuntime(conn)
-    out, done, spent, runtime_s = [], 0, 0.0, 0.0
+    rows, done, spent, runtime_s = [], 0, 0.0, 0.0
     for cp in checkpoints:
         t = time.perf_counter()
         sim.run(cp - done)
@@ -118,9 +120,23 @@ def run(seed: int, recipe: str, days: int, checkpoints: list[int]) -> list[dict]
         for k in ("path_queries", "squeezes", "past_people", "yields", "detours"):
             row["cost"][k] = row["space"].pop(k)
         done = cp
-        out.append(row)
+        if out is not None:
+            out.mkdir(parents=True, exist_ok=True)
+            with connect(out / f"world_{cp}.db") as disk:
+                conn.backup(disk)
+            row["world"]["kept"] = f"world_{cp}.db"
+        rows.append(row)
         print(json.dumps({k: row[k] for k in ("seed", "recipe", "days")}), flush=True)
-    return out
+    if out is not None:
+        from spatial_gate import CODE, _sha
+        from world.recipes import compiled
+        from world.ruleset import ruleset_hash
+        manifest = {"seed": seed, "recipe": recipe, "recipe_hash": compiled(recipe).compiled_hash, "days": days,
+                    "checkpoints": checkpoints, "worlds": [f"world_{cp}.db" for cp in checkpoints],
+                    "ruleset_hash": ruleset_hash(), "code": {c: _sha(Path(__file__).resolve().parent / c) for c in CODE},
+                    "metrics": "results_*.json"}
+        (out / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+    return rows
 
 
 def main() -> None:
@@ -136,7 +152,7 @@ def main() -> None:
     rows = []
     for seed in [int(s) for s in a.seeds.split(",")]:
         for recipe in a.recipes.split(","):
-            rows += run(seed, recipe, a.days, cps)
+            rows += run(seed, recipe, a.days, cps, out / f"{seed}_{recipe}")
             (out / f"results_{a.seeds.replace(',', '_')}_{a.recipes.replace(',', '_')}.json").write_text(
                 json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
 

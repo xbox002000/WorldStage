@@ -58,7 +58,7 @@ class World:
         rt = getattr(space, "rt", None)
         if rt is not None:
             rt.advance()
-        export_world(self.conn, self.out / "world.json", max(0, last - 1), last, rt)
+        export_world(self.conn, self.out / "world.json", max(0, last - 29), last, rt)  # 30 days to replay
         build(self.out / "world.json", self.out / "site")
         return last
 

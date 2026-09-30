@@ -149,7 +149,8 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
                              "z": o.position[2], "w": o.size[0], "d": o.size[1], "h": o.size[2], "yaw": o.yaw,
                              "mask": SET_MASK[cls], "collision": {"shape": "box", "blocks": blocks(o),
                                                                   "blocks_sight": o.blocks_sight}})
-    doc = {"kind": "world", "version": rt.VERSION, "first_day": first_day, "last_day": last_day, "t0": t0, "t1": t1,
+    from narrative.observatory import observatory  # read models: stories and lives, each item traceable to events
+    doc = {"kind": "world", "version": rt.VERSION, "observatory": observatory(conn), "first_day": first_day, "last_day": last_day, "t0": t0, "t1": t1,
            "places": [{"id": p, "name": names.get(p, p), "offset": offset[p]} for p in places], "geometry": geometry,
            "entities": entities, "tracks": tracks, "handoffs": handoffs, "actions": actions, "events": events,
            "people": people, "set_mask": SET_MASK, "cuts": {}, "duration": t1}
