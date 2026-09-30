@@ -111,9 +111,12 @@ def item_options(conn: sqlite3.Connection, actor: str, here: str, here_ids: list
     """World C options: things lying here, things to give back, money to lend or repay, people to accuse."""
     if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() is None:
         return {"take": [], "give": [], "lend": [], "repay": [], "accuse": [], "challenge": [], "train": []}
+    from world.space import now_of, oracle
+    space = oracle(conn)
     take = [{"target": r["id"], "object": r["name"], "value_cents": r["value_cents"], "rightful": r["rightful_owner_id"]}
             for r in conn.execute("SELECT * FROM objects WHERE location_id = ? AND status = 'normal' "
-                                  "AND tags NOT LIKE '%\"fixed\"%' ORDER BY id", (here,))]
+                                  "AND tags NOT LIKE '%\"fixed\"%' ORDER BY id", (here,))
+            if space is None or space.perceives_thing(actor, r["id"], now_of(conn))]  # with space: only what one sees
     give = [{"target": r["id"], "object": r["name"], "owner": r["rightful_owner_id"], "value_cents": r["value_cents"]}
             for r in conn.execute("SELECT * FROM objects WHERE owner_person_id = ? AND status = 'normal' "
                                   "AND rightful_owner_id IS NOT NULL AND rightful_owner_id <> ? ORDER BY id", (actor, actor))

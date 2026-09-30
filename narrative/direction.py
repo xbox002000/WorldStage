@@ -21,7 +21,7 @@ from contracts.scene_spec import Beat, SceneSpec
 from contracts.thread import StoryThread
 from narrative.knowledge import knowledge_of
 
-COMPILER_VERSION = "direction-0.2"
+COMPILER_VERSION = "direction-0.3"
 PRINCIPAL = ("actor", "target", "victim", "suspect", "receiver", "addressee")
 EXPOSED = ("lie_exposed", "distortion_exposed", "concealment_exposed", "caught")
 
@@ -333,7 +333,10 @@ _FIELDS = ("function", "scale", "angle", "relation", "motion", "speed", "subject
 
 
 def plan_edit_and_sound(spec: SceneSpec, beats: list[DramaticBeat], shots: list[CameraShot],
-                        knowledge: AudienceKnowledgePlan, focal: FocalizationPlan) -> tuple[list[Cut], list[SoundCue]]:
+                        knowledge: AudienceKnowledgePlan, focal: FocalizationPlan,
+                        values: list | None = None) -> tuple[list[Cut], list[SoundCue]]:
+    from narrative.economy import cut_reason
+    value = {v.shot_index: v for v in values or []}
     cuts, sound = [], []
     for n, s in enumerate(shots):
         b = spec.beats[s.beat_index]
@@ -352,8 +355,8 @@ def plan_edit_and_sound(spec: SceneSpec, beats: list[DramaticBeat], shots: list[
                 cut = Cut(n, "causal_continuity", "cut")
         elif s.function == "reaction":
             cut = Cut(n, "reaction", "cut")
-        else:
-            cut = Cut(n, "attention_shift", "cut")
+        else:  # within a beat: cut for what the shot adds, never for the angle
+            cut = Cut(n, cut_reason(value[n], s) if n in value else "causal_continuity", "cut")
         cuts.append(cut)
         nxt = shots[n + 1] if n + 1 < len(shots) else None
         if s.function in ("reveal", "payoff"):
@@ -420,6 +423,9 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     shots = label(shots, grammar)
     shots = [dataclasses.replace(x, information_function=information_function(x, knowledge)) for x in shots]
     shots = re_edit(shots, edit) if edit is not None else pace(shots, turn_of(shots, knowledge))
+    # shot economy: cut every shot that adds nothing, merge the ones that repeat the picture before them
+    from narrative.economy import value_shots
+    shots, values, dropped = value_shots(conn, spec, shots, knowledge, focal, turn_of(shots, knowledge))
     attention = plan_attention(spec, shots, knowledge, focal)
     if attention.reveal_shot is not None:  # controlled release: the camera finds the culprit, nothing is said
         at = next(x for x in shots if x.shot_index == attention.reveal_shot)
@@ -430,7 +436,10 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
         shots = [dataclasses.replace(x, shot_index=n) for n, x in enumerate(shots[:k] + [extra] + shots[k:])]
         attention = plan_attention(spec, shots, knowledge, focal)
         attention = dataclasses.replace(attention, reveal_shot=k)
-    cuts, sound = plan_edit_and_sound(spec, beats, shots, knowledge, focal)
+        from contracts.director import ShotValue
+        values = values[:k] + [ShotValue(k, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, "controlled release: what was kept back")] + \
+            [dataclasses.replace(v, shot_index=v.shot_index + 1) for v in values[k:]]
+    cuts, sound = plan_edit_and_sound(spec, beats, shots, knowledge, focal, values)
     names = {pid: p.name for pid, p in spec.characters.items()}
     who = names.get(focal.focalizer, focal.focalizer)
     if focal.kind == "animal":
@@ -449,7 +458,8 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     forced = {k: v for k, v in (("focalizer", focalizer), ("strategy", strategy), ("camera", camera), ("edit", edit))
               if v is not None}
     return finalize(DirectorPlan(1, spec.scene_id, spec.scene_hash, thread.thread_id if thread else "", COMPILER_VERSION,
-                                 goal, knowledge, focal, beats, shots, cuts, sound, attention, grammar, forced))
+                                 goal, knowledge, focal, beats, shots, cuts, sound, attention, grammar, forced,
+                                 values, dropped))
 
 
 def _note(fns: list[str], knowledge: AudienceKnowledgePlan) -> str:

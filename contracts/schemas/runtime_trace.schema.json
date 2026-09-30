@@ -21,6 +21,15 @@
         "kind": {
           "type": "string"
         },
+        "path": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
         "place": {
           "type": "string"
         },
@@ -45,6 +54,64 @@
         "start",
         "end",
         "place"
+      ],
+      "type": "object"
+    },
+    "RuntimeActionTrack": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "approach_start": {
+          "type": "number"
+        },
+        "complete": {
+          "type": "number"
+        },
+        "contact": {
+          "type": "number"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "parent": {
+          "type": "string"
+        },
+        "point": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "reach_start": {
+          "type": "number"
+        },
+        "sniff": {
+          "type": "number"
+        },
+        "socket": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "actor",
+        "action",
+        "target",
+        "approach_start",
+        "reach_start",
+        "contact",
+        "complete",
+        "socket",
+        "point",
+        "parent"
       ],
       "type": "object"
     },
@@ -85,6 +152,42 @@
         "contact",
         "complete",
         "hand"
+      ],
+      "type": "object"
+    },
+    "RuntimeStep": {
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "foot": {
+          "type": "string"
+        },
+        "land": {
+          "type": "number"
+        },
+        "lift": {
+          "type": "number"
+        },
+        "place": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "entity",
+        "foot",
+        "land",
+        "lift",
+        "place",
+        "x",
+        "y"
       ],
       "type": "object"
     },
@@ -130,8 +233,20 @@
           },
           "type": "array"
         },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/RuntimeStep"
+          },
+          "type": "array"
+        },
         "trace_hash": {
           "type": "string"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/RuntimeActionTrack"
+          },
+          "type": "array"
         },
         "version": {
           "type": "string"
@@ -150,6 +265,9 @@
       "additionalProperties": false,
       "properties": {
         "entity": {
+          "type": "string"
+        },
+        "holder": {
           "type": "string"
         },
         "place": {

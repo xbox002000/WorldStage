@@ -238,14 +238,18 @@
         "reason": {
           "enum": [
             "open",
-            "attention_shift",
             "reaction",
             "information_reveal",
+            "hide",
+            "action",
+            "new_relation",
+            "pov_change",
             "time_jump",
             "location_change",
             "causal_continuity",
             "emotional_break",
             "contrast",
+            "payoff",
             "hold"
           ]
         },
@@ -300,6 +304,12 @@
         "dramatic_goal": {
           "type": "string"
         },
+        "dropped": {
+          "items": {
+            "$ref": "#/$defs/DroppedShot"
+          },
+          "type": "array"
+        },
         "focalization": {
           "$ref": "#/$defs/FocalizationPlan"
         },
@@ -338,6 +348,12 @@
         },
         "thread_id": {
           "type": "string"
+        },
+        "values": {
+          "items": {
+            "$ref": "#/$defs/ShotValue"
+          },
+          "type": "array"
         },
         "version": {
           "type": "integer"
@@ -400,6 +416,38 @@
         "functions",
         "inner",
         "note"
+      ],
+      "type": "object"
+    },
+    "DroppedShot": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_index": {
+          "type": "integer"
+        },
+        "function": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "relation": {
+          "type": "string"
+        },
+        "scale": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "beat_index",
+        "function",
+        "subject",
+        "scale",
+        "relation",
+        "reason"
       ],
       "type": "object"
     },
@@ -530,6 +578,50 @@
         "to_focalizer",
         "kind",
         "reason"
+      ],
+      "type": "object"
+    },
+    "ShotValue": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "number"
+        },
+        "emotion": {
+          "type": "number"
+        },
+        "information": {
+          "type": "number"
+        },
+        "redundancy": {
+          "type": "number"
+        },
+        "relation": {
+          "type": "number"
+        },
+        "score": {
+          "type": "number"
+        },
+        "shot_index": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "number"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shot_index",
+        "information",
+        "emotion",
+        "relation",
+        "state",
+        "action",
+        "redundancy",
+        "score",
+        "why"
       ],
       "type": "object"
     },

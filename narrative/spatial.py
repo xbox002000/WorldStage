@@ -19,7 +19,7 @@ from contracts.spatial import BeatStaging, CameraShot, Placement, SightCheck, Sp
 from narrative.layouts import LAYOUTS, layout_ref
 
 COMPILER_VERSION = "spatial-0.1"
-BOUNDS = {"cafe": (10.0, 8.0), "office": (12.0, 8.0), "apartment": (9.0, 7.0), "park": (18.0, 14.0), "station": (16.0, 8.0)}
+BOUNDS = {"cafe": (10.0, 8.0), "office": (12.0, 8.0), "apartment": (16.0, 10.0), "park": (18.0, 14.0), "station": (16.0, 8.0)}
 PRINCIPAL_ROLES = ("actor", "target", "victim", "suspect", "receiver", "addressee")
 LOUD = ("confront", "accuse", "steal")
 LONE = ("take", "find", "misplace", "notice_missing", "cash_prize", "give", "seed", "feed_pet")
@@ -148,7 +148,9 @@ def stage_beat(index: int, beat: Beat, animals: set[str] = frozenset()) -> BeatS
         spot = (clear or spots)[0]
         place(w, spot, actor.position if actor else focus, "stand" if ".seat_" not in spot else "sit")
 
-    checks = [SightCheck(w.id, actor.id, True, not blocker(_head(w), _chest(actor), objects),
+    # a quiet act is witnessed by sight; a loud one (a confrontation, a bark) is heard from the next room too, so its
+    # witnesses need not see it (a flat has walls: being in the place no longer means being in view)
+    checks = [SightCheck(w.id, actor.id, not loud, not blocker(_head(w), _chest(actor), objects),
                          blocker(_head(w), _chest(actor), objects))
               for w in placements if actor and w.id in witnesses and w.id != actor.id]
     cameras = _cameras(loc, placements, principals, beat, focus, objects)
@@ -169,8 +171,21 @@ def _visible_all(pos: list[float], subjects: list[Placement], objects: list[Spat
     return all(not blocker(pos, _chest(s) if s.height > 0.5 else s.position, objects) for s in subjects)
 
 
-def _first_clear(loc: str, options: list[list[float]], subjects: list[Placement], objects: list[SpatialObject]) -> list[float]:
+def _bodies(placements: list[Placement], subjects: list[Placement]) -> list[SpatialObject]:
+    """Everybody not framed, as boxes that hide what is behind them (the raycast sees them too)."""
+    keep = {s.id for s in subjects}
+    return [SpatialObject(f"body:{p.id}", "prop", [p.position[0], p.position[1], 0.0], [0.45, 0.45, p.height], 0.0, True)
+            for p in placements if p.height > 0.5 and p.id not in keep]
+
+
+def _first_clear(loc: str, options: list[list[float]], subjects: list[Placement], objects: list[SpatialObject],
+                 placements: list[Placement] = ()) -> list[float]:
+    """The first option inside the place that sees every subject past the furniture and everybody else."""
+    blockers = objects + _bodies(list(placements), subjects)
     for pos in options:
+        if _inside(loc, pos) and _visible_all(pos, subjects, blockers):
+            return pos
+    for pos in options:  # nothing sees them past everybody: at least past the furniture
         if _inside(loc, pos) and _visible_all(pos, subjects, objects):
             return pos
     return next((p for p in options if _inside(loc, p)), options[0])
@@ -186,7 +201,8 @@ def _cameras(loc: str, placements: list[Placement], principals: list[str], beat:
             for r, z in ((5.0, 2.2), (7.0, 3.0)) for a in range(0, 360, 30)]
     crane = [[round(focus[0] + 3.0 * math.cos(math.radians(a)), 3), round(focus[1] + 3.0 * math.sin(math.radians(a)), 3), 7.0]
              for a in range(0, 360, 45)]  # last resort: a high angle over trees and pillars
-    shots = [CameraShot("wide", _first_clear(loc, corners + ring + crane, people, objects), focus, 24.0, "static", None,
+    shots = [CameraShot("wide", _first_clear(loc, corners + ring + crane, people, objects, placements), focus, 24.0,
+                        "static", None,
                         [p.id for p in people])]
     pair = [p for p in placements if p.id in principals]
     if len(pair) == 2:
@@ -195,12 +211,13 @@ def _cameras(loc: str, placements: list[Placement], principals: list[str], beat:
         ax, ay = b.position[0] - a.position[0], b.position[1] - a.position[1]
         n = math.hypot(ax, ay) or 1.0
         px, py = -ay / n, ax / n
-        sides = [[round(mx + s * 3.0 * px, 3), round(my + s * 3.0 * py, 3), 1.4] for s in (1, -1)]
-        shots.append(CameraShot("two_shot", _first_clear(loc, sides, pair, objects), [mx, my, 1.1], 35.0, "push_in",
-                                None, [a.id, b.id]))
+        sides = [[round(mx + s * r * px, 3), round(my + s * r * py, 3), 1.4] for r in (3.0, 2.2, 4.0) for s in (1, -1)]
+        shots.append(CameraShot("two_shot", _first_clear(loc, sides + corners, pair, objects, placements), [mx, my, 1.1],
+                                35.0, "push_in", None, [a.id, b.id]))
         behind = [round(b.position[0] + 0.7 * ax / n + 0.35 * px, 3), round(b.position[1] + 0.7 * ay / n + 0.35 * py, 3), 1.5]
         mirror = [round(b.position[0] + 0.7 * ax / n - 0.35 * px, 3), round(b.position[1] + 0.7 * ay / n - 0.35 * py, 3), 1.5]
-        shots.append(CameraShot("over_shoulder", _first_clear(loc, [behind, mirror] + corners, [a], objects), _head(a),
+        shots.append(CameraShot("over_shoulder", _first_clear(loc, [behind, mirror] + corners, [a, b], objects,
+                                                              placements), _head(a),
                                 50.0, "static", None, [a.id]))
     # a point of view: through the first witness's eyes (at their own eye height: a dog sees from the floor)
     watchers = [p for p in placements if p.id in {q.id for q in beat.participants if q.role in ("witness", "sensed")}]

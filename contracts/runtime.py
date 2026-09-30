@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from contracts.base import hash_without
 
-RUNTIME_VERSION = "runtime-0.1"
+RUNTIME_VERSION = "runtime-0.2"
 
 
 @dataclass(frozen=True)
@@ -21,7 +21,11 @@ class RuntimeTransform:
     x: float  # metres, the place's white-box floor plan (narrative/layouts.py)
     y: float
     yaw: float  # degrees
-    pose: str  # stand | sit | crouch | walk | carried | on_floor | offstage
+    # stand | sit | walk | turn | rise | settle (bodies); carried | lift | fall | on_floor (things); offstage
+    # walk: moves linearly to the next key, heading this key's yaw; turn: holds, yaw turns to the next key's;
+    # lift: moves from here to its holder by the next key; fall: moves from here to the next key; others hold
+    pose: str
+    holder: str = ""  # a carried or lifted thing: who has (or is taking) it
 
 
 @dataclass(frozen=True)
@@ -35,6 +39,7 @@ class RuntimeAction:
     place: str
     frm: list[float] = field(default_factory=list)  # [x, y]
     to: list[float] = field(default_factory=list)
+    path: list[list[float]] = field(default_factory=list)  # a walk's waypoints, frm .. to, clear of every obstacle
 
 
 @dataclass(frozen=True)
@@ -48,6 +53,38 @@ class RuntimeInteraction:
     contact: float
     complete: float
     hand: str  # right | left | mouth | none
+
+
+@dataclass(frozen=True)
+class RuntimeActionTrack:
+    """One interaction as a state machine a presentation can follow without guessing:
+    ground -> targeted (approach) -> reaching -> contact -> attached (lift, complete) ... dropping -> ground.
+    The thing is never in two places: before contact it lies where it lies, from contact to complete it travels to
+    the socket, after complete it is carried."""
+    event_id: int
+    actor: str
+    action: str  # pickup | drop | hand_over | grab
+    target: str  # the thing
+    approach_start: float  # the walk towards it begins (targeted)
+    reach_start: float  # the hand (or mouth) starts towards it; for an animal a sniff comes first
+    contact: float
+    complete: float  # attached to the socket (pickup, hand-over) or lying still (drop)
+    socket: str  # hand.R | mouth
+    point: list[float]  # [x, y, z] where contact is made (the thing on the floor, or the giver's hand)
+    parent: str  # who holds it after (empty after a drop)
+    sniff: float = -1.0  # an animal's nose goes down first (-1: none)
+
+
+@dataclass(frozen=True)
+class RuntimeStep:
+    """A footfall: the foot is planted here from `land` until `lift`, so a presentation's feet never skate."""
+    entity: str
+    foot: str  # L | R
+    land: float
+    lift: float
+    place: str
+    x: float
+    y: float
 
 
 @dataclass(frozen=True)
@@ -71,6 +108,8 @@ class RuntimeTrace:
     keyframes: list[tuple[float, RuntimeTransform]]  # (world seconds, where an entity is from then on)
     initial: list[RuntimeTransform] = field(default_factory=list)  # everyone and everything just before the first event
     initial_holders: dict[str, str] = field(default_factory=dict)
+    tracks: list[RuntimeActionTrack] = field(default_factory=list)
+    steps: list[RuntimeStep] = field(default_factory=list)
     trace_hash: str = ""
 
 

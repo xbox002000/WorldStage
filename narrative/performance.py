@@ -319,6 +319,8 @@ def plan_performance(conn: sqlite3.Connection, spec: SceneSpec, direction: Direc
         here = [p for p in _people(b) if p in spec.characters]
         if direction.focalization.kind == "animal" and direction.focalization.focalizer in roles:
             here += [direction.focalization.focalizer] if direction.focalization.focalizer not in here else []
+        if cs.subject in roles and cs.subject in spec.characters and cs.subject not in here:
+            here.append(cs.subject)  # whoever the camera finds is in frame, and performs
         for pid in here:
             key = (cs.beat_index, pid)
             profile = _profile(spec, pid)

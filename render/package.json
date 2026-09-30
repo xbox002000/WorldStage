@@ -4,6 +4,10 @@
   "type": "module",
   "dependencies": {
     "gsap": "3.14.2",
-    "hyperframes": "0.8.91"
+    "hyperframes": "0.8.91",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "gltf-validator": "2.0.0-dev.3.10"
   }
 }

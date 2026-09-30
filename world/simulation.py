@@ -55,6 +55,11 @@ class Simulation:
         self.active_ids = active_ids
         self.stats: Counter = Counter()
         self.seed = conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
+        if "space.perception" in self.primitives:  # simulated inside its own space: witnesses must see, finders must see
+            from world.space import attach, oracle
+            if oracle(conn) is None:
+                from runtime.perception import RuntimeSpace
+                attach(conn, RuntimeSpace(conn))
 
     # -- days ----------------------------------------------------------------------------------------------------
     def next_day(self) -> int:

@@ -1,0 +1,19 @@
+{
+ "blender": "Blender 5.2.2 LTS",
+ "files": {
+  "cup.glb": "sha256:a40131c7b99edfc2bb1f449819cb611f523bf691a6bd548d8f335334fbbc4bca",
+  "diary.glb": "sha256:0b5162882b86c27ff8d08a1320f4b57af2c0276c242ba4b5f24e3a940aaaad3c",
+  "dog.glb": "sha256:940084424fe9036d7cde11ae5320c8e91f57fb392d4fc33bf20d711dfb84e6cd",
+  "key.glb": "sha256:057c94d822d032efc25aed89c2c68583fbb005e1aa0e27f3f8b0872cb710f382",
+  "letter.glb": "sha256:5266cab408a367cd2c721f2fe31d3b4f5109867e1999c00059ad359fe24b7c24",
+  "package.glb": "sha256:8383c7e16cd0e20f04d6a6e9f37f46c98ba89b59e4e4189348e2704b006661de",
+  "person.glb": "sha256:5c89bbceacb23aae00f1e10d6ff1821b201951b0267f8969c8e3b4ef68405e56",
+  "phone.glb": "sha256:a9a15f2c533bd4fe14f41b2bf0b0289380a3cd79ef6b9f366217520f6e0a4380",
+  "ring.glb": "sha256:6d33b582869bd44d39c82c458de26bd63556c96fe16b2cfaa734120ecda96293",
+  "sword.glb": "sha256:db1dd11d8330ae672d8d67a8367f6b35b7c83cadba235fcc261515c906ac6b2b",
+  "thing.glb": "sha256:8e163f969ed8afbcd5d61b211473dd392df2f3ae0b9484fe0c57deff18eb3246",
+  "ticket.glb": "sha256:a1efd447e27cd0d24bc24d0ceb5c9b26516094a6589c81bb56961c26169a03e7",
+  "wallet.glb": "sha256:831c1e262aa539bb5181e2ee45402bc019842d06cf7a1cc3e02d049b0357bf7f",
+  "watch.glb": "sha256:ce71951b82da2e95af5ba3dea9aab7994ef2b5559e7dd3fa88b73a48371761f7"
+ }
+}

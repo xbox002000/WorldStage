@@ -1,0 +1,35 @@
+{
+  "recipe_id": "town_spatial_v1",
+  "title": "同一座小鎮，在自己的空間裡運轉",
+  "content": "town_v1",
+  "core": "everyday_life",
+  "pillars": [
+    "items.ownership",
+    "money.rent",
+    "gossip.drift"
+  ],
+  "accents": [
+    "props.parrot",
+    "props.animals",
+    "seeds.external"
+  ],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "小事會長成大事：一個錢包、一句轉述走樣的話、一隻會學舌的鸚鵡",
+  "director_prefers": {
+    "item": 0.05,
+    "rumor": 0.05
+  },
+  "base": [
+    "events",
+    "claims",
+    "attention",
+    "schedule",
+    "volition",
+    "goals",
+    "psyche",
+    "items.accusation",
+    "money.debt",
+    "space.perception"
+  ]
+}

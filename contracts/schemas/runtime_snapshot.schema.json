@@ -54,6 +54,9 @@
         "entity": {
           "type": "string"
         },
+        "holder": {
+          "type": "string"
+        },
         "place": {
           "type": "string"
         },

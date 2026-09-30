@@ -170,6 +170,10 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
             raise WorldError(f"{it.target} is not lying here")
         if "fixed" in json.loads(obj["tags"]):
             raise WorldError(f"{it.target} cannot be carried off")
+        from world.animals import is_animal
+        if is_animal(conn, it.actor) and conn.execute(
+                "SELECT 1 FROM objects WHERE owner_person_id = ?", (it.actor,)).fetchone():
+            raise WorldError(f"{it.actor} already has something in its mouth")  # one mouth, one thing
     elif it.action == "give":
         obj = conn.execute("SELECT * FROM objects WHERE id = ?", (it.target,)).fetchone()
         if obj is None or obj["owner_person_id"] != it.actor:

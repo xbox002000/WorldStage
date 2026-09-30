@@ -23,8 +23,12 @@ Scale = Literal["EWS", "WS", "MS", "MCU", "CU", "ECU", "INSERT"]
 Angle = Literal["eye_level", "high", "low", "overhead", "ground"]
 Relation = Literal["frontal", "profile", "rear", "over_shoulder", "two_shot", "subjective"]
 Motion = Literal["static", "pan", "tilt", "truck", "dolly", "push_in", "pull_out", "arc", "tracking", "handheld"]
-CutReason = Literal["open", "attention_shift", "reaction", "information_reveal", "time_jump", "location_change",
-                    "causal_continuity", "emotional_break", "contrast", "hold"]
+# why cut to a shot: always something it adds (narrative/economy.py). A change of angle alone is never a reason, so
+# there is no "attention_shift", "angle_change" or "more_cinematic" (FORBIDDEN_CUTS)
+CutReason = Literal["open", "reaction", "information_reveal", "hide", "action", "new_relation", "pov_change",
+                    "time_jump", "location_change", "causal_continuity", "emotional_break", "contrast", "payoff",
+                    "hold"]
+FORBIDDEN_CUTS = ("attention_shift", "angle_change", "camera_needed", "more_cinematic")
 Transition = Literal["cut", "match_cut", "smash_cut", "dissolve", "hold"]
 
 
@@ -103,6 +107,31 @@ class Cut:
 
 
 @dataclass(frozen=True)
+class ShotValue:
+    """What a shot adds, against everything the audience has seen before it (narrative/economy.py)."""
+    shot_index: int
+    information: float  # share of the facts it shows that are new
+    emotion: float  # a face in a feeling not yet seen on it
+    relation: float  # a new place, two people together for the first time (1), a change of whose eyes (0.5)
+    state: float  # a thing changes hands in view
+    action: float  # someone seen doing something not yet seen
+    redundancy: float  # looks like the shot before it (1: same subject, framing and side in the same beat)
+    score: float  # the gains minus the redundancy
+    why: str
+
+
+@dataclass(frozen=True)
+class DroppedShot:
+    """A shot the director planned and cut, and why: the edit's paper trail."""
+    beat_index: int
+    function: str
+    subject: str
+    scale: str
+    relation: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class SoundCue:
     shot_index: int
     music: Literal["none", "tension", "release", "sting", "silence"]
@@ -147,6 +176,8 @@ class DirectorPlan:
     grammar: str = ""  # the cinematic grammar the scene is built on (narrative/grammar.py)
     # choices a benchmark forced instead of the director making them (focalizer, strategy, grammar); empty normally
     forced: dict[str, str] = field(default_factory=dict)
+    values: list[ShotValue] = field(default_factory=list)  # one per shot: what it adds
+    dropped: list[DroppedShot] = field(default_factory=list)  # planned, and cut for adding nothing
     plan_hash: str = ""
 
 

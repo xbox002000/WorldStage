@@ -31,8 +31,13 @@ class AnimalDecider:
             if r["location_id"] != here and conn.execute(
                     "SELECT 1 FROM location_edges WHERE from_location_id = ? AND to_location_id = ?", (here, r["location_id"])).fetchone():
                 out.append((0.3 + r["affection"], Intent(me, "move", r["location_id"], reason=f"animal: follows {r['target_id']}")))
-        for o in conn.execute("SELECT id FROM objects WHERE location_id = ? AND status = 'normal' "
+        from world.space import oracle
+        space = oracle(conn)
+        mouth_full = conn.execute("SELECT 1 FROM objects WHERE owner_person_id = ?", (me,)).fetchone() is not None
+        for o in [] if mouth_full else conn.execute("SELECT id FROM objects WHERE location_id = ? AND status = 'normal' "
                               "AND tags NOT LIKE '%\"fixed\"%' ORDER BY id", (here,)):
+            if space is not None and not space.perceives_thing(me, o["id"], now):
+                continue  # in a world with space: only what it has seen or smelt
             carried = conn.execute("SELECT COUNT(*) FROM events WHERE type = 'take' AND json_extract(truth, '$.actor') = ? "
                                    "AND json_extract(truth, '$.object') = ?", (me, o["id"])).fetchone()[0]
             # a new thing is interesting; one it has already carried about, less and less

@@ -26,6 +26,8 @@ LIBRARY: dict[str, MechanicPrimitive] = {p.id: p for p in [
     P("events", "physics", "one transaction = one event; the only way anything changes", cost=0),
     P("claims", "information", "propositions; truth vs belief vs what was said", ["events"], cost=0),
     P("attention", "physics", "being present is not noticing; loud and quiet acts", ["events"], cost=0),
+    P("space.perception", "physics", "the world is simulated in its space: witnesses must see or hear, finders must see",
+      ["attention"], cost=0),
     P("schedule", "physics", "daily routines move people between places", ["events"], cost=0),
     P("volition", "social", "rule motives from traits, needs, feelings, beliefs", ["claims"], cost=0),
     P("goals", "social", "goals form, get blocked, transform, are abandoned or completed", ["volition"], cost=0),

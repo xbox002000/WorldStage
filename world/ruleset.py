@@ -11,6 +11,8 @@ RULESET_FILES = (
     "world/schema.sql",
     # rule-based motives decide like a rule, so they are part of the ruleset (a model's answers are recorded instead)
     "agent/volition.py", "agent/perception.py", "agent/animal.py",
+    # a world with space.perception is simulated in its space: the runtime and the layouts decide who can see what
+    "runtime/world_runtime.py", "runtime/nav.py", "runtime/perception.py", "narrative/layouts.py", "narrative/spatial.py",
 )
 RULESET_GLOBS = ("world/*.py", "world/*/*.py", "world/migrations/*.sql", "world/feeds/*.json", "world/recipes/*.json",
                  "contracts/*.py")

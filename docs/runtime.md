@@ -45,23 +45,41 @@ fix is not a better guess. It is a layer that reads who holds what from the worl
 - **"Replay" does not re-execute the rules.** World replay already exists (same seed and recorded answers give the
   same world). The runtime replays the *recorded* history, so seeking never runs the simulation.
 
-## How an event becomes motion
+## How an event becomes motion (runtime 0.2)
 
-The runtime reads each event's deltas in order:
+The runtime reads each event's deltas in order. Every body has its own clock: whatever it does next starts when it
+is free, so two events in the same minute never make it do two things at once (0.1 did: that was the teleporting).
 
-- **Someone's place changes**: they walk to the door, exit, enter the new place, and walk to a free spot. The spot
-  is a layout anchor chosen by the world seed, and never one somebody already stands on.
-- **Talk, tell, confront, accuse, lend, bark, duel**: the actor approaches to conversational distance and both face
-  each other. A duel adds three strikes.
-- **A thing leaves a hand** (misplace, drop): contact is the release. The thing lands just behind the body, and an
-  unaware owner walks on.
-- **A thing is picked up** (take, find): a walk to it, a reach, contact, attach. The part is the right hand, or the
-  mouth for an animal.
-- **A thing passes between bodies** (give, steal, a duel settling ownership): approach, then hand over and receive
-  (or grab).
+- **Someone's place changes**: they walk to the door and through it, come in through the new place's door (one body
+  at a time) and walk to a free spot: a seat, if one is free (they sit down into it), or a standing spot nobody is
+  near, or, in a crowd, open floor at least 0.7 m from everybody.
+- **Walking** goes straight when the line is clear, and otherwise along an A* path on a 0.15 m grid round every
+  blocking box (grown by the body's radius) and every standing body, pulled tight (`runtime/nav.py`). A body turns
+  before it walks off, stands up and steps out of a seat before it leaves, and waits for somebody already on their way
+  through the same floor. People's feet are planted on footfalls (`RuntimeStep`), so a presentation's feet cannot skate.
+- **Talk, tell, confront, accuse, lend, bark, duel**: the actor walks to conversational distance on free floor and
+  both turn to face each other (seated, one turns one's head, not the chair).
+- **A thing is picked up**: the walk towards it (targeted), an animal's sniff, the reach, contact, the lift to the
+  hand or mouth, attached (`RuntimeActionTrack`). From contact to attached the thing travels from where it lay to the
+  socket (pose `lift`), so it is never in two places.
+- **A thing is let go**: it falls (pose `fall`) to floor that is not inside a bench, a table or a tree.
+- **A thing passes between bodies**: approach, contact, and it travels from the giver's hand to the receiver's.
 
-Who holds what is always the world's own record. The runtime only adds where and when, so it cannot contradict the
-world. `check()` returns every disagreement, and it is empty.
+Measured with `runtime/physics.py` on the 30-second benchmark scene, 0.1 against 0.2:
+
+| | runtime 0.1 | runtime 0.2 |
+|---|---|---|
+| jumps (faster than 2.6 m/s within a place) | 63 | 0 |
+| snap turns (faster than 720 degrees/s) | 86 | 2 (off screen, at path corners) |
+| a body inside a wall, table, bench or tree | 52 | 0 |
+| two bodies inside each other | 45 | 4 brushes of 0.37-0.39 m (the capsules are 0.44), off screen |
+| taking hold of something out of reach | 0 | 0 |
+
+The rule every engine plays (`runtime/export.py:sample_full`, the same in `render/presentation/runtime_rule.js` and
+`runtime/godot/main.gd`): walk moves to the next key heading its own yaw (eased at corners); turn holds and turns;
+rise and settle move and turn; lift travels to the holder; fall travels to the next key; carried is wherever the
+holder is; anything else holds. Playback compresses idle gaps but never a gap inside a walk, a turn, a lift or a fall
+(0.1 did, and walks ran at 3.6 m/s).
 
 ## Into production
 
@@ -70,7 +88,11 @@ world. `check()` returns every disagreement, and it is empty.
 - The cartoon renderer switches the thing from ground to mouth at that instant, not at a fixed 45 %.
 - The packet records `runtime_hash`. `make_episodes` builds the runtime for every directed episode.
 
-## The Godot player
+## The Godot player (now optional)
+
+Superseded on 2026-09-30 by the three.js Presentation Runtime (`docs/presentation.md`): one web toolchain renders
+and serves as the sandbox, and Blender makes the assets. The Godot player below stays as an optional presentation
+backend; its test skips when Godot is not installed.
 
 ```text
 godot --path runtime/godot -- --trace=<export.json> --mode=demo      play, pause, seek back, replay, play on
@@ -95,10 +117,7 @@ dog). Then:
 
 ## Not yet
 
-- **No walking animation or rig.** Bodies glide between keys; the pose name (walk, reach) is in the trace for a rig
-  to use.
-- **No director camera in Godot.** The Godot camera follows actions. The DirectorPlan's shots (scale, angle, whose
-  eyes) are not yet compiled into Godot camera moves.
-- **No real paths.** Paths go straight to their goal; nothing steers around a table or a tree yet.
-- **Only the playback player is in Godot.** The Director Camera Sandbox (free camera, pause, a POV switch, no
-  changes to the world) would be the next step, and Blender or USD export after it.
+- **Walkers do not steer round each other mid-walk.** A body yields (waits) for somebody already on their way through
+  the same floor, and plans round standing bodies; two walks planned into each other later are not re-planned.
+- **One flat floor per place.** No stairs, slopes or floors above; the apartment is one shared room.
+- **Checkpoints.** The runtime still replays the whole history (about 6 s for 2,000 events with paths).

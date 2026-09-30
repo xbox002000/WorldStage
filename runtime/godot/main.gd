@@ -1,7 +1,8 @@
 extends Node3D
 ## World Runtime Player: plays a file written by runtime/export.py. It decides nothing: positions, hand-offs and
 ## camera targets all come from the file, and positions follow the same rule as runtime/export.py:sample()
-## (a "walk" key moves linearly to the next key, any other pose holds; a carried thing is where its holder is).
+## (walk, rise, settle and fall move to the next key; lift travels to its holder; a carried thing is where its
+## holder is; any other pose holds).
 ##
 ##   godot --path runtime/godot -- --trace=<file.json> --mode=demo      play, pause, seek back, play on (recordable)
 ##   godot --headless --path runtime/godot -- --trace=<file.json> --mode=verify --out=<samples.json>
@@ -53,31 +54,35 @@ func sample(id: String, at: float) -> Array:
 	if e.is_empty() or e["keys"].is_empty():
 		return []
 	var keys: Array = e["keys"]
-	var cur: Array = keys[0]
-	for k in keys:
-		if float(k[0]) <= at:
-			cur = k
-	if cur[5] == "carried" and cur.size() > 6 and str(cur[6]) != "":
-		return sample(str(cur[6]), at)
-	if at <= float(keys[0][0]):
+	var i := -1  # the last key at or before `at` (runtime 0.2's rule, runtime/export.py:sample_full)
+	for n in range(keys.size()):
+		if float(keys[n][0]) <= at:
+			i = n
+	if i < 0:
 		return [float(keys[0][2]), float(keys[0][3]), float(keys[0][4])]
-	for i in range(keys.size() - 1):
-		var a: Array = keys[i]
+	var a: Array = keys[i]
+	if a[5] == "carried" and a.size() > 6 and str(a[6]) != "":
+		return sample(str(a[6]), at)
+	if i + 1 < keys.size():
 		var b: Array = keys[i + 1]
-		if float(a[0]) <= at and at < float(b[0]):
-			if a[5] == "walk" and float(b[0]) > float(a[0]):
-				var f := (at - float(a[0])) / (float(b[0]) - float(a[0]))
-				return [lerp(float(a[2]), float(b[2]), f), lerp(float(a[3]), float(b[3]), f), float(b[4])]
-			return [float(a[2]), float(a[3]), float(a[4])]
-	var last: Array = keys[keys.size() - 1]
-	return [float(last[2]), float(last[3]), float(last[4])]
+		var f := 0.0
+		if float(b[0]) > float(a[0]):
+			f = (at - float(a[0])) / (float(b[0]) - float(a[0]))
+		if a[5] in ["walk", "rise", "settle", "fall"]:
+			return [lerp(float(a[2]), float(b[2]), f), lerp(float(a[3]), float(b[3]), f), float(b[4])]
+		if a[5] == "lift" and a.size() > 6 and str(a[6]) != "":
+			var h := sample(str(a[6]), at)
+			return [lerp(float(a[2]), float(h[0]), f), lerp(float(a[3]), float(h[1]), f), float(h[2])]
+	return [float(a[2]), float(a[3]), float(a[4])]
 
 func _verify() -> void:
 	var samples := {}
-	var d: float = doc["duration"]
-	var n := int(d / 0.5)
-	for i in range(n + 1):
-		var at := i * 0.5
+	var times := {}  # every key and a quarter second after it: the playback clock is runtime time, it can span days
+	for e in doc["entities"]:
+		for k in e["keys"]:
+			times[float(k[0])] = true
+			times[float(k[0]) + 0.25] = true
+	for at in times.keys():
 		var row := {}
 		for e in doc["entities"]:
 			var p := sample(e["id"], at)

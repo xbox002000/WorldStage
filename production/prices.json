@@ -1,0 +1,13 @@
+{
+  "note": "Estimates for planning only. Nothing in this repo sends a request to these providers.",
+  "source": "fal.ai, as quoted in https://fal.ai/learn/tools/seedance-2-0-vs-kling-3-0 (read 2026-09-30)",
+  "currency": "USD",
+  "providers": {
+    "kling_3_pro": {"per_second": 0.112, "per_second_with_audio": 0.168, "min_seconds": 3, "max_seconds": 15,
+                    "references": "images and reference images (elements)", "resolution": "1080p",
+                    "strength": "character consistency across shots, per-shot camera control"},
+    "seedance_2": {"per_second": 0.3034, "per_second_fast": 0.2419, "min_seconds": 4, "max_seconds": 15,
+                   "references": "up to 9 images, 3 videos, 3 audio clips", "resolution": "720p (fal standard tier)",
+                   "strength": "audio and lip-synced dialogue included"}
+  }
+}

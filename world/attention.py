@@ -42,4 +42,14 @@ def noticers(conn: sqlite3.Connection, here: str, now: int, key: str, loudness: 
         return people
     p = NOTICE_P[loudness] * var(conn, "visibility", 1.0)
     seed = world_seed(conn)
-    return [pid for pid in people if make_rng(seed, now, f"{key}:{pid}", "notice").random() < p]
+    from world.space import oracle
+    space = oracle(conn)
+    if space is None:
+        return [pid for pid in people if make_rng(seed, now, f"{key}:{pid}", "notice").random() < p]
+    # in a world simulated in its space: only those who could see (or hear) it, likelier the closer and more in front
+    out = []
+    for pid in people:
+        w = space.weight(pid, key, now)
+        if w > 0 and make_rng(seed, now, f"{key}:{pid}", "notice").random() < min(1.0, p * w):
+            out.append(pid)
+    return out
