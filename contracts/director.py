@@ -91,6 +91,8 @@ class CameraShot:
     seconds: float
     spatial_camera: str  # which SpatialPlan camera stages it: wide | two_shot | over_shoulder | insert | pov
     reason: str
+    information_function: str = ""  # orients | shows_truth | withholds | misleads | hints | confirms | none
+    grammar_step: str = ""  # <cinematic grammar>:<step>, e.g. conceal_reaction_reveal:reaction
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,24 @@ class SoundCue:
 
 
 @dataclass(frozen=True)
+class AttentionMark:
+    shot_index: int
+    primary: str  # what the audience should look at (entity or prop id)
+    secondary: str  # what is there to be noticed only by those who look
+    hidden: str  # what is in the world here but kept out of sight
+    why: str
+
+
+@dataclass(frozen=True)
+class AttentionPlan:
+    """Where the audience looks, shot by shot, and when what was kept back is finally let in."""
+    marks: list[AttentionMark]
+    reveal_shot: int | None  # the shot where a withheld truth is let in (controlled release), if any
+    reveal_how: str  # e.g. "the camera finds the dog watching, after the wallet is back"
+    reveal_subject: str = ""  # who or what the camera finds there
+
+
+@dataclass(frozen=True)
 class DirectorPlan:
     version: int
     scene_id: str
@@ -123,6 +143,8 @@ class DirectorPlan:
     shots: list[CameraShot]
     cuts: list[Cut]
     sound: list[SoundCue]
+    attention: AttentionPlan | None = None
+    grammar: str = ""  # the cinematic grammar the scene is built on (narrative/grammar.py)
     # choices a benchmark forced instead of the director making them (focalizer, strategy, grammar); empty normally
     forced: dict[str, str] = field(default_factory=dict)
     plan_hash: str = ""

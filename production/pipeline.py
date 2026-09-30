@@ -23,6 +23,7 @@ from contracts.render_request import RenderRequest, Take
 from contracts.stylepack import SUSPENSE_V1, StylePack
 from narrative.compiler import compile_packet
 from narrative.direction import plan_direction
+from narrative.performance import plan_performance
 from narrative.scene_spec import build_scene_specs, validate_spec
 from narrative.selector import Candidate, select_top
 from narrative.spatial import compile_spatial
@@ -76,6 +77,11 @@ def _render(conn: sqlite3.Connection, composer, request: RenderRequest) -> Take:
                 take.provider_job_id, take.error)
 
 
+def _runtime(world: sqlite3.Connection):
+    from runtime.world_runtime import WorldRuntime
+    return WorldRuntime(world)
+
+
 def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: Path, candidates: list[Candidate], *,
                   scene_ids: list[str] | None = None, sim_day: int | None = None, orientation: str = "portrait",
                   style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True, route: str = "procedural",
@@ -97,7 +103,10 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         recap = series.build_recap(conn, spec)
         thread = threads[i] if threads else None
         direction = plan_direction(world, spec, thread, set(shown)) if thread is not None else None
-        packet = compile_packet(spec, style, orientation, recap=recap, direction=direction)
+        performance = plan_performance(world, spec, direction) if direction is not None else None
+        runtime = _runtime(world).trace([b.event_id for b in spec.beats]) if direction is not None else None
+        packet = compile_packet(spec, style, orientation, recap=recap, direction=direction, performance=performance,
+                                runtime=runtime)
         prod.save_scene_spec(conn, spec)
         prod.save_packet(conn, packet)
         total, w, h = packet.qa.total_seconds, packet.canvas.width, packet.canvas.height

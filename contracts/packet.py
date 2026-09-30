@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from contracts.performance import PerformanceBeat
+from contracts.runtime import RuntimeInteraction
 from contracts.base import hash_without
 from contracts.scene_spec import Place, Prop, WorldMap
 
-PACKET_VERSION = 4
+PACKET_VERSION = 5
 
 
 @dataclass(frozen=True)
@@ -118,6 +120,15 @@ class Shot:
     thought_kind: str = ""  # belief (a person's) | sense (an animal's percept: no words, no names of acts)
     suspect_id: str = ""  # someone who is only in a character's head: the one they suspect
     transition: str = ""  # how the cut into this shot is made: cut | dissolve | smash_cut | match_cut | hold
+    # v5: what the shot is for in information, how it is built, whose body it watches, and what it plays
+    information_function: str = ""  # orients | shows_truth | withholds | misleads | hints | confirms | none
+    grammar_step: str = ""  # <cinematic grammar>:<step>
+    performance_focus: str = ""  # <actor>:<channel> the shot watches, e.g. ming:hands, dog:ears
+    sound_anchor: str = ""  # a recurring sound the shot carries, e.g. motif:wallet_ming, breath, room_tone
+    performances: list[PerformanceBeat] = field(default_factory=list)  # every body in frame (PerformancePlan)
+    # from the World Runtime: the hand-offs of this shot's event and when, within the shot, contact is made
+    interactions: list[RuntimeInteraction] = field(default_factory=list)
+    moment: float = 0.45  # 0..1 through the shot: the instant the thing changes hands
 
 
 @dataclass(frozen=True)
@@ -174,6 +185,8 @@ class ProductionPacket:
     qa: QARequirements
     packet_hash: str = ""
     direction_hash: str = ""  # the DirectorPlan it was compiled from (v3); empty without one
+    performance_hash: str = ""  # the PerformancePlan it was compiled from (v5); empty without one
+    runtime_hash: str = ""  # the RuntimeTrace its hand-offs come from (v5); empty without one
 
 
 def finalize(packet: ProductionPacket) -> ProductionPacket:

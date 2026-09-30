@@ -11,3 +11,6 @@ render/node_modules/
 render/projects/
 render/renders/
 out/
+
+# Godot editor cache (runtime/godot)
+.godot/

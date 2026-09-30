@@ -1,0 +1,184 @@
+{
+  "$defs": {
+    "RuntimeAction": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "end": {
+          "type": "number"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "frm": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number"
+        },
+        "target": {
+          "type": "string"
+        },
+        "to": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "event_id",
+        "actor",
+        "kind",
+        "target",
+        "start",
+        "end",
+        "place"
+      ],
+      "type": "object"
+    },
+    "RuntimeInteraction": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "number"
+        },
+        "contact": {
+          "type": "number"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "hand": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "actor",
+        "action",
+        "target",
+        "start",
+        "contact",
+        "complete",
+        "hand"
+      ],
+      "type": "object"
+    },
+    "RuntimeTrace": {
+      "additionalProperties": false,
+      "properties": {
+        "actions": {
+          "items": {
+            "$ref": "#/$defs/RuntimeAction"
+          },
+          "type": "array"
+        },
+        "event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "initial": {
+          "items": {
+            "$ref": "#/$defs/RuntimeTransform"
+          },
+          "type": "array"
+        },
+        "initial_holders": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "interactions": {
+          "items": {
+            "$ref": "#/$defs/RuntimeInteraction"
+          },
+          "type": "array"
+        },
+        "keyframes": {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "trace_hash": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "event_ids",
+        "actions",
+        "interactions",
+        "keyframes"
+      ],
+      "type": "object"
+    },
+    "RuntimeTransform": {
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "pose": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "yaw": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "entity",
+        "place",
+        "x",
+        "y",
+        "yaw",
+        "pose"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/RuntimeTrace",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

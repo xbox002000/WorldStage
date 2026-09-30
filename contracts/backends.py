@@ -51,6 +51,9 @@ class ShotRequest:
     camera: str = ""
     controls: dict[str, str] = field(default_factory=dict)  # control kind (depth, mask, first_frame) -> file path
     reference_asset_ids: list[str] = field(default_factory=list)
+    # how each body in frame performs (the packet's PerformanceBeats, as plain data): a provider compiles it into its
+    # own controls or prompt; it never has to invent why someone looks away
+    performance: list[dict] = field(default_factory=list)
 
 
 class Provider(Protocol):

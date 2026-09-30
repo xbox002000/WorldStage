@@ -1,0 +1,382 @@
+{
+  "$defs": {
+    "AnimalBody": {
+      "additionalProperties": false,
+      "properties": {
+        "ears": {
+          "type": "string"
+        },
+        "head_tilt": {
+          "type": "number"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "tail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ears",
+        "tail",
+        "head_tilt",
+        "pace"
+      ],
+      "type": "object"
+    },
+    "BodyState": {
+      "additionalProperties": false,
+      "properties": {
+        "emotion": {
+          "type": "string"
+        },
+        "gaze": {
+          "type": "string"
+        },
+        "gesture": {
+          "type": "string"
+        },
+        "hand": {
+          "type": "string"
+        },
+        "holding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "holding",
+        "hand",
+        "gesture",
+        "gaze",
+        "emotion"
+      ],
+      "type": "object"
+    },
+    "Cause": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "Drive": {
+      "additionalProperties": false,
+      "properties": {
+        "causes": {
+          "items": {
+            "$ref": "#/$defs/Cause"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "causes"
+      ],
+      "type": "object"
+    },
+    "Face": {
+      "additionalProperties": false,
+      "properties": {
+        "brows": {
+          "type": "string"
+        },
+        "eyes": {
+          "type": "string"
+        },
+        "jaw": {
+          "type": "string"
+        },
+        "mouth": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "brows",
+        "jaw",
+        "mouth",
+        "eyes"
+      ],
+      "type": "object"
+    },
+    "Gaze": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "seconds": {
+          "type": "number"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "mode",
+        "seconds"
+      ],
+      "type": "object"
+    },
+    "Hands": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "holding": {
+          "type": "string"
+        },
+        "tension": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "action",
+        "tension"
+      ],
+      "type": "object"
+    },
+    "MicroAction": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "at"
+      ],
+      "type": "object"
+    },
+    "PerformanceBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "after": {
+          "$ref": "#/$defs/BodyState"
+        },
+        "animal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnimalBody"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before": {
+          "$ref": "#/$defs/BodyState"
+        },
+        "changes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "drives": {
+          "items": {
+            "$ref": "#/$defs/Drive"
+          },
+          "type": "array"
+        },
+        "face": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Face"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gaze": {
+          "$ref": "#/$defs/Gaze"
+        },
+        "hands": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hands"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intensity": {
+          "type": "number"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "micro": {
+          "items": {
+            "$ref": "#/$defs/MicroAction"
+          },
+          "type": "array"
+        },
+        "movement": {
+          "type": "string"
+        },
+        "posture": {
+          "$ref": "#/$defs/Posture"
+        },
+        "primary": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "shot_index": {
+          "type": "integer"
+        },
+        "speech": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Speech"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "shot_index",
+        "actor",
+        "profile",
+        "intent",
+        "primary",
+        "intensity",
+        "drives",
+        "gaze",
+        "posture",
+        "hands",
+        "face",
+        "animal",
+        "micro",
+        "movement",
+        "speech",
+        "before",
+        "after"
+      ],
+      "type": "object"
+    },
+    "PerformancePlan": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/PerformanceBeat"
+          },
+          "type": "array"
+        },
+        "counterfactual": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "type": "object"
+        },
+        "direction_hash": {
+          "type": "string"
+        },
+        "plan_hash": {
+          "type": "string"
+        },
+        "scene_hash": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "scene_hash",
+        "direction_hash",
+        "beats"
+      ],
+      "type": "object"
+    },
+    "Posture": {
+      "additionalProperties": false,
+      "properties": {
+        "lean": {
+          "type": "number"
+        },
+        "openness": {
+          "type": "number"
+        },
+        "tension": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tension",
+        "openness",
+        "lean"
+      ],
+      "type": "object"
+    },
+    "Speech": {
+      "additionalProperties": false,
+      "properties": {
+        "delivery": {
+          "type": "string"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "pause_before": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "delivery",
+        "pace",
+        "pause_before"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/PerformancePlan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -11,6 +11,7 @@ Order of decisions, each feeding the next:
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import sqlite3
 
@@ -20,7 +21,7 @@ from contracts.scene_spec import Beat, SceneSpec
 from contracts.thread import StoryThread
 from narrative.knowledge import knowledge_of
 
-COMPILER_VERSION = "direction-0.1"
+COMPILER_VERSION = "direction-0.2"
 PRINCIPAL = ("actor", "target", "victim", "suspect", "receiver", "addressee")
 EXPOSED = ("lie_exposed", "distortion_exposed", "concealment_exposed", "caught")
 
@@ -103,6 +104,8 @@ def _animals(spec: SceneSpec) -> set[str]:
 
 def plan_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan, forced: str | None = None) -> FocalizationPlan:
     animals = _animals(spec)
+    if forced == "omniscient":
+        return FocalizationPlan("", "none", "omniscient", "forced: outside everyone", list(range(len(spec.beats))), [])
     if forced is not None:
         return _forced_focal(spec, knowledge, forced, forced in animals)
     if animals and knowledge.state is not None and (knowledge.state.wrong or knowledge.state.unaware):
@@ -253,19 +256,19 @@ def _shots_for(i: int, b: Beat, functions: list[str], focal: FocalizationPlan, s
     return out
 
 
-GRAMMARS = ("observational", "push_in", "subjective", "reaction")
+CAMERA_STYLES = ("observational", "push_in", "subjective", "reaction")
 TIGHTER = {"EWS": "WS", "WS": "MS", "MS": "MCU", "MCU": "CU", "CU": "CU", "ECU": "ECU", "INSERT": "INSERT"}
 
 
-def regrammar(spec: SceneSpec, shots: list[CameraShot], focal: FocalizationPlan, grammar: str) -> list[CameraShot]:
-    """The same beats and functions, filmed in one camera grammar:
+def restyle_camera(spec: SceneSpec, shots: list[CameraShot], focal: FocalizationPlan, grammar: str) -> list[CameraShot]:
+    """The same beats and functions, filmed in one camera style (not a cinematic grammar: see narrative/grammar.py):
     observational  from a distance: wide and medium, eye level, static, no inserts or reaction cuts
     push_in        the scene closes in on the focalizer: tighter as it goes, every shot a slow push
     subjective     through the focalizer's eyes wherever they are (ground height for an animal); outside them, wide
     reaction       close and reaction-heavy: tighter coverage, and the focalizer's face after everything that lands
     """
-    if grammar not in GRAMMARS:
-        raise ValueError(f"unknown camera grammar {grammar}")
+    if grammar not in CAMERA_STYLES:
+        raise ValueError(f"unknown camera style {grammar}")
     who, animal, out = focal.focalizer, focal.kind == "animal", []
     last = max((s.beat_index for s in shots), default=0) or 1
     by_beat: dict[int, list[CameraShot]] = {}
@@ -322,7 +325,7 @@ def regrammar(spec: SceneSpec, shots: list[CameraShot], focal: FocalizationPlan,
             if t not in dedup:
                 dedup.append(t)
         out += [(i, t) for t in dedup[:4]]
-    return [CameraShot(n, i, *t) for n, (i, t) in enumerate(out)]
+    return [CameraShot(n, i, *t) for n, (i, t) in enumerate(out)]  # grammar steps are labelled afterwards
 
 
 _FIELDS = ("function", "scale", "angle", "relation", "motion", "speed", "subject", "attention", "seconds",
@@ -395,9 +398,12 @@ def _character_turn(conn, focal: str, spec: SceneSpec) -> str:
 
 def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThread | None = None,
                    shown: set[int] | frozenset[int] = frozenset(), *, focalizer: str | None = None,
-                   strategy: str | None = None, grammar: str | None = None) -> DirectorPlan:
-    """The director decides everything unless a benchmark forces a choice (focalizer, strategy, grammar). A forced
-    choice changes only how the scene is told; the scene, its events and its truth stay the same."""
+                   strategy: str | None = None, camera: str | None = None, edit: str | None = None) -> DirectorPlan:
+    """The director decides everything unless a benchmark forces a choice (focalizer, strategy, camera style, edit).
+    A forced choice changes only how the scene is told; the scene, its events and its truth stay the same.
+    focalizer="omniscient": no one's eyes, the camera stands outside everyone."""
+    from narrative.grammar import (choose_grammar, information_function, label, pace, plan_attention, re_edit,
+                                   turn_of)
     knowledge = plan_knowledge(conn, spec, thread, set(shown), strategy)
     focal = plan_focal(spec, knowledge, focalizer)
     beats = []
@@ -408,13 +414,29 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     shots: list[CameraShot] = []
     for i, b in enumerate(spec.beats):
         shots += _shots_for(i, b, beats[i].functions, focal, len(shots))
-    if grammar is not None:
-        shots = regrammar(spec, shots, focal, grammar)
+    if camera is not None:
+        shots = restyle_camera(spec, shots, focal, camera)
+    grammar = choose_grammar(knowledge, focal)
+    shots = label(shots, grammar)
+    shots = [dataclasses.replace(x, information_function=information_function(x, knowledge)) for x in shots]
+    shots = re_edit(shots, edit) if edit is not None else pace(shots, turn_of(shots, knowledge))
+    attention = plan_attention(spec, shots, knowledge, focal)
+    if attention.reveal_shot is not None:  # controlled release: the camera finds the culprit, nothing is said
+        at = next(x for x in shots if x.shot_index == attention.reveal_shot)
+        culprit = attention.reveal_subject
+        extra = CameraShot(0, at.beat_index, "reveal", "MS", "eye_level", "frontal", "push_in", "slow", culprit, "body",
+                           3.0, "wide", attention.reveal_how, "hints", f"{grammar}:reveal")
+        k = shots.index(at) + 1
+        shots = [dataclasses.replace(x, shot_index=n) for n, x in enumerate(shots[:k] + [extra] + shots[k:])]
+        attention = plan_attention(spec, shots, knowledge, focal)
+        attention = dataclasses.replace(attention, reveal_shot=k)
     cuts, sound = plan_edit_and_sound(spec, beats, shots, knowledge, focal)
     names = {pid: p.name for pid, p in spec.characters.items()}
     who = names.get(focal.focalizer, focal.focalizer)
     if focal.kind == "animal":
         goal = f"透過{who}的眼睛：牠看見了，卻說不出來" + (f"（{knowledge.state.question}）" if knowledge.state else "")
+    elif not who and knowledge.state:
+        goal = f"站在所有人之外看：{knowledge.state.question}"
     elif knowledge.strategy == "irony" and knowledge.state:
         goal = f"觀眾知道真相（{knowledge.state.question}），{who}卻不知道：看{who}怎麼走下去"
     elif knowledge.strategy == "mystery" and knowledge.state:
@@ -424,10 +446,10 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     turn = _character_turn(conn, focal.focalizer, spec)
     if turn:
         goal += f"。這幾天，{who}{turn}"
+    forced = {k: v for k, v in (("focalizer", focalizer), ("strategy", strategy), ("camera", camera), ("edit", edit))
+              if v is not None}
     return finalize(DirectorPlan(1, spec.scene_id, spec.scene_hash, thread.thread_id if thread else "", COMPILER_VERSION,
-                                 goal, knowledge, focal, beats, shots, cuts, sound,
-                                 {k: v for k, v in (("focalizer", focalizer), ("strategy", strategy), ("grammar", grammar))
-                                  if v is not None}))
+                                 goal, knowledge, focal, beats, shots, cuts, sound, attention, grammar, forced))
 
 
 def _note(fns: list[str], knowledge: AudienceKnowledgePlan) -> str:

@@ -24,6 +24,26 @@ POSE = {  # (pose at the start, pose after the moment, feeling after the moment)
     "give": ("hold", None, None),
 }
 MOTION = {"slow_push_in": "push_in"}
+# a PerformanceBeat's primary state -> the cartoon face that shows it (characters.js EXPR)
+FACE_OF = {"calm": "calm", "afraid": "uneasy", "suspicious": "cold", "guilty": "embarrassed", "distressed": "hurt",
+           "relieved": "happy", "defensive": "distant", "restrained_anger": "angry", "angry": "angry", "warm": "warm",
+           "curious": "curious"}
+POSE_OF = {"search": "hips", "point": "point", "grip": "crossed", "hold": "hold", "fidget": "hold", "idle": "down"}
+
+
+def _acting(pb) -> dict:
+    """The parts of a PerformanceBeat a 2D stage can show."""
+    out = {"primary": pb.primary, "gaze": pb.gaze.mode, "gaze_target": pb.gaze.target, "lean": pb.posture.lean,
+           "tension": pb.posture.tension, "micro": [[m.name, m.at] for m in pb.micro], "movement": pb.movement}
+    if pb.face is not None:
+        out["face"] = FACE_OF.get(pb.primary, "neutral")
+        if pb.face.mouth == "pressed" and pb.primary == "restrained_anger":
+            out["face"] = "cold"  # anger held in: the mouth stays shut
+    if pb.hands is not None:
+        out["pose"] = "crossed" if pb.posture.openness < 0.3 and pb.hands.action == "idle" else POSE_OF.get(pb.hands.action, "down")
+    if pb.animal is not None:
+        out.update(ears=pb.animal.ears, tail=pb.animal.tail, tilt=pb.animal.head_tilt, pace=pb.animal.pace)
+    return out
 
 
 def _hue(lock) -> float:
@@ -44,6 +64,7 @@ def cast_of(packet: ProductionPacket) -> dict:
 
 
 def _stage(shot: Shot, cast: dict) -> list[dict]:
+    acting = {pb.actor: _acting(pb) for pb in shot.performances}
     front = [c for c in shot.characters if c.position != "background"]
     back = [c for c in shot.characters if c.position == "background"]
     xs = {1: [430], 2: [320, 760], 3: [250, 540, 830]}.get(len(front)) or [140 + i * 800 / max(1, len(front) - 1)
@@ -66,6 +87,13 @@ def _stage(shot: Shot, cast: dict) -> list[dict]:
                 s["walk_before"] = 60
         elif c.role in ("target", "victim", "suspect") and shot.event_type in ("accuse", "confront"):
             s["pose"] = "shock"
+        if c.id in acting:  # the performance plan, where there is one, decides how they stand and look
+            a = acting[c.id]
+            s["act"] = a
+            if "face" in a:
+                s["feel"] = a["face"]
+            if "pose" in a and not s.get("pose2"):
+                s["pose"] = a["pose"]
         out.append(s)
     for i, c in enumerate(back):
         x = 180 + (i + 0.5) * 720 / max(1, len(back))
@@ -73,16 +101,41 @@ def _stage(shot: Shot, cast: dict) -> list[dict]:
     return out
 
 
+def _held(shot: Shot, prop: str | None) -> tuple[str | None, str | None] | None:
+    """(where the thing is at the start, where at the end) from the bodies' continuity: in someone's hand or mouth,
+    on the ground (it is in the scene but nobody holds it), or not here at all (it is missing)."""
+    if not prop or not shot.performances:
+        return None
+    before = next((pb.actor for pb in shot.performances if pb.before.holding == prop), None)
+    after = next((pb.actor for pb in shot.performances if pb.after.holding == prop), None)
+    present = shot.event_type not in ("notice_missing",)  # a missing thing is not in the picture
+    start = f"hand:{before}" if before else "ground" if present else None
+    end = f"hand:{after}" if after else "ground" if present else None
+    return (start, end)
+
+
 def _prop_state(state: str | None, shot: Shot) -> str | None:
     if state is None or state == "ground":
         return state
     role = state.split(":", 1)[1]
+    if any(c.id == role for c in shot.characters):  # already a person (from the continuity), not a role
+        return state
     who = next((c.id for c in shot.characters if c.role == role), None)
     return f"hand:{who}" if who else None
 
 
+def _owner(packet: ProductionPacket, prop: str | None) -> str:
+    """Whose smell a thing carries (its owner's name ends its id: wallet_ming -> ming), for an animal's senses."""
+    if not prop:
+        return ""
+    tail = prop.rsplit("_", 1)[-1]
+    return tail if tail in packet.continuity_locks.characters else ""
+
+
 def to_script(packet: ProductionPacket, *, series: str = "虛擬小鎮", tagline: str = "", badge: list[str] | None = None,
-              leads: list[str] | None = None, debug: bool = False) -> dict:
+              leads: list[str] | None = None, debug: bool = False, mode: str = "cinematic") -> dict:
+    """mode: cinematic (what an audience sees: pictures, bodies and sound; no labels, boxes or thought panels) or
+    debug (everything the engine knows written on screen, for development)."""
     cast = cast_of(packet)
     shots = []
     # a caption stays up over the coverage of its beat: until the next shot that has a caption of its own
@@ -100,6 +153,9 @@ def to_script(packet: ProductionPacket, *, series: str = "虛擬小鎮", tagline
         sense = s.thought_kind == "sense" and s.thought and s.thought_by in present
         prop = s.props[0].id if s.props else None
         path = PROP_PATH.get(s.event_type, ("hand:actor", "hand:actor") if prop else (None, None))
+        held = _held(s, prop)
+        if held is not None:  # the performance plan's continuity says who holds it, before and after
+            path = held
         caption = None
         if sense:  # through an animal's senses the words give way to what it feels
             caption = {"text": s.thought, "kind": "sense", "label": f"{cast[s.thought_by]['name']}的感覺",
@@ -127,11 +183,13 @@ def to_script(packet: ProductionPacket, *, series: str = "虛擬小鎮", tagline
             "stage": stage, "caption": caption, "thought": thought,
             "suspect": s.suspect_id or None, "thinker": s.thought_by or actor,
             "dialogue": s.dialogue, "cut": s.transition or "cut", "music": s.music,
+            "info": s.information_function, "step": s.grammar_step, "anchor": s.sound_anchor,
+            "prop_owner": _owner(packet, prop), "moment": s.moment,
         })
     first = packet.shots[0] if packet.shots else None
     return {
         "title": packet.episode.title, "series": series, "tagline": tagline, "badge": badge or [],
-        "title_seconds": packet.episode.title_seconds, "total": packet.qa.total_seconds, "debug": debug,
+        "title_seconds": packet.episode.title_seconds, "total": packet.qa.total_seconds, "debug": debug, "mode": mode,
         "leads": leads or ([c.id for c in first.characters if c.position != "background"][:2] if first else []),
         "cast": cast, "shots": shots,
     }

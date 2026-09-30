@@ -41,6 +41,7 @@
       <filter id="silhouette" x="-20%" y="-20%" width="140%" height="140%"><feColorMatrix type="matrix"
         values="0 0 0 0 0.07  0 0 0 0 0.05  0 0 0 0 0.09  0 0 0 0.92 0"/><feGaussianBlur stdDeviation="7"/></filter>
       <filter id="soft"><feGaussianBlur stdDeviation="14"/></filter>
+      <filter id="mindseye" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0.15"/><feGaussianBlur stdDeviation="2.5"/></filter>
       <radialGradient id="vig" cx="50%" cy="46%" r="70%"><stop offset="55%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".78"/></radialGradient>
       <radialGradient id="vigsoft" cx="50%" cy="46%" r="75%"><stop offset="65%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".45"/></radialGradient>
       </defs>`);
@@ -52,9 +53,39 @@
   }
   function heightOf(c, attention) { return (c.kind === "animal" ? ANIMAL_AT : PERSON_AT)[attention] || 240; }
 
+  // a person's PerformanceBeat on the 2D stage: where the eyes go, how the body leans, what the hands and face do
+  function perform(tl, F, s, a, shot, t0, t1, pos) {
+    const eyes = F.f.querySelector(".eyeset"), head = F.f.querySelector(".head"), body = F.f.querySelector(".body");
+    const tgt = pos[a.gaze_target], dir = tgt ? (tgt.x > s.x ? 1 : -1) : (s.look || 0);
+    if (a.gaze === "hold" || a.gaze === "follow") tl.set(eyes, { x: dir * 9 }, t0);
+    else if (a.gaze === "avoid") { tl.set(eyes, { x: -dir * 9, y: 4 }, t0); tl.set(eyes, { x: dir * 9, y: 0 }, t0 + shot.dur * 0.55);
+                                   tl.set(eyes, { x: -dir * 9, y: 4 }, t0 + shot.dur * 0.55 + 0.35); }
+    else if (a.gaze === "down") tl.set(eyes, { x: 0, y: 8 }, t0);
+    else if (a.gaze === "scan") for (let k = 0; k < 4; k++) tl.to(eyes, { x: k % 2 ? 9 : -9, duration: 0.3, ease: "sine.inOut" }, t0 + 0.2 + k * shot.dur / 5);
+    // the body: leaning in or back, pulled together when tense
+    tl.set(F.wrap.firstChild, { svgOrigin: "0 0", rotation: (a.lean || 0) * 4 * (dir || 1) }, t0);
+    if (a.tension > 0.5) tl.set(body, { svgOrigin: "0 0", scaleY: 0.975 }, t0);
+    for (const [m, at] of a.micro) {
+      const tm = t0 + shot.dur * at;
+      if (m === "glance_away") { tl.set(eyes, { x: -dir * 9 }, tm); tl.set(eyes, { x: dir * 9 }, tm + 0.5); }
+      if (m === "swallow") { tl.to(head, { y: 4, duration: 0.12 }, tm); tl.to(head, { y: 0, duration: 0.18 }, tm + 0.14); }
+      if (m === "jaw_clench") { tl.to(F.f.querySelectorAll(".brow"), { y: 5, duration: 0.15 }, tm); }
+      if (m === "look_around") { tl.to(head, { svgOrigin: "0 -262", rotation: -7, duration: 0.3 }, tm);
+                                 tl.to(head, { svgOrigin: "0 -262", rotation: 7, duration: 0.4 }, tm + 0.35);
+                                 tl.to(head, { svgOrigin: "0 -262", rotation: 0, duration: 0.3 }, tm + 0.8); }
+      if (m === "pat_pockets") for (let k = 0; k < 3; k++) {
+        window.CAST.express(tl, F.f, tm + k * 0.3, s.feel, k % 2 ? "down" : "hips"); }
+      if (m === "exhale") { tl.to(body, { y: 7, duration: 0.5, ease: "sine.out" }, tm); tl.to(body, { y: 0, duration: 0.6 }, tm + 0.55); }
+      if (m === "breath_fast") for (let k = 0; k < 6; k++) tl.to(body, { y: k % 2 ? 0 : -4, duration: 0.12 }, tm + k * 0.13);
+      if (m === "smile_break") window.CAST.express(tl, F.f, tm, "happy");
+      if (m === "touch_object") window.CAST.express(tl, F.f, tm, s.feel, "hold");
+    }
+  }
+
   function sceneShot(shot, tl, host, fgHost, ui, S) {
     const P = window.PLACES.place(shot.place, shot.time, shot.weather);
-    const t0 = shot.start, t1 = shot.start + shot.dur, ts = t0 + shot.dur * 0.45;
+    // the instant a thing changes hands comes from the World Runtime (contact), not from a guess
+    const t0 = shot.start, t1 = shot.start + shot.dur, ts = t0 + shot.dur * (shot.moment || 0.45);
     const shake = el("g"), g = el("g", { class: "shot" });
     window.gsap.set(g, { "--cs": 1, "--cx": 0, "--cy": 0 });
     g.innerHTML = P.svg;
@@ -69,7 +100,9 @@
     const order = shot.stage.slice().sort((a, b) => (b.back ? 1 : 0) - (a.back ? 1 : 0));
     for (const s of order) {
       const c = S.cast[s.who];
-      const s0 = s.back ? 0.62 : 1.0, y = s.back ? P.floorY - 150 : P.floorY;
+      // through an animal's eyes people are close and tower: legs, and faces far up out of sight
+      const tower = animalEyes && c.kind !== "animal";
+      const s0 = tower ? (s.back ? 1.5 : 2.6) : s.back ? 0.62 : 1.0, y = s.back && !tower ? P.floorY - 150 : P.floorY + (tower ? 60 : 0);
       pos[s.who] = { x: s.x, y, s: s0, c };
       if (hidden.has(s.who)) continue;
       const wrap = el("g", { transform: `translate(${s.x} ${y})` }), mover = el("g");
@@ -117,6 +150,19 @@
         if (prop1) tl.set(prop1.e, { opacity: 0 }, ts);
       }
     }
+    if (animalEyes) {  // what a dog notices first: smells, each in the colour of whose it is
+      const trails = [];
+      for (const [who, p] of Object.entries(pos)) if (p.c && p.c.kind !== "animal") trails.push([p.x, P.floorY - 40, S.cast[who].hue]);
+      const at = (prop0 || prop1) && (prop0 || prop1).at;
+      if (at && shot.prop_owner && S.cast[shot.prop_owner]) trails.push([at.x, at.y - 30, S.cast[shot.prop_owner].hue]);
+      trails.forEach(([x, y, hue], k) => {
+        const d = `M${x} ${y} C${x - 60} ${y - 120} ${x + 60} ${y - 220} ${x} ${y - 330} C${x - 50} ${y - 420} ${x + 40} ${y - 500} ${x + 10} ${y - 600}`;
+        const path = el("path", { d, fill: "none", stroke: window.CAST.hsl(hue, 70, 62), "stroke-width": 26, "stroke-linecap": "round",
+                                  "stroke-dasharray": "40 36", opacity: 0.42, filter: "url(#soft)" });
+        g.appendChild(path);
+        tl.fromTo(path, { attr: { "stroke-dashoffset": 0 } }, { attr: { "stroke-dashoffset": -380 }, duration: shot.dur, ease: "none", immediateRender: false }, t0);
+      });
+    }
     g.insertAdjacentHTML("beforeend", P.overlay);
     host.appendChild(shake);
 
@@ -125,14 +171,27 @@
       const F = figs[s.who];
       if (!F) continue;
       const feel = FEEL[s.feel] || s.feel || "neutral";
-      if (F.c.kind === "animal") {
+      const a = s.act;
+      if (F.c.kind === "animal" && a) {
+        window.ANIMALS.feel(tl, F.f, t0, feel);
+        window.ANIMALS.ears(tl, F.f, t0, a.ears);
+        window.ANIMALS.tail(tl, F.f, t0, t1, a.tail);
+        if (a.tilt) window.ANIMALS.tilt(tl, F.f, t0 + shot.dur * 0.3, -a.tilt);
+        for (const [m, at] of a.micro) {
+          const tm = t0 + shot.dur * at;
+          if (m === "sniff") window.ANIMALS.sniff(tl, F.f, tm);
+          if (m === "look_back") window.ANIMALS.lookBack(tl, F.f, tm);
+          if (m === "freeze") tl.set(F.f.querySelector(".tail path"), { rotation: 40 }, tm);
+        }
+      } else if (F.c.kind === "animal") {
         window.ANIMALS.feel(tl, F.f, t0, feel);
         window.ANIMALS.wag(tl, F.f, t0, t1, feel);
       } else {
         window.CAST.express(tl, F.f, t0, feel, s.pose || "down");
         if (s.pose2) window.CAST.express(tl, F.f, ts, FEEL[s.feel2] || s.feel2 || feel, s.pose2);
-        tl.set(F.f.querySelector(".eyeset"), { x: (s.look || 0) * 9 }, t0);
+        tl.set(F.f.querySelector(".eyeset"), { x: (s.look || 0) * 9, y: 0 }, t0);
         window.CAST.blinks(tl, F.f, t0, t1, s.who + shot.i);
+        if (a) perform(tl, F, s, a, shot, t0, t1, pos);
       }
       const cycles = Math.max(1, Math.floor(shot.dur / 2.4));
       tl.fromTo(F.f.querySelector(".body"), { y: 0 }, { y: -5, duration: 1.2, ease: "sine.inOut", yoyo: true, repeat: cycles * 2 - 1, immediateRender: false }, t0);
@@ -141,7 +200,7 @@
       if (s.walk_before) tl.fromTo(F.wrap, { x: 0 }, { x: s.walk_before, duration: ts - t0, ease: "power1.out", immediateRender: false }, t0);
     }
     // a belief on screen: the face of the one they suspect, in a thought bubble above them
-    if (shot.suspect && pos[shot.thinker] && S.cast[shot.suspect]) {
+    if (S.mode !== "cinematic" && shot.suspect && pos[shot.thinker] && S.cast[shot.suspect]) {
       const p = pos[shot.thinker], bx = clamp(p.x + 150, 200, 880), by = p.y - 640 * p.s;
       const bub = el("g", { transform: `translate(${bx} ${by})` });
       bub.innerHTML = `<circle cx="-110" cy="150" r="14" fill="#fff" opacity=".92"/><circle cx="-70" cy="104" r="22" fill="#fff" opacity=".92"/>
@@ -166,7 +225,7 @@
       fx = subj.x + (subj.c.kind === "animal" ? 60 : 0) * subj.s; fy = subj.y - heightOf(subj.c, shot.attention) * subj.s;
     } else if (shot.attention === "space" || !subj) { z = Math.min(z, 1.1); }
     if (shot.attention === "space") { fx = 540; fy = P.floorY - 300; z = Math.min(z, 1.1); }
-    if (shot.angle === "ground") { cy = 1300; fy = P.floorY - 70; z = Math.max(z, 1.45); }
+    if (shot.angle === "ground") { cy = 1300; fy = P.floorY - 70; z = animalEyes ? 1.2 : Math.max(z, 1.45); }
     else if (shot.angle === "high") { cy = 780; fy -= 30; }
     else if (shot.angle === "low") { cy = 1080; fy += 40; }
     const base = cam(z, fx, fy, cy);
@@ -174,6 +233,13 @@
     if (shot.motion === "push_in" || shot.motion === "slow_push_in") tl.fromTo(g, base, { ...cam(z * 1.22, fx, fy, cy), duration: shot.dur, ease: "none", immediateRender: false }, t0);
     else if (shot.motion === "pull_out") tl.fromTo(g, cam(z * 1.4, fx, fy, cy), { ...base, duration: shot.dur, ease: "power1.out", immediateRender: false }, t0);
     else if (shot.motion === "tracking") tl.fromTo(g, base, { ...cam(z, fx + 170, fy, cy), duration: shot.dur, ease: "none", immediateRender: false }, t0);
+    if (animalEyes) {  // attention jumps from one smell to the next, then back to the thing
+      const src = Object.values(pos).filter(p => p.c && p.c.kind !== "animal");
+      src.slice(0, 2).forEach((p, k) => {
+        tl.to(g, { ...cam(z * 1.1, p.x, fy, cy), duration: 0.22, ease: "power3.out" }, t0 + shot.dur * (0.3 + 0.25 * k));
+        tl.to(g, { ...base, duration: 0.3, ease: "power2.inOut" }, t0 + shot.dur * (0.3 + 0.25 * k) + 0.6);
+      });
+    }
     if (shot.motion === "handheld" || shot.motion === "tracking") {
       const n = Math.max(3, Math.floor(shot.dur / 0.42));
       for (let k = 0; k < n; k++) {
@@ -215,7 +281,21 @@
     }
 
     // -- words: the caption (or what the focalizer senses), a thought, muffled voices ------------------------------------
-    if (shot.caption) {
+    if (S.mode === "cinematic" && shot.suspect && S.cast[shot.suspect]) {  // a belief, as a picture in the mind
+      const flash = el("g");
+      flash.innerHTML = `<rect width="${W}" height="${H}" fill="#0c0a12" opacity=".78"/>`;
+      const face = el("g", { transform: "translate(540 1420) scale(2.3)", filter: "url(#mindseye)" });
+      const who = window.CAST.makeCharacter(shot.suspect, S.cast[shot.suspect].hue);
+      face.appendChild(who); flash.appendChild(face);
+      fgHost.appendChild(flash);
+      window.CAST.express(tl, who, t0, "smug", "crossed");
+      tl.set(flash, { opacity: 0 }, 0);
+      tl.to(flash, { opacity: 1, duration: 0.12 }, t0 + 0.55);
+      tl.to(flash, { opacity: 0, duration: 0.25 }, t0 + 1.25);
+    }
+    if (S.mode === "cinematic") {
+      // nothing written on screen: the pictures, the bodies and the sound carry it
+    } else if (shot.caption) {
       const sense = shot.caption.kind === "sense";
       const p = div("cap" + (sense ? " sense" : ""), "", ui);
       if (sense) div("tag", esc(shot.caption.label), p);
@@ -226,7 +306,7 @@
       tl.to(p, { opacity: 1, y: 0, duration: 0.2 }, t0 + 0.15);
       tl.to(p, { opacity: 0, duration: 0.2 }, shot.caption.until - 0.25);
     }
-    if (shot.thought) {
+    if (shot.thought && S.mode !== "cinematic") {
       const p = div("dlg thought", "", ui);
       const tag = div("tag", esc(shot.thought.label), p);
       tag.style.background = shot.thought.animal ? "#b9793f" : window.CAST.hsl(S.cast[shot.thought.who].hue, 58, 40);
@@ -235,8 +315,10 @@
       tl.to(p, { opacity: 1, duration: 0.25 }, t0 + 0.6);
       tl.to(p, { opacity: 0, duration: 0.2 }, t1 - 0.2);
     }
-    const h = div("hud", `<b>第 ${shot.stamp.day} 天 · ${shot.stamp.clock}</b><small>${esc(shot.stamp.placeName)}</small>`, ui);
-    tl.set(h, { opacity: 0 }, 0); tl.set(h, { opacity: 1 }, t0); tl.set(h, { opacity: 0 }, t1);
+    if (S.mode !== "cinematic") {
+      const h = div("hud", `<b>第 ${shot.stamp.day} 天 · ${shot.stamp.clock}</b><small>${esc(shot.stamp.placeName)}</small>`, ui);
+      tl.set(h, { opacity: 0 }, 0); tl.set(h, { opacity: 1 }, t0); tl.set(h, { opacity: 0 }, t1);
+    }
     if (S.debug) {
       const d = div("why", esc(`${shot.fn} · ${shot.scale} · ${shot.angle} · ${shot.relation} · ${shot.motion} — ${shot.note}`), ui);
       tl.set(d, { opacity: 0 }, 0); tl.set(d, { opacity: 1 }, t0); tl.set(d, { opacity: 0 }, t1);
@@ -274,7 +356,7 @@
       const fgHost = el("g"); scene.appendChild(fgHost);
       titleCard(S, tl, world, ui);
       S.shots.forEach((shot, i) => { shot.i = i; sceneShot(shot, tl, world, fgHost, ui, S); });
-      if (S.badge) { const b = div("badge", S.badge.map(esc).join("<br>"), ui); tl.set(b, { opacity: 0 }, 0); tl.set(b, { opacity: 1 }, S.title_seconds); }
+      if (S.badge && S.mode !== "cinematic") { const b = div("badge", S.badge.map(esc).join("<br>"), ui); tl.set(b, { opacity: 0 }, 0); tl.set(b, { opacity: 1 }, S.title_seconds); }
       const fade = document.getElementById("fade");
       tl.set(fade, { opacity: 1 }, 0);
       tl.to(fade, { opacity: 0, duration: 0.5 }, 0.01);

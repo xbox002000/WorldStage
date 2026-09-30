@@ -1,5 +1,29 @@
 {
   "$defs": {
+    "AnimalBody": {
+      "additionalProperties": false,
+      "properties": {
+        "ears": {
+          "type": "string"
+        },
+        "head_tilt": {
+          "type": "number"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "tail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ears",
+        "tail",
+        "head_tilt",
+        "pace"
+      ],
+      "type": "object"
+    },
     "AudioCue": {
       "additionalProperties": false,
       "properties": {
@@ -41,6 +65,34 @@
       ],
       "type": "object"
     },
+    "BodyState": {
+      "additionalProperties": false,
+      "properties": {
+        "emotion": {
+          "type": "string"
+        },
+        "gaze": {
+          "type": "string"
+        },
+        "gesture": {
+          "type": "string"
+        },
+        "hand": {
+          "type": "string"
+        },
+        "holding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "holding",
+        "hand",
+        "gesture",
+        "gaze",
+        "emotion"
+      ],
+      "type": "object"
+    },
     "Camera": {
       "additionalProperties": false,
       "properties": {
@@ -78,6 +130,26 @@
         "width",
         "height",
         "fps"
+      ],
+      "type": "object"
+    },
+    "Cause": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "weight"
       ],
       "type": "object"
     },
@@ -155,6 +227,29 @@
       ],
       "type": "object"
     },
+    "Drive": {
+      "additionalProperties": false,
+      "properties": {
+        "causes": {
+          "items": {
+            "$ref": "#/$defs/Cause"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "causes"
+      ],
+      "type": "object"
+    },
     "Episode": {
       "additionalProperties": false,
       "properties": {
@@ -180,6 +275,69 @@
         "hook",
         "title_seconds",
         "end_seconds"
+      ],
+      "type": "object"
+    },
+    "Face": {
+      "additionalProperties": false,
+      "properties": {
+        "brows": {
+          "type": "string"
+        },
+        "eyes": {
+          "type": "string"
+        },
+        "jaw": {
+          "type": "string"
+        },
+        "mouth": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "brows",
+        "jaw",
+        "mouth",
+        "eyes"
+      ],
+      "type": "object"
+    },
+    "Gaze": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "seconds": {
+          "type": "number"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "mode",
+        "seconds"
+      ],
+      "type": "object"
+    },
+    "Hands": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "holding": {
+          "type": "string"
+        },
+        "tension": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "action",
+        "tension"
       ],
       "type": "object"
     },
@@ -215,6 +373,138 @@
       ],
       "type": "object"
     },
+    "MicroAction": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "at"
+      ],
+      "type": "object"
+    },
+    "PerformanceBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "type": "string"
+        },
+        "after": {
+          "$ref": "#/$defs/BodyState"
+        },
+        "animal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnimalBody"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before": {
+          "$ref": "#/$defs/BodyState"
+        },
+        "changes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "drives": {
+          "items": {
+            "$ref": "#/$defs/Drive"
+          },
+          "type": "array"
+        },
+        "face": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Face"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gaze": {
+          "$ref": "#/$defs/Gaze"
+        },
+        "hands": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Hands"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intensity": {
+          "type": "number"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "micro": {
+          "items": {
+            "$ref": "#/$defs/MicroAction"
+          },
+          "type": "array"
+        },
+        "movement": {
+          "type": "string"
+        },
+        "posture": {
+          "$ref": "#/$defs/Posture"
+        },
+        "primary": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "shot_index": {
+          "type": "integer"
+        },
+        "speech": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Speech"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "shot_index",
+        "actor",
+        "profile",
+        "intent",
+        "primary",
+        "intensity",
+        "drives",
+        "gaze",
+        "posture",
+        "hands",
+        "face",
+        "animal",
+        "micro",
+        "movement",
+        "speech",
+        "before",
+        "after"
+      ],
+      "type": "object"
+    },
     "Place": {
       "additionalProperties": false,
       "properties": {
@@ -236,6 +526,26 @@
         "name",
         "x",
         "y"
+      ],
+      "type": "object"
+    },
+    "Posture": {
+      "additionalProperties": false,
+      "properties": {
+        "lean": {
+          "type": "number"
+        },
+        "openness": {
+          "type": "number"
+        },
+        "tension": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tension",
+        "openness",
+        "lean"
       ],
       "type": "object"
     },
@@ -266,8 +576,14 @@
         "packet_hash": {
           "type": "string"
         },
+        "performance_hash": {
+          "type": "string"
+        },
         "qa": {
           "$ref": "#/$defs/QARequirements"
+        },
+        "runtime_hash": {
+          "type": "string"
         },
         "scene_hash": {
           "type": "string"
@@ -362,6 +678,46 @@
       ],
       "type": "object"
     },
+    "RuntimeInteraction": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "actor": {
+          "type": "string"
+        },
+        "complete": {
+          "type": "number"
+        },
+        "contact": {
+          "type": "number"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "hand": {
+          "type": "string"
+        },
+        "start": {
+          "type": "number"
+        },
+        "target": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id",
+        "actor",
+        "action",
+        "target",
+        "start",
+        "contact",
+        "complete",
+        "hand"
+      ],
+      "type": "object"
+    },
     "Shot": {
       "additionalProperties": false,
       "properties": {
@@ -432,8 +788,20 @@
         "function": {
           "type": "string"
         },
+        "grammar_step": {
+          "type": "string"
+        },
+        "information_function": {
+          "type": "string"
+        },
         "intent": {
           "type": "string"
+        },
+        "interactions": {
+          "items": {
+            "$ref": "#/$defs/RuntimeInteraction"
+          },
+          "type": "array"
         },
         "lighting": {
           "$ref": "#/$defs/Lighting"
@@ -441,8 +809,20 @@
         "location": {
           "$ref": "#/$defs/Place"
         },
+        "moment": {
+          "type": "number"
+        },
         "music": {
           "type": "string"
+        },
+        "performance_focus": {
+          "type": "string"
+        },
+        "performances": {
+          "items": {
+            "$ref": "#/$defs/PerformanceBeat"
+          },
+          "type": "array"
         },
         "props": {
           "items": {
@@ -463,6 +843,9 @@
           "type": "string"
         },
         "shot_id": {
+          "type": "string"
+        },
+        "sound_anchor": {
           "type": "string"
         },
         "spatial_camera": {
@@ -562,6 +945,26 @@
         "position",
         "action",
         "emotion"
+      ],
+      "type": "object"
+    },
+    "Speech": {
+      "additionalProperties": false,
+      "properties": {
+        "delivery": {
+          "type": "string"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "pause_before": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "delivery",
+        "pace",
+        "pause_before"
       ],
       "type": "object"
     },

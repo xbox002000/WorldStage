@@ -1,5 +1,66 @@
 {
   "$defs": {
+    "AttentionMark": {
+      "additionalProperties": false,
+      "properties": {
+        "hidden": {
+          "type": "string"
+        },
+        "primary": {
+          "type": "string"
+        },
+        "secondary": {
+          "type": "string"
+        },
+        "shot_index": {
+          "type": "integer"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shot_index",
+        "primary",
+        "secondary",
+        "hidden",
+        "why"
+      ],
+      "type": "object"
+    },
+    "AttentionPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "marks": {
+          "items": {
+            "$ref": "#/$defs/AttentionMark"
+          },
+          "type": "array"
+        },
+        "reveal_how": {
+          "type": "string"
+        },
+        "reveal_shot": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reveal_subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "marks",
+        "reveal_shot",
+        "reveal_how"
+      ],
+      "type": "object"
+    },
     "AudienceKnowledgePlan": {
       "additionalProperties": false,
       "properties": {
@@ -89,6 +150,12 @@
             "contrast",
             "observe"
           ]
+        },
+        "grammar_step": {
+          "type": "string"
+        },
+        "information_function": {
+          "type": "string"
         },
         "motion": {
           "enum": [
@@ -205,6 +272,16 @@
     "DirectorPlan": {
       "additionalProperties": false,
       "properties": {
+        "attention": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AttentionPlan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "beats": {
           "items": {
             "$ref": "#/$defs/DramaticBeat"
@@ -231,6 +308,9 @@
             "type": "string"
           },
           "type": "object"
+        },
+        "grammar": {
+          "type": "string"
         },
         "knowledge": {
           "$ref": "#/$defs/AudienceKnowledgePlan"

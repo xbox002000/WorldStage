@@ -5,7 +5,7 @@
     python director_reality.py --only dog_irony_subjective
 
 The world is built once from the benchmark's seed (no model, $0). The story is one stretch of one thread. Each variant
-forces some of the director's choices (whose eyes, what the audience knows, the camera grammar) and leaves the rest to
+forces some of the director's choices (whose eyes, what the audience knows, the camera style, the edit) and leaves the rest to
 the director. Nothing about the scene changes: every variant must have the same scene hash. Writes, per variant,
 out/reality/<id>/{director_plan,packet,script}.json, episode.mp4 and sheet.png, then comparison.mp4 (the main three
 side by side), comparison.png and results.json.
@@ -25,7 +25,9 @@ from narrative.direction import plan_direction
 from narrative.scene_spec import build_scene_specs
 from narrative.selector import Candidate
 from narrative.threads import derive_threads
+from narrative.performance import continuity_breaks, plan_performance, uncaused
 from production.viewing import viewing_profile
+from world.snapshot import snapshot_hash
 from world.db import connect, init_db
 from world.seed import build_world
 from world.simulation import Simulation
@@ -97,6 +99,52 @@ def _seconds(v: Path) -> float:
     return int(h) * 3600 + int(m) * 60 + float(s)
 
 
+def signature(plan, performance, packet) -> dict:
+    """What each axis of a variant looks like, for comparing variants axis by axis."""
+    shots = packet.shots
+    beat_of = {x.shot_index: x.beat_index for x in plan.shots}
+    return {
+        "performance": [(pb.shot_index, pb.actor, pb.primary, pb.gaze.mode, pb.hands.action if pb.hands else "",
+                         pb.face.jaw if pb.face else "", tuple(m.name for m in pb.micro)) for pb in performance.beats],
+        "acting": sorted({(pb.actor, pb.primary, pb.gaze.mode, tuple(m.name for m in pb.micro))
+                          for pb in performance.beats}),
+        "camera": [(s.scale, s.angle, s.relation, s.camera.movement) for s in shots],
+        "edit": [(s.function, round(s.start_seconds, 2), s.duration_seconds) for s in shots],
+        "first_turn": next((round(s.start_seconds, 2) for s in shots if s.function in ("reveal", "payoff")), None),
+        "sound": [(s.music, s.dialogue, s.sound_anchor) for s in shots],
+        "information": [s.information_function for s in shots],
+        "acting_by_beat": {f"{beat_of[pb.shot_index]}:{pb.actor}": [pb.primary, pb.intent, pb.gaze.mode,
+                                                                     [m.name for m in pb.micro]]
+                           for pb in performance.beats},
+    }
+
+
+def checks(bench: dict, sig: dict, results: dict) -> dict:
+    """The architecture questions, answered from the packets (not from how pretty the video is)."""
+    out = {}
+    for name, rule in bench.get("checks", {}).items():
+        ids = [i for i in rule["variants"] if i in sig]
+        if len(ids) < 2:
+            continue
+        axis, same = rule["differs"], rule.get("same", [])
+        differs = len({json.dumps(sig[i][axis], ensure_ascii=False) for i in ids}) == len(ids)
+        kept = all(len({json.dumps(sig[i][k], ensure_ascii=False) for i in ids}) == 1 for k in same)
+        out[name] = (differs and kept, f"{axis} differs across {ids}: {differs}; unchanged {same}: {kept}")
+    info = [results["variants"][i]["audience_witnesses_culprit_act"] for i in bench.get("main", []) if i in results["variants"]]
+    if info:
+        out["focalization_changes_what_the_audience_can_know"] = (len(set(info)) > 1, f"witnesses the act: {info}")
+    shared = [i for i in bench.get("main", []) if i in sig]
+    if len(shared) > 1:  # POV invariance: the same person in the same beat acts the same, whoever's eyes we are in
+        keys = set.intersection(*(set(sig[i]["acting_by_beat"]) for i in shared))
+        same = all(len({json.dumps(sig[i]["acting_by_beat"][k]) for i in shared}) == 1 for k in keys)
+        out["whose_eyes_does_not_change_how_people_act"] = (same and bool(keys), f"{len(keys)} shared (beat, person)")
+    out["world_hash_unchanged"] = (results["world_hash_before"] == results["world_hash_after"],
+                                   results["world_hash_after"][:19])
+    breaks = {i: v["breaks"] for i, v in results["variants"].items() if v["breaks"]}
+    out["performance_continuous_and_caused"] = (not breaks, json.dumps(breaks, ensure_ascii=False)[:200] or "none")
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--bench", default="benchmarks/director_reality_v1.json")
@@ -113,30 +161,40 @@ def main() -> None:
     results = {"benchmark": bench["id"], "scene_hash": spec.scene_hash, "thread": thread.thread_id,
                "question": thread.central_question, "beats": [f"{b.day}/{b.clock} {b.event_type}" for b in spec.beats],
                "culprits": sorted(culprits), "variants": {}}
-    packets = {}
+    packets, signatures = {}, {}
+    world_hash = snapshot_hash(conn)
+    from runtime.world_runtime import WorldRuntime
+    trace = WorldRuntime(conn).trace([b.event_id for b in spec.beats])
     for v in bench["variants"]:
         if args.only and v["id"] not in args.only.split(","):
             continue
         plan = plan_direction(conn, spec, thread, focalizer=v.get("focalizer"), strategy=v.get("strategy"),
-                              grammar=v.get("grammar"))
-        packet = compile_packet(spec, direction=plan)
+                              camera=v.get("camera"), edit=v.get("edit"))
+        performance = plan_performance(conn, spec, plan, v.get("counterfactual"))
+        packet = compile_packet(spec, direction=plan, performance=performance, runtime=trace)
         packets[packet.packet_hash] = packet
         d = out / v["id"]
         d.mkdir(exist_ok=True)
         (d / "director_plan.json").write_text(json.dumps(asdict(plan), ensure_ascii=False, indent=1), encoding="utf-8")
         (d / "packet.json").write_text(json.dumps(asdict(packet), ensure_ascii=False, indent=1), encoding="utf-8")
+        (d / "performance_plan.json").write_text(json.dumps(asdict(performance), ensure_ascii=False, indent=1),
+                                                 encoding="utf-8")
         profile = viewing_profile(packet, culprits, payoff)
+        profile["breaks"] = continuity_breaks(performance) + uncaused(performance)
+        signatures[v["id"]] = signature(plan, performance, packet)
         results["variants"][v["id"]] = {"forced": plan.forced, "strategy": plan.knowledge.strategy,
                                         "focalizer": plan.focalization.focalizer, "goal": plan.dramatic_goal,
-                                        "scene_hash": plan.scene_hash, **profile}
+                                        "scene_hash": plan.scene_hash, "grammar": plan.grammar,
+                                        "controlled_release": plan.attention.reveal_how if plan.attention else "",
+                                        "acting": [list(a) for a in signatures[v["id"]]["acting"]], **profile}
         print(f"{v['id']:24} shots {profile['shots']:2}  {profile['seconds']:3}s  height {profile['camera_height_m']}m  "
               f"subjective {profile['subjective_share']:.2f}  words {profile['words_audible_share']:.2f}  "
               f"culprit seen {profile['audience_witnesses_culprit_act']}", flush=True)
-        if not args.no_render:
+        if not args.no_render and v.get("render", True):
             from render.cast.packet_script import to_script
             from render.cast_backend import CastBackend
             options = {"series": "虛擬小鎮 · 導演實境測試", "tagline": " / ".join(v.get("badge", [])),
-                       "badge": v.get("badge", []), "debug": args.debug}
+                       "badge": v.get("badge", []), "debug": args.debug, "mode": bench.get("mode", "cinematic")}
             (d / "script.json").write_text(json.dumps(to_script(packet, **options), ensure_ascii=False, indent=1),
                                            encoding="utf-8")
             backend = CastBackend(packets.__getitem__, workdir=out / "projects", script_options=options)
@@ -147,6 +205,10 @@ def main() -> None:
             mp4.write_bytes(Path(take.artifact_path).read_bytes())
             frames(mp4, packet, d / "sheet.png")
     assert len({r["scene_hash"] for r in results["variants"].values()}) <= 1, "a variant changed the scene"
+    results["world_hash_before"], results["world_hash_after"] = world_hash, snapshot_hash(conn)
+    results["checks"] = checks(bench, signatures, results)
+    for name, (ok, why) in results["checks"].items():
+        print(f"{'PASS' if ok else 'FAIL'}  {name}: {why}")
     (out / "results.json").write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
     main_ids = [m for m in bench.get("main", []) if (out / m / "episode.mp4").exists()]
     if not args.no_render and len(main_ids) > 1:

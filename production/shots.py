@@ -63,11 +63,27 @@ def base_seed(packet: ProductionPacket, shot: Shot) -> int:
     return int.from_bytes(hashlib.sha256(f"{packet.packet_hash}:{shot.shot_id}".encode()).digest()[:4], "big") % 2 ** 31
 
 
+def performing(pb) -> str:
+    """One body's performance in plain words (from the PerformancePlan, not invented here)."""
+    parts = [f"{pb.actor}: {pb.primary.replace('_', ' ')} ({pb.intent.replace('_', ' ')})",
+             f"gaze {pb.gaze.mode}" + (f" at {pb.gaze.target}" if pb.gaze.target else "")]
+    if pb.hands is not None and pb.hands.action != "idle":
+        parts.append(f"hands {pb.hands.action}")
+    if pb.face is not None:
+        parts.append(f"brows {pb.face.brows}, jaw {pb.face.jaw}, mouth {pb.face.mouth}")
+    if pb.animal is not None:
+        parts.append(f"ears {pb.animal.ears}, tail {pb.animal.tail}")
+    if pb.micro:
+        parts.append("then " + ", ".join(m.name.replace("_", " ") for m in pb.micro))
+    return "; ".join(parts)
+
+
 def describe(shot: Shot) -> str:
     """A plain, backend-neutral description. Providers build their own prompt format from the ShotRequest."""
     who = ", ".join(f"{c.name} ({c.action}, {c.emotion})" for c in shot.characters)
+    acting = " ".join(performing(pb) + "." for pb in shot.performances)
     return (f"{shot.camera.shot_type} shot, {shot.camera.movement}. {shot.location.name}, {shot.lighting.time_of_day}, "
-            f"{shot.lighting.weather}. {who}. {shot.action}.")
+            f"{shot.lighting.weather}. {who}. {shot.action}." + (f" {acting}" if acting else ""))
 
 
 def _camera_index(plan: SpatialPlan, shot: Shot) -> tuple[int, int] | None:
@@ -124,7 +140,8 @@ def render_shot(conn: sqlite3.Connection, packet: ProductionPacket, shot: Shot, 
                            packet.canvas.height, packet.canvas.fps, seed, subject=shot.subject, action=shot.action,
                            environment=shot.environment, camera=f"{shot.camera.shot_type}/{shot.camera.movement}",
                            controls={k: str(p) for k, p in controls.items() if k in ("depth", "mask")},
-                           reference_asset_ids=sorted(c.asset_id for c in shot.characters))
+                           reference_asset_ids=sorted(c.asset_id for c in shot.characters),
+                           performance=[dataclasses.asdict(pb) for pb in shot.performances])
     while outcome.attempts < max_attempts and which < len(providers):
         provider = providers[which]
         outcome.attempts += 1

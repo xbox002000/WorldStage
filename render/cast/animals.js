@@ -57,5 +57,34 @@
     for (let i = 0; i < n; i++) tl.to(tail, { svgOrigin: "0 0", rotation: i % 2 ? -amp : amp, duration: period, ease: "sine.inOut" }, t0 + i * period);
   }
 
-  window.ANIMALS = { makeAnimal, feel, wag, HEIGHT: 190, EYE: 160, MOUTH: [146, -118] };
+  // performance channels (PerformancePlan): ears, tail, head tilt, sniffing, looking back
+  function ears(tl, g, t, mode) {
+    tl.set(g.querySelector(".ear-up"), { opacity: mode === "up" ? 1 : 0 }, t);
+    tl.set(g.querySelector(".ear-down"), { opacity: mode === "up" ? 0 : 1 }, t);
+    tl.set(g.querySelector(".ear-down"), { svgOrigin: "70 -180", rotation: mode === "back" ? -35 : 0 }, t);
+  }
+  function tail(tl, g, t0, t1, mode) {
+    const path = g.querySelector(".tail path");
+    if (mode === "wag") return wag(tl, g, t0, t1, "happy");
+    const rot = { high: -28, low: 48, still: 0, neutral: 0 }[mode] || 0;
+    tl.set(path, { svgOrigin: "0 0", rotation: rot }, t0);
+    if (mode !== "still" && mode !== "low") wag(tl, g, t0, t1, "calm");
+  }
+  function tilt(tl, g, t, deg) {
+    tl.to(g.querySelector(".head"), { svgOrigin: "92 -150", rotation: deg, duration: 0.3, ease: "power2.out" }, t);
+  }
+  function sniff(tl, g, t) {
+    const head = g.querySelector(".head");
+    for (let k = 0; k < 3; k++) {
+      tl.to(head, { y: 10, duration: 0.09, ease: "sine.inOut" }, t + k * 0.2);
+      tl.to(head, { y: 0, duration: 0.09, ease: "sine.inOut" }, t + k * 0.2 + 0.1);
+    }
+  }
+  function lookBack(tl, g, t) {
+    const head = g.querySelector(".head");
+    tl.to(head, { svgOrigin: "60 -150", scaleX: -1, duration: 0.15 }, t);
+    tl.to(head, { svgOrigin: "60 -150", scaleX: 1, duration: 0.15 }, t + 0.7);
+  }
+
+  window.ANIMALS = { makeAnimal, feel, wag, ears, tail, tilt, sniff, lookBack, HEIGHT: 190, EYE: 160, MOUTH: [146, -118] };
 })();

@@ -275,10 +275,12 @@ class MigrationTests(unittest.TestCase):
         data = json.loads((FIXTURES / "legacy_packet_v1.json").read_text(encoding="utf-8"))
         self.assertEqual(data["version"], 1)
         migrated = from_dict(ProductionPacket, migrate_packet(data))
-        self.assertEqual(migrated.version, 4)
+        from contracts.packet import PACKET_VERSION
+        self.assertEqual(migrated.version, PACKET_VERSION)
         self.assertEqual(migrated.direction_hash, "")
         self.assertTrue(all(s.function == "" and s.dialogue == "full" for s in migrated.shots))
         self.assertTrue(all(s.scale == "" and s.subject_id == "" and s.transition == "" for s in migrated.shots))
+        self.assertTrue(all(s.performances == [] and s.information_function == "" for s in migrated.shots))
         self.assertEqual(len(migrated.shots), len(data["shots"]))
         self.assertEqual(migrated.packet_hash, "")  # a migrated document is new: it gets stamped when re-finalised
 

@@ -1,0 +1,40 @@
+{
+  "id": "director_reality_v2",
+  "question": "同一個世界真相：表演、觀點、鏡頭、剪輯、聲音，各自真的改變了觀眾經歷的東西嗎？",
+  "world": {"seed": 260934, "days": 20, "feed": "synthetic_v1", "recipe": "town_v1"},
+  "story": {"thread": "item:wallet_ming", "around": "first_animal_take"},
+  "mode": "cinematic",
+  "main": ["A_ming_pov", "B_dog_pov", "C_omniscient"],
+  "variants": [
+    {"id": "A_ming_pov", "focalizer": "ming", "strategy": "mystery", "tagline": "阿明的視角：觀眾不知道是誰",
+     "badge": ["A · 阿明的視角"]},
+    {"id": "B_dog_pov", "focalizer": "dog", "strategy": "irony", "camera": "subjective",
+     "badge": ["B · 小狗的視角"]},
+    {"id": "C_omniscient", "focalizer": "omniscient", "strategy": "irony", "badge": ["C · 旁觀全知"]},
+
+    {"id": "perf_trusting", "focalizer": "ming", "strategy": "mystery", "camera": "push_in", "render": false,
+     "counterfactual": {"ming": {"trust:kai": 0.6, "affection:kai": 0.4, "suspects:kai": 0.0, "psy.vigilance": 0.1, "emotion": "calm"}}},
+    {"id": "perf_fearful", "focalizer": "ming", "strategy": "mystery", "camera": "push_in", "render": false,
+     "counterfactual": {"ming": {"fear:kai": 0.8, "psy.vigilance": 0.8, "emotion": "afraid"}}},
+    {"id": "perf_resentful", "focalizer": "ming", "strategy": "mystery", "camera": "push_in", "render": false,
+     "counterfactual": {"ming": {"trust:kai": -0.7, "rivalry:kai": 0.6, "psy.aggression": 0.2, "emotion": "angry"}}},
+
+    {"id": "cam_observational", "focalizer": "ming", "strategy": "irony", "camera": "observational", "render": false},
+    {"id": "cam_push_in", "focalizer": "ming", "strategy": "irony", "camera": "push_in", "render": false},
+    {"id": "cam_reaction", "focalizer": "ming", "strategy": "irony", "camera": "reaction", "render": false},
+    {"id": "cam_subjective", "focalizer": "ming", "strategy": "irony", "camera": "subjective", "render": false},
+
+    {"id": "edit_tight", "focalizer": "ming", "strategy": "irony", "edit": "tight", "render": false},
+    {"id": "edit_hold", "focalizer": "ming", "strategy": "irony", "edit": "hold", "render": false},
+    {"id": "edit_reaction_first", "focalizer": "ming", "strategy": "irony", "edit": "reaction_first", "render": false}
+  ],
+  "checks": {
+    "performance_changes_with_character_state": {"variants": ["perf_trusting", "perf_fearful", "perf_resentful"],
+                                                  "differs": "acting", "same": ["camera", "edit"]},
+    "camera_changes_framing_not_acting": {"variants": ["cam_observational", "cam_push_in", "cam_reaction", "cam_subjective"],
+                                          "differs": "camera", "same": ["acting"]},
+    "edit_changes_timing_not_acting": {"variants": ["edit_tight", "edit_hold", "edit_reaction_first"],
+                                       "differs": "edit", "same": ["acting"]},
+    "sound_changes_with_the_telling": {"variants": ["A_ming_pov", "B_dog_pov", "C_omniscient"], "differs": "sound"}
+  }
+}

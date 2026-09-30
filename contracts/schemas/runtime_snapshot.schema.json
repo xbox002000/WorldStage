@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "RuntimeSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "attached": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "holders": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "revision": {
+          "type": "integer"
+        },
+        "ruleset_hash": {
+          "type": "string"
+        },
+        "state_hash": {
+          "type": "string"
+        },
+        "transforms": {
+          "items": {
+            "$ref": "#/$defs/RuntimeTransform"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        },
+        "world_time": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "revision",
+        "world_time",
+        "ruleset_hash",
+        "transforms",
+        "holders",
+        "attached"
+      ],
+      "type": "object"
+    },
+    "RuntimeTransform": {
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "pose": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "yaw": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "entity",
+        "place",
+        "x",
+        "y",
+        "yaw",
+        "pose"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/RuntimeSnapshot",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

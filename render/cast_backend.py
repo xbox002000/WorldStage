@@ -35,8 +35,8 @@ class CastBackend(HyperFramesBackend):
         req = super().make_request(packet, clips=clips, quality=quality, seed=seed)
         from contracts.render_request import make_request
         assets = dict(req.asset_hashes)
-        for f in DIRECTED_JS + ("style.css",):
-            assets[f"cast/{f}"] = file_hash(HERE / f)
+        for f in DIRECTED_JS + ("style.css", "packet_script.py", "cast_html.py"):
+            assets[f"cast/{f}"] = file_hash(HERE / f)  # the script builder decides the picture too
         params = {**req.parameters, **{f"script.{k}": str(v) for k, v in sorted(self.script_options.items())}}
         return make_request(kind=req.kind, backend=self.name, backend_version=req.backend_version, parameters=params,
                             packet_hash=req.packet_hash, seed=req.seed, asset_hashes=assets, toolchain=req.toolchain)

@@ -49,9 +49,9 @@ class RealityTests(unittest.TestCase):
     def setUpClass(cls):
         cls.c, cls.thread, cls.spec = dog_story()
         cls.plans = {k: plan_direction(cls.c, cls.spec, cls.thread, **kw) for k, kw in {
-            "mystery": dict(focalizer="ming", strategy="mystery", grammar="observational"),
-            "dog": dict(focalizer="dog", strategy="irony", grammar="subjective"),
-            "reaction": dict(focalizer="ming", strategy="irony", grammar="reaction"),
+            "mystery": dict(focalizer="ming", strategy="mystery", camera="observational"),
+            "dog": dict(focalizer="dog", strategy="irony", camera="subjective"),
+            "reaction": dict(focalizer="ming", strategy="irony", camera="reaction"),
             "auto": {}}.items()}
         cls.packets = {k: compile_packet(cls.spec, direction=p) for k, p in cls.plans.items()}
         cls.views = {k: viewing_profile(p, {"dog"}) for k, p in cls.packets.items()}
@@ -59,7 +59,7 @@ class RealityTests(unittest.TestCase):
     def test_the_scene_and_its_truth_never_change(self):
         self.assertEqual({p.scene_hash for p in self.plans.values()}, {self.spec.scene_hash})
         self.assertEqual({p.scene_hash for p in self.packets.values()}, {self.spec.scene_hash})
-        self.assertEqual(self.plans["dog"].forced, {"focalizer": "dog", "strategy": "irony", "grammar": "subjective"})
+        self.assertEqual(self.plans["dog"].forced, {"focalizer": "dog", "strategy": "irony", "camera": "subjective"})
         self.assertEqual(self.plans["auto"].forced, {})
 
     def test_a_mystery_never_shows_or_names_the_culprit(self):
@@ -78,7 +78,7 @@ class RealityTests(unittest.TestCase):
         self.assertTrue(any(":sense:" in i for i in dog["inner"]))  # a percept, not a sentence about who did what
         self.assertNotIn("dog", [w for s in self.packets["dog"].shots if s.relation == "subjective" for w in on_screen(s)])
 
-    def test_camera_grammars_are_different_ways_of_watching(self):
+    def test_camera_styles_are_different_ways_of_watching(self):
         mystery, reaction = self.views["mystery"], self.views["reaction"]
         self.assertEqual(mystery["moving_share"], 0.0)  # observational: nothing moves
         self.assertGreater(reaction["reaction_shots"], mystery["reaction_shots"])
@@ -97,6 +97,26 @@ class RealityTests(unittest.TestCase):
         dog = to_script(self.packets["dog"])
         self.assertTrue(any(s["angle"] == "ground" and s["relation"] == "subjective" for s in dog["shots"]))
         self.assertTrue(any(s["caption"] and s["caption"]["kind"] == "sense" for s in dog["shots"]))
+
+    def test_a_grammar_orders_what_the_audience_learns_and_a_mystery_lets_it_in_once(self):
+        m = self.plans["mystery"]
+        self.assertEqual(m.grammar, "conceal_reaction_reveal")
+        self.assertTrue(all(s.information_function for s in m.shots))
+        self.assertIn("withholds", [s.information_function for s in m.shots])
+        self.assertEqual(self.plans["dog"].grammar, "pov_insert_reaction_silence_reveal")
+
+    def test_edits_change_time_not_content(self):
+        base = plan_direction(self.c, self.spec, self.thread, focalizer="ming", strategy="irony")
+        tight = plan_direction(self.c, self.spec, self.thread, focalizer="ming", strategy="irony", edit="tight")
+        first = plan_direction(self.c, self.spec, self.thread, focalizer="ming", strategy="irony", edit="reaction_first")
+        self.assertLess(sum(s.seconds for s in tight.shots), sum(s.seconds for s in base.shots))
+        self.assertEqual(sorted(s.function for s in first.shots), sorted(s.function for s in base.shots))
+        self.assertEqual(tight.forced, {"focalizer": "ming", "strategy": "irony", "edit": "tight"})
+
+    def test_clean_render_writes_nothing_on_screen(self):
+        script = to_script(self.packets["dog"], badge=["x"])
+        self.assertEqual(script["mode"], "cinematic")
+        self.assertEqual(to_script(self.packets["dog"], mode="debug")["mode"], "debug")
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_the_cartoon_code_parses(self):

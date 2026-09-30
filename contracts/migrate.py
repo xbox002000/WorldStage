@@ -48,6 +48,16 @@ def migrate_packet(data: dict) -> dict:
                         "transition"):
                 shot.setdefault(key, "")
         data["version"] = 4
+    if data.get("version") == 4:  # v4 -> v5: information function, grammar step, performance, sound anchor
+        for shot in data["shots"]:
+            for key in ("information_function", "grammar_step", "performance_focus", "sound_anchor"):
+                shot.setdefault(key, "")
+            shot.setdefault("performances", [])
+            shot.setdefault("interactions", [])
+            shot.setdefault("moment", 0.45)
+        data.setdefault("performance_hash", "")
+        data.setdefault("runtime_hash", "")
+        data["version"] = 5
     if data.get("version") != PACKET_VERSION:
         raise ValueError(f"cannot migrate packet version {data.get('version')}")
     data["packet_hash"] = ""

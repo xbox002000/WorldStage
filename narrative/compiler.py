@@ -16,7 +16,7 @@ from narrative.audio_plan import compile_audio_plan, compile_directed_audio
 from narrative.color import avatar_color
 from world.ruleset import ROOT, file_hash
 
-COMPILER_VERSION = "1.3.0"
+COMPILER_VERSION = "1.4.0"
 COMPILER_FILES = ("narrative/compiler.py", "narrative/audio_plan.py", "narrative/color.py", "contracts/packet.py",
                   "contracts/stylepack.py", "narrative/direction.py", "contracts/director.py")
 
@@ -224,7 +224,42 @@ def _role_id(beat: Beat, role: str) -> str:
     return next((p.id for p in beat.participants if p.role == role), "")
 
 
-def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[str, str], start: float) -> list[Shot]:
+def _focus(cs, perfs) -> str:
+    """Which body and which part of it the shot watches."""
+    pb = next((p for p in perfs if p.actor == cs.subject), None)
+    if pb is None:
+        return ""
+    if pb.profile != "human":
+        return f"{pb.actor}:{'ears' if cs.scale in ('MCU', 'CU') else 'body'}"
+    part = {"eyes": "eyes", "face": "face", "hands": "hands", "object": "hands"}.get(cs.attention, "body")
+    return f"{pb.actor}:{part}"
+
+
+def _anchor(cs, beat: Beat, perfs, music: str) -> str:
+    """A sound that recurs with what it belongs to: the thing's motif, a breath under fear, the room when it is held."""
+    if beat.prop is not None and (cs.subject == beat.prop.id or cs.function in ("hide", "foreshadow", "reveal", "payoff")):
+        return f"motif:{beat.prop.id}"
+    if any(d.name == "fear" and d.value > 0.5 for p in perfs for d in p.drives):
+        return "breath"
+    return "room_tone" if music in ("silence", "none") else ""
+
+
+def _moment(trace, event_id: int) -> tuple[list, float]:
+    """The runtime's hand-offs for an event, and when contact falls within the event's motion (0..1)."""
+    if trace is None:
+        return [], 0.45
+    inter = [i for i in trace.interactions if i.event_id == event_id]
+    moves = [a for a in trace.actions if a.event_id == event_id]
+    if not inter:
+        return [], 0.45
+    lo = min([a.start for a in moves] + [i.start for i in inter])
+    hi = max([a.end for a in moves] + [i.complete for i in inter])
+    frac = (inter[0].contact - lo) / (hi - lo) if hi > lo else 0.5
+    return inter, round(min(0.85, max(0.15, 0.15 + 0.7 * frac)), 3)
+
+
+def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[str, str], start: float,
+                    performance=None, runtime=None) -> list[Shot]:
     """One packet shot per DirectorPlan shot. The first shot of each beat carries its caption; the others are
     coverage of the same moment (a reaction, an insert, a point of view)."""
     shots, t, seen = [], start, set()
@@ -240,9 +275,12 @@ def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[st
         seconds = max(1, round(cs.seconds * style.duration_scale)) + (1 if beat.trust_flipped and cs.function == "reveal" else 0)
         if cs.beat_index == last_beat and n == len(direction.shots) - 1 and style.ending == "unresolved":
             seconds += 1
-        present = [c for c in base.characters if beat.event_type not in LONE_ACTS or c.role in ("actor", "witness")]
+        present = [c for c in base.characters if beat.event_type not in LONE_ACTS or c.role in ("actor", "witness")
+                   or c.id == cs.subject]
         first = cs.beat_index not in seen
         seen.add(cs.beat_index)
+        perfs = [p for p in performance.beats if p.shot_index == cs.shot_index] if performance is not None else []
+        inter, moment = _moment(runtime, beat.event_id) if first else ([], 0.45)
         hidden = cs.beat_index in direction.knowledge.withheld_beats
         text = caption(beat, names, agentless=True) if hidden else base.caption
         thought, by, kind = _inner(beat, direction.focalization, names, hidden)
@@ -257,6 +295,9 @@ def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[st
             suspect_id=next((p.id for p in beat.participants if p.role == "suspect"), "") if not hidden else "",
             scale=cs.scale, subject_id=cs.subject, attention=cs.attention, event_type=beat.event_type,
             transition=cuts[n].transition if n in cuts else "cut",
+            information_function=cs.information_function, grammar_step=cs.grammar_step,
+            performance_focus=_focus(cs, perfs), sound_anchor=_anchor(cs, beat, perfs, cue.music if cue else ""),
+            performances=perfs, interactions=inter, moment=moment,
             characters=present or base.characters,
             continuity_note=base.continuity_note if first else f"same moment, {cs.function}",
             function=cs.function, direction_note=cs.reason, relation=cs.relation, angle=cs.angle,
@@ -267,7 +308,7 @@ def _directed_shots(spec: SceneSpec, direction, style: StylePack, names: dict[st
 
 
 def compile_packet(spec: SceneSpec, style: StylePack = SUSPENSE_V1, orientation: str = "portrait",
-                   fps: int = 30, recap: str = "", direction=None) -> ProductionPacket:
+                   fps: int = 30, recap: str = "", direction=None, performance=None, runtime=None) -> ProductionPacket:
     """With a DirectorPlan (narrative/direction.py) the shots follow the director: several per beat, each with its
     function and reason. Without one, one shot per beat from the BEATS table (the older behaviour)."""
     width, height = CANVAS[orientation]
@@ -276,7 +317,9 @@ def compile_packet(spec: SceneSpec, style: StylePack = SUSPENSE_V1, orientation:
     if direction is not None:
         if direction.scene_hash != spec.scene_hash:
             raise ValueError("the DirectorPlan was made for another scene")
-        shots = _directed_shots(spec, direction, style, names, title_seconds)
+        if performance is not None and performance.direction_hash != direction.plan_hash:
+            raise ValueError("the PerformancePlan was made for another DirectorPlan")
+        shots = _directed_shots(spec, direction, style, names, title_seconds, performance, runtime)
         t = shots[-1].start_seconds + shots[-1].duration_seconds if shots else title_seconds
     else:
         shots, t, previous = [], title_seconds, None
@@ -307,7 +350,9 @@ def compile_packet(spec: SceneSpec, style: StylePack = SUSPENSE_V1, orientation:
         qa=QARequirements(width, height, fps, total, required, require_audio=bool(audio_plan.cues)),
     )
     if direction is not None:
-        packet = replace(packet, direction_hash=direction.plan_hash)
+        packet = replace(packet, direction_hash=direction.plan_hash,
+                         performance_hash=performance.plan_hash if performance is not None else "",
+                         runtime_hash=runtime.trace_hash if runtime is not None else "")
     return finalize(packet)
 
 
