@@ -37,6 +37,10 @@ PEOPLE = [
     ("zhou", "老周", "說出一段沒人聽過的江湖故事"),
     ("yan", "燕飛", "和天下第一的劍客交手"),
 ]
+# two groups that were there before the story: the sects of the master (lin) and of the lord (tie)
+FACTIONS = [("qingyun", "青雲門", "lin", "守住門派的名聲", [("lin", "master"), ("lu", "disciple"), ("su", "disciple"), ("shi", "disciple")]),
+            ("tiejian", "鐵劍山莊", "tie", "壓過青雲門一頭", [("tie", "master"), ("hong", "heir"), ("han", "retainer")])]
+SEATS = [("senior_disciple", "大師兄", "lu", 0, "qingyun")]
 PERSONAS = {
     "lin": "青雲門掌門，沉穩重名聲，劍譜失竊多年一直耿耿於懷",
     "lu": "大師兄，武功出眾卻心虛，多年前偷了劍譜偷偷練",

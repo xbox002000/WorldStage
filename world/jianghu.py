@@ -113,12 +113,17 @@ def resolve_train(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) 
                      participants=[(a, "actor")], changes=changes)
 
 
+def win_chance(conn: sqlite3.Connection, a: str, b: str) -> float:
+    """The chance that `a` beats `b`, from what the two can really do (the world's rule; readers may ask, only the duel rolls)."""
+    return 1.0 / (1.0 + math.exp(-DUEL_SHARPNESS * (skill(conn, a) - skill(conn, b))))
+
+
 def resolve_challenge(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> EventSpec:
     """A duel. The world decides who wins (skill gap and luck); what it costs and proves follows from that."""
     a, b = it.actor, it.target
     here = person(conn, a)["location_id"]
     seed = conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
-    p_a = 1.0 / (1.0 + math.exp(-DUEL_SHARPNESS * (skill(conn, a) - skill(conn, b))))
+    p_a = win_chance(conn, a, b)
     a_wins = make_rng(seed, now, f"duel:{a}:{b}", "duel").random() < p_a
     winner, loser = (a, b) if a_wins else (b, a)
     names = labels(conn)

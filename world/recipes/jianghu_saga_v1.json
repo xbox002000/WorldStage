@@ -1,0 +1,43 @@
+{
+  "recipe_id": "jianghu_saga_v1",
+  "title": "江湖群像：小鎮的十個人在江湖，有深度的關係、感情、圈子與權力（爽文原型）",
+  "content": "town_in_jianghu",
+  "core": "martial_arts",
+  "pillars": [
+    "reputation",
+    "duel",
+    "sect_factions"
+  ],
+  "accents": [
+    "gossip.drift"
+  ],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "同一群人，在江湖裡愛過、恨過、爭過",
+  "director_prefers": {
+    "feud": 0.08,
+    "item": 0.04
+  },
+  "base": [
+    "events",
+    "claims",
+    "attention",
+    "schedule",
+    "volition",
+    "goals",
+    "psyche",
+    "items.ownership",
+    "items.accusation",
+    "social.exchange",
+    "social.topics",
+    "life.work",
+    "character.values",
+    "body.arousal",
+    "social.depth",
+    "growth.progression",
+    "romance.attraction",
+    "social.factions",
+    "production.roles",
+    "event.gatherings"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "InterventionProposal": {
+      "additionalProperties": false,
+      "properties": {
+        "arc_id": {
+          "type": "string"
+        },
+        "budget_cost": {
+          "type": "integer"
+        },
+        "day": {
+          "type": "integer"
+        },
+        "intervention_id": {
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "purpose": {
+          "type": "string"
+        },
+        "season_id": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "announce_gathering",
+            "deliver_parcel",
+            "open_seat",
+            "announce_visitor",
+            "cast_role"
+          ]
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intervention_id",
+        "season_id",
+        "arc_id",
+        "type"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/InterventionProposal",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

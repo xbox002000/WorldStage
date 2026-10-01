@@ -243,7 +243,7 @@ def character_overview(conn: sqlite3.Connection, pid: str, names: dict | None = 
         reason = t.get("reason") or ""
         if etype == "talk":
             c[t.get("tone") or "neutral"] += 1
-        if reason in ("reply:retort",):
+        if reason in ("reply:retort", "reply:grudge"):
             c["retort"] += 1
         elif reason in ("reply:apologize", "reply:soothe", "intervene:comfort"):
             c["conciliate"] += 1

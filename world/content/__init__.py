@@ -42,6 +42,13 @@ def layout_alias(location_id: str) -> str | None:
     return None
 
 
+def _starting_estimate(world_seed: int, a: str, b: str, ability: float) -> float:
+    """What a believes b can do on day 0: about right (it is common knowledge), within a few hundredths either way, set
+    by the world's seed so that it is the same on every build."""
+    noise = make_rng(world_seed, 0, f"{a}:{b}", "estimate").uniform(-0.04, 0.04)
+    return round(min(1.0, max(0.0, ability + noise)), 3)
+
+
 def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, c) -> None:
     from world.goals import initial_rows
     from world.psyche import keys_for
@@ -60,15 +67,22 @@ def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, 
         conn.execute("INSERT INTO personas(person_id, text, traits) VALUES (?,?,?)",
                      (pid, c.PERSONAS[pid], json.dumps(c.TRAITS[pid], sort_keys=True)))
     ids = [p[0] for p in c.PEOPLE]
+    from world.recipes import enabled
+    grows = enabled(conn, "growth.progression")  # a world with growth starts with everyone rating everyone's ability
     for a in ids:
         for b in ids:
             if a != b:
                 trust, affection, rivalry = c.relation(a, b, rng)
-                conn.execute("INSERT INTO relationships(actor_id, target_id, trust, affection, rivalry) VALUES (?,?,?,?,?)",
-                             (a, b, trust, affection, rivalry))
+                conn.execute("INSERT INTO relationships(actor_id, target_id, trust, affection, rivalry, estimate) "
+                             "VALUES (?,?,?,?,?,?)", (a, b, trust, affection, rivalry,
+                                                      _starting_estimate(world_seed, a, b, c.SKILL.get(b, 0.0) - getattr(c, "UNDERRATED", {}).get(b, 0.0))
+                                                      if grows else 0.5))
     for oid, name, owner, value, tags in c.OBJECTS:
         conn.execute("INSERT INTO objects(id, name, owner_person_id, rightful_owner_id, value_cents, tags) VALUES (?,?,?,?,?,?)",
                      (oid, name, owner, owner, value, json.dumps(tags)))
+    for oid, name, tags, value in getattr(c, "PROPS", ()):  # things that wait offstage until something brings them in
+        conn.execute("INSERT INTO objects(id, name, tags, status, value_cents) VALUES (?,?,?,'offstage',?)",
+                     (oid, name, json.dumps(tags), value))
     variables = dict(c.WORLD_VARS)
     for pid in ids:
         variables.update(keys_for(pid))
@@ -84,6 +98,7 @@ def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, 
     for row in initial_rows(ids, c.INITIAL_GOALS):
         conn.execute("INSERT INTO goals(person_id, slot, kind, target, object, status, priority, since_day, setbacks, parent) "
                      "VALUES (?,?,?,?,?,?,?,?,?,?)", row)
+    from world.seed import _groups, _persona_layer
+    _groups(conn, ids, c)  # before the first event: these tables change only by events afterwards
     c.backstory(conn)
-    from world.seed import _persona_layer
     _persona_layer(conn, recipe, world_seed)

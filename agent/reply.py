@@ -211,9 +211,11 @@ class Replier:
                 continue  # one steps in only if one noticed
             t = traits(conn, w)
             to_v, to_a = rel(conn, w, victim), rel(conn, w, attacker)
-            scored.append((0.1 + 0.8 * max(0.0, to_v["affection"]) + 0.4 * t["generosity"],
+            from world.domains import solidarity  # one of one's own is the one to stand by
+            own = solidarity(conn, w, victim) - solidarity(conn, w, attacker)
+            scored.append((0.1 + 0.8 * max(0.0, to_v["affection"]) + 0.4 * t["generosity"] + 0.5 * own,
                            Intent(w, "talk", victim, "warm", reason="intervene:comfort")))
-            scored.append((0.1 + 0.8 * (to_v["affection"] - to_a["affection"]) + 0.4 * t["temper"] - 0.5 * max(0.0, to_a["fear"]),
+            scored.append((0.1 + 0.8 * (to_v["affection"] - to_a["affection"]) + 0.4 * t["temper"] - 0.5 * max(0.0, to_a["fear"]) + 0.8 * own,
                            Intent(w, "talk", attacker, "cold", reason="intervene:side")))
         if len(scored) == 1:
             return None

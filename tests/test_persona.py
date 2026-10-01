@@ -82,15 +82,19 @@ class Genomes(unittest.TestCase):
     def test_schema_upgrade_adds_the_table_and_old_worlds_have_no_genomes(self):
         c = connect()
         init_db(c, 1)
-        c.execute("DROP TRIGGER character_genomes_insert")
-        c.execute("DROP TRIGGER character_genomes_update")
-        c.execute("DROP TRIGGER character_genomes_delete")
-        c.execute("DROP TABLE character_genomes")
+        for kind, name in c.execute("SELECT type, name FROM sqlite_master WHERE (type = 'trigger' AND (name LIKE 'character_genomes_%' "
+                                    "OR name LIKE 'factions_%' OR name LIKE 'affiliations_%' OR name LIKE 'seats_%'))").fetchall():
+            c.execute(f"DROP {kind} {name}")
+        for table in ("character_genomes", "factions", "affiliations", "seats"):
+            c.execute(f"DROP TABLE {table}")
+        for col in ("resentment", "respect", "familiarity", "attraction", "estimate", "bond"):
+            c.execute(f"ALTER TABLE relationships DROP COLUMN {col}")  # a world as it was at schema v6
         c.execute("UPDATE meta SET value = '6' WHERE key = 'schema_version'")
         self.assertIsNone(personas.genome(c, "ming"))
         self.assertEqual((personas.instances(c), personas.problems(c)), ([], []))
-        self.assertEqual(migrate(c), 7)
-        self.assertEqual(schema_version(c), 7)
+        from world.db import SCHEMA_VERSION
+        self.assertEqual(migrate(c), SCHEMA_VERSION)
+        self.assertEqual(schema_version(c), SCHEMA_VERSION)
 
 
 class Branches(unittest.TestCase):
@@ -278,3 +282,34 @@ class FormativeShaping(unittest.TestCase):
         c = world()
         self.assertEqual(shaping_changes(c, "mei", "boredom", 0.9), ([], {}))      # not an experience the psyche knows
         self.assertEqual(shaping_changes(c, "nobody", "betrayal", 0.9), ([], {}))  # nobody with a psyche here
+
+
+class Looks(unittest.TestCase):
+    """Appearance, voice, charm, orientation and attachment are who someone is; the clothes are the world's."""
+
+    def test_everyone_has_a_look_a_voice_and_the_traits_of_a_romance(self):
+        for r in RECIPES + ("jianghu_v1",):
+            c = world(r)
+            for pid in [row[0] for row in c.execute("SELECT person_id FROM character_profiles")]:
+                g = personas.genome(c, pid)
+                self.assertTrue(g.appearance.face and g.appearance.presence and g.voice.timbre and g.voice.catchphrases, (r, pid))
+                self.assertTrue(0.0 <= g.charm <= 1.0)
+                self.assertIn(g.attachment, ("secure", "anxious", "avoidant"))
+                self.assertTrue(set(g.attracted_to) <= {"male", "female"})
+                self.assertTrue(g.profile.costume == "", pid)  # the clothes are not in the genome
+
+    def test_clothes_are_casting_so_the_same_person_dresses_for_each_world(self):
+        from world.profiles import profile
+        town, sect = world("town_life_v1"), world("town_in_jianghu_v1")
+        self.assertNotEqual(profile(town, "ming").costume, profile(sect, "ming").costume)
+        self.assertTrue(all(profile(sect, p).costume for p in ("ming", "mei", "lan", "yun", "ning", "rui")))
+        self.assertEqual(personas.genome(town, "ming").genome_id, personas.genome(sect, "ming").genome_id)
+
+    def test_charm_is_spread_and_orientation_is_not_assumed(self):
+        c = world()
+        gs = [personas.genome(c, r[0]) for r in c.execute("SELECT person_id FROM character_profiles")]
+        charms = sorted(g.charm for g in gs)
+        self.assertGreater(charms[-1] - charms[0], 0.3)
+        self.assertTrue(any(len(g.attracted_to) == 2 for g in gs))  # not everybody is straight
+        shi = personas.genome(world("jianghu_v1"), "shi")
+        self.assertEqual((shi.profile.age, shi.attracted_to), (17, []))  # a minor is attracted to nobody in this world

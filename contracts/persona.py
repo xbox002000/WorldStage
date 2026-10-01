@@ -33,6 +33,7 @@ SourceKind = Literal["public_person", "historical_person", "fictional_character"
 Visibility = Literal["private", "public"]
 FormativeKind = Literal["childhood", "turning_point", "loss", "success", "relationship"]
 BeliefKind = Literal["world", "causal", "people"]
+Attachment = Literal["secure", "anxious", "avoidant"]  # how they hold on to people: calmly, clingingly, at arm's length
 # the traits that make up a temperament (world/seed.py TRAITS): what the rule agents read from personas.traits
 TEMPERAMENT_KEYS = ("honesty", "temper", "gossip", "generosity", "absent_minded", "curiosity")
 
@@ -97,6 +98,26 @@ class Belief:
 
 
 @dataclass(frozen=True)
+class Appearance:
+    """How they look, for the whole of their life in any world (the clothes are casting: contracts/character.py costume).
+    The renderers' character locks are made from it, so a face never changes between shots, scenes or models."""
+
+    face: str = ""
+    hair: str = ""
+    build: str = ""
+    marks: list[str] = field(default_factory=list)      # what makes them recognisable: a scar, glasses, a limp
+    looks_age: int = 0                                   # the age they look, 0 = their own
+    presence: str = ""                                   # how their charm shows: 一笑就讓人放鬆, 站著就讓人讓路
+
+
+@dataclass(frozen=True)
+class Voice:
+    timbre: str = ""
+    pace: str = ""
+    catchphrases: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class CharacterGenome:
     name: str
     profile: CharacterProfile                            # the stable core, without the part they play in a world (casting)
@@ -108,6 +129,11 @@ class CharacterGenome:
     knowledge: KnowledgeBoundary = field(default_factory=KnowledgeBoundary)
     formative: list[Formative] = field(default_factory=list)
     beliefs: list[Belief] = field(default_factory=list)
+    appearance: Appearance = field(default_factory=Appearance)
+    voice: Voice = field(default_factory=Voice)
+    charm: float = 0.5                                   # 0..1, born with it: how easily they draw others in
+    attracted_to: list[str] = field(default_factory=list)  # genders (profile.gender values) they can fall for; empty = nobody
+    attachment: Attachment = "secure"
     version: int = PERSONA_VERSION
 
     def hash(self) -> str:

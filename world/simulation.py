@@ -36,8 +36,11 @@ class Simulation:
     """
 
     def __init__(self, conn: sqlite3.Connection, active: Decider, ambient: Decider, active_ids: set[str],
-                 feed: str | None = None, mechanics: list | None = None) -> None:
+                 feed: str | None = None, mechanics: list | None = None, producer=None) -> None:
         self.conn = conn
+        # whoever arranges opportunities (producer/): anything with dawn(conn, day, now). It acts only through
+        # world.interventions, so what it can do to the world is its closed vocabulary and no more
+        self.producer = producer
         self.feed = feed  # name of the outside-event feed (world/feeds/*.json); None = a closed town
         self.economy = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'world_vars'").fetchone() is not None
@@ -115,6 +118,8 @@ class Simulation:
         return done
 
     def run_day(self, day: int) -> None:
+        if self.producer is not None and hasattr(self.producer, "prepare"):
+            self.producer.prepare(self.conn, day)  # before anything of the day: a producer that imagines starts from a clean day boundary
         ids = [r["id"] for r in self.conn.execute("SELECT id FROM people ORDER BY id")]
         schedules = {r["id"]: json.loads(r["schedule"]) for r in self.conn.execute("SELECT id, schedule FROM people")}
         slots = sorted({int(s) for sched in schedules.values() for s in sched} | set(DECISION_SLOTS))
@@ -127,6 +132,8 @@ class Simulation:
         for dom in self.domains:
             for spec in dom.dawn(self.conn, day, day * DAY):
                 self._after(apply_event(self.conn, spec))
+        if self.producer is not None:
+            self.producer.dawn(self.conn, day, day * DAY + 5)
         for i, slot in enumerate(slots):
             window = (slots[i + 1] if i + 1 < len(slots) else UPKEEP_SLOT) - slot
             base = day * DAY + slot

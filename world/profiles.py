@@ -52,8 +52,11 @@ def _derive(r: CharacterRoster) -> CharacterRoster:
     people = []
     for p in base.people:
         c = r.casting.get(p.id)
-        people.append(replace(p, occupation=c.occupation, season_goal=c.season_goal or p.season_goal) if c is not None
-                      else replace(p, occupation=None))
+        if c is None and base.based_on:  # a world made from a world that was already a casting: they keep that casting
+            people.append(p)
+        else:
+            people.append(replace(p, occupation=c.occupation, season_goal=c.season_goal or p.season_goal, costume=c.costume)
+                          if c is not None else replace(p, occupation=None, costume=""))
     topics = {**base.topics, **r.topic_words, **r.topics}
     return replace(r, people=people, topics=topics)
 

@@ -3,6 +3,9 @@
     "Casting": {
       "additionalProperties": false,
       "properties": {
+        "costume": {
+          "type": "string"
+        },
         "occupation": {
           "anyOf": [
             {
@@ -34,6 +37,9 @@
         },
         "core": {
           "$ref": "#/$defs/InnerCore"
+        },
+        "costume": {
+          "type": "string"
         },
         "dislikes": {
           "additionalProperties": {

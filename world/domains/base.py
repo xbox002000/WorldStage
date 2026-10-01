@@ -144,6 +144,11 @@ class Domain:
         """How short-fused someone is right now (tired, hungry, worked up): adds to the heat of their words."""
         return 0.0
 
+    def solidarity(self, conn: sqlite3.Connection, a: str, b: str) -> float:
+        """How much `a` takes `b` for one of their own (the same circle, the same faction): -1..1. It tilts whom a bystander
+        takes the side of and how readily one believes what one is told."""
+        return 0.0
+
     def influences(self, conn: sqlite3.Connection, pid: str, now: int) -> list[dict]:
         """What of this domain is leaning someone's choices now, for the record of a decision (agent/trace.py): a list of
         {"kind": <this domain>, ...} with plain numbers. Reads only; empty when nothing is."""

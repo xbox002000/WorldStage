@@ -1,0 +1,40 @@
+{
+  "$defs": {
+    "WorldIntervention": {
+      "additionalProperties": false,
+      "properties": {
+        "intervention_id": {
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "announce_gathering",
+            "deliver_parcel",
+            "open_seat",
+            "announce_visitor",
+            "cast_role"
+          ]
+        }
+      },
+      "required": [
+        "intervention_id",
+        "type"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/WorldIntervention",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

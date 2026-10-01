@@ -540,11 +540,17 @@ class WorldRuntime:
                 k += 0.1
         n = max(2, int((t1 - t0) / 0.05) + 1)
         checks += [(t0 + (t1 - t0) * m / n, at(total * m / n)) for m in range(n + 1)]
+        # only bodies that are in this place at some key during the walk can be met on it (where a body is at a moment
+        # is the place of the key it is in): the others are never asked
+        lo_t, hi_t = min(c[0] for c in checks), max(c[0] for c in checks)
+        near = [p for p in others if self._ever_in(p, place, lo_t, hi_t)]
         for tt, (x, y) in checks:
-            for p in others:
+            for p in near:
                 q = self.position(p, tt)
-                if q and q[0] == place and q[4] != "offstage" and _dist((x, y), (q[1], q[2])) < 0.45:
-                    return p
+                if q and q[0] == place and q[4] != "offstage":
+                    dx, dy = x - q[1], y - q[2]
+                    if -0.45 < dx < 0.45 and -0.45 < dy < 0.45 and math.hypot(dx, dy) < 0.45:
+                        return p
         gx, gy = pts[-1]
         until = t1 + hold if hold is not None else float("inf")  # an exit stands in the doorway only a moment
         for p in others:  # standing at the end while everybody's planned moves play out
@@ -567,6 +573,16 @@ class WorldRuntime:
                 elif _dist((gx, gy), (a.x, a.y)) < 0.45 and tb >= t1:
                     return p
         return None
+
+    def _ever_in(self, who: str, place: str, t0: float, t1: float) -> bool:
+        """Is `who` at `place` at any key from the one they are in at t0 to the last one at or before t1?"""
+        keys = self.by_entity.get(who)
+        if not keys:
+            return False
+        ts = self._times[who]
+        i = max(0, bisect_right(ts, t0) - 1)
+        j = max(0, bisect_right(ts, t1) - 1)
+        return any(k[1].place == place for k in keys[i:j + 1])
 
     def _footsteps(self, who: str, place: str, pts: list, t0: float, t1: float) -> None:
         """Footfalls along a walk. Even steps end exactly at the goal; a foot lands when the body is half a step

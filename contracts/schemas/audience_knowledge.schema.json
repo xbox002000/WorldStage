@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "AudienceClaim": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "type": "integer"
+        },
+        "basis": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "believed": {
+          "type": "number"
+        },
+        "gap": {
+          "type": "number"
+        },
+        "kind": {
+          "enum": [
+            "hidden_strength",
+            "secret_couple",
+            "unspoken_crush",
+            "unrequited_love"
+          ]
+        },
+        "people": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "truth": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "people",
+        "truth",
+        "believed",
+        "gap",
+        "as_of"
+      ],
+      "type": "object"
+    },
+    "AudienceExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "type": "integer"
+        },
+        "expected": {
+          "type": "number"
+        },
+        "knows": {
+          "type": "number"
+        },
+        "since_day": {
+          "type": "integer"
+        },
+        "since_revision": {
+          "type": "integer"
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "expected",
+        "knows",
+        "as_of"
+      ],
+      "type": "object"
+    },
+    "AudienceKnowledge": {
+      "additionalProperties": false,
+      "properties": {
+        "as_of": {
+          "type": "integer"
+        },
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/AudienceClaim"
+          },
+          "type": "array"
+        },
+        "expectations": {
+          "items": {
+            "$ref": "#/$defs/AudienceExpectation"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "as_of"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/AudienceKnowledge",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

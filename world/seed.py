@@ -161,8 +161,34 @@ def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v
     for row in initial_rows([p[0] for p in PEOPLE]):
         conn.execute("INSERT INTO goals(person_id, slot, kind, target, object, status, priority, since_day, setbacks, parent) "
                      "VALUES (?,?,?,?,?,?,?,?,?,?)", row)
+    _groups(conn, [p[0] for p in PEOPLE])  # before the first event: these tables change only by events afterwards
     backstory(conn)
     _persona_layer(conn, recipe, world_seed)
+
+
+FACTION_SLOTS = 4  # groups the world can have: they wait dormant until an event founds them
+
+
+def _groups(conn: sqlite3.Connection, people: list[str], content=None) -> None:
+    """Everyone's affiliation row, the dormant faction slots, and what the content says exists at the start: groups
+    that were already there (a sect: `FACTIONS` = [(id, name, leader, goal, [(person, role), ...])]) and the scarce
+    places they can fight over (`SEATS` = [(id, title, holder, decide_by_day, faction)])."""
+    declared = list(getattr(content, "FACTIONS", ()))
+    taken = {f[0] for f in declared}
+    slots = [f"f{i}" for i in range(1, FACTION_SLOTS + 1)]
+    for fid, name, leader, goal, members in declared:
+        conn.execute("INSERT INTO factions(faction_id, name, leader_id, goal, status) VALUES (?,?,?,?, 'active')",
+                     (fid, name, leader, goal))
+    for fid in slots:
+        if fid not in taken:
+            conn.execute("INSERT INTO factions(faction_id) VALUES (?)", (fid,))
+    roles = {pid: (fid, role) for fid, _n, _l, _g, members in declared for pid, role in members}
+    for pid in people:
+        fid, role = roles.get(pid, (None, ""))
+        conn.execute("INSERT INTO affiliations(person_id, faction_id, role) VALUES (?,?,?)", (pid, fid, role))
+    for sid, title, holder, decide_by, fid in getattr(content, "SEATS", ()):
+        conn.execute("INSERT INTO seats(seat_id, title, holder_id, faction_id, status, decide_by) VALUES (?,?,?,?, 'held', ?)",
+                     (sid, title, holder, fid, decide_by))
 
 
 def _persona_layer(conn: sqlite3.Connection, recipe: str, world_seed: int) -> None:

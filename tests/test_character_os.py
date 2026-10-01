@@ -135,7 +135,7 @@ class CrossDomain(unittest.TestCase):
         from world.profiles import profile
         for (pid,) in self.town.execute("SELECT person_id FROM character_profiles ORDER BY person_id").fetchall():
             a, b = to_dict(profile(self.town, pid)), to_dict(profile(self.sect, pid))
-            for k in ("occupation", "season_goal"):
+            for k in ("occupation", "season_goal", "costume"):  # what casting gives a person in a world
                 a.pop(k), b.pop(k)
             self.assertEqual(a, b, pid)
         self.assertEqual(profile(self.sect, "ming").occupation.duty, "train")

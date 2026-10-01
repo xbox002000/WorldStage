@@ -1,0 +1,43 @@
+{
+  "recipe_id": "jianghu_story_v1",
+  "title": "江湖故事：有深度的關係、感情、圈子與權力，而且已經有人懷才不遇（爽文世界）",
+  "content": "jianghu_story",
+  "core": "martial_arts",
+  "pillars": [
+    "reputation",
+    "duel",
+    "sect_factions"
+  ],
+  "accents": [
+    "gossip.drift"
+  ],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "有人比大家以為的強，有人愛著不敢說，有人想要那個位子",
+  "director_prefers": {
+    "feud": 0.08,
+    "item": 0.04
+  },
+  "base": [
+    "events",
+    "claims",
+    "attention",
+    "schedule",
+    "volition",
+    "goals",
+    "psyche",
+    "items.ownership",
+    "items.accusation",
+    "social.exchange",
+    "social.topics",
+    "life.work",
+    "character.values",
+    "body.arousal",
+    "social.depth",
+    "growth.progression",
+    "romance.attraction",
+    "social.factions",
+    "production.roles",
+    "event.gatherings"
+  ]
+}

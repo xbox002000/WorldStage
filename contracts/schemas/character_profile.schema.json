@@ -15,6 +15,9 @@
         "core": {
           "$ref": "#/$defs/InnerCore"
         },
+        "costume": {
+          "type": "string"
+        },
         "dislikes": {
           "additionalProperties": {
             "type": "number"

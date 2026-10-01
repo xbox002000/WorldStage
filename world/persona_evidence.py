@@ -46,6 +46,17 @@ def fields(g: CharacterGenome) -> list[str]:
     many("knowledge.learns_on_day", g.knowledge.learns_on_day)
     many("formative", g.formative)
     many("beliefs", g.beliefs)
+    for attr in ("face", "hair", "build", "presence"):
+        if getattr(g.appearance, attr):
+            out.append(f"appearance.{attr}")
+    many("appearance.marks", g.appearance.marks)
+    if g.appearance.looks_age:
+        out.append("appearance.looks_age")
+    out.extend(f"voice.{k}" for k in ("timbre", "pace") if getattr(g.voice, k))
+    many("voice.catchphrases", g.voice.catchphrases)
+    out.append("charm")
+    many("attracted_to", g.attracted_to)
+    out.append("attachment")
     return out
 
 

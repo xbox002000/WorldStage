@@ -21,6 +21,12 @@ LAYOUTS = J.LAYOUTS
 DISCIPLES = ("ming", "jun", "hao", "kai", "tao")  # the town's workers: here they train in a sect
 PEOPLE = [(pid, name, {"ming": "在師門出人頭地，證明自己", "jun": "在師門站穩腳跟", "hao": "和師兄弟們打成一片",
                        "kai": "得到掌門的認可", "tao": "攢夠銀兩"}.get(pid, goal)) for pid, name, goal, _ in town.PEOPLE]
+# the sect was there before the story: its master is offstage, so the chief disciple's seat is the highest place on stage,
+# and it is decided at the assessment on day 14 (world/domains/factions.py)
+FACTIONS = [("qingyun", "青雲門", None, "在江湖上保住青雲門的名聲",
+             [(pid, "disciple") for pid in DISCIPLES])]
+SEATS = [("chief_disciple", "首席弟子", "ming", 14, "qingyun")]
+PROPS = [("manual_secret", "秘傳劍訣", ["manual", "paper"], 0)]  # waits offstage: an opportunity that can arrive
 PERSONAS = dict(town.PERSONAS)
 TRAITS = {pid: {**town.TRAITS[pid], "sect": "qingyun" if pid in DISCIPLES else "",
                 "home": "qingyun" if pid in DISCIPLES else "inn"} for pid, *_ in town.PEOPLE}

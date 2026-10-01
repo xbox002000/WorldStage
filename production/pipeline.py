@@ -77,8 +77,13 @@ def _render(conn: sqlite3.Connection, composer, request: RenderRequest) -> Take:
                 take.provider_job_id, take.error)
 
 
-def _runtime(world: sqlite3.Connection):
+def _runtime(world: sqlite3.Connection, cache: str | None = None):
+    """The world played out in space. With `cache`, resumed from the checkpoint there when it fits this world's history
+    (runtime/checkpoint.py) and written back, so a day's episode plays only that day, not the whole run again."""
     from runtime.world_runtime import WorldRuntime
+    if cache:
+        from runtime.checkpoint import open_runtime
+        return open_runtime(world, cache)
     return WorldRuntime(world)
 
 
@@ -86,7 +91,8 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                   scene_ids: list[str] | None = None, sim_day: int | None = None, orientation: str = "portrait",
                   style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True, route: str = "procedural",
                   registry: CapabilityRegistry | None = None, policy: Policy = Policy(),
-                  threads: list | None = None, shown: set[int] | frozenset[int] = frozenset()) -> list[EpisodeResult]:
+                  threads: list | None = None, shown: set[int] | frozenset[int] = frozenset(),
+                  runtime_cache: str | None = None) -> list[EpisodeResult]:
     """Turn chosen arcs into episodes, one after another (a later episode's recap can cite an earlier one).
 
     With `threads` (one StoryThread per candidate, from the story director) each scene gets a DirectorPlan first,
@@ -104,7 +110,7 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         thread = threads[i] if threads else None
         direction = plan_direction(world, spec, thread, set(shown)) if thread is not None else None
         performance = plan_performance(world, spec, direction) if direction is not None else None
-        runtime = _runtime(world).trace([b.event_id for b in spec.beats]) if direction is not None else None
+        runtime = _runtime(world, runtime_cache).trace([b.event_id for b in spec.beats]) if direction is not None else None
         packet = compile_packet(spec, style, orientation, recap=recap, direction=direction, performance=performance,
                                 runtime=runtime)
         prod.save_scene_spec(conn, spec)

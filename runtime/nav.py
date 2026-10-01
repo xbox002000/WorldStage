@@ -54,6 +54,7 @@ class Grid:
         grown = [_box(o, RADIUS) for o in self.solid]
         self._memo: dict = {}
         self._static: dict = {}
+        self._boxes: dict[float, list] = {}  # the solids' boxes by padding: asked millions of times, computed once
         self.through_people = False  # did the last path have to go through somebody (the caller then waits)
         self.closed = bytearray(self.nx * self.ny)
         for j in range(self.ny):
@@ -70,11 +71,16 @@ class Grid:
 
     def inside_solid(self, x: float, y: float, pad: float = 0.0) -> str:
         """The id of the blocking box this point is in (grown by pad), or ""."""
-        for o in self.solid:
-            a, b, c, d = _box(o, pad)
+        for oid, a, b, c, d in self._solid_boxes(pad):
             if a <= x <= b and c <= y <= d:
-                return o.id
+                return oid
         return ""
+
+    def _solid_boxes(self, pad: float) -> list:
+        boxes = self._boxes.get(pad)
+        if boxes is None:
+            boxes = self._boxes[pad] = [(o.id, *_box(o, pad)) for o in self.solid]
+        return boxes
 
     def clear_of(self, pts: list, others: tuple, gap: float = 0.0) -> bool:
         """Does the path keep `gap` (default SQUEEZE) from everybody? Its first and last 25 cm are exempt: one may
@@ -89,8 +95,9 @@ class Grid:
             if d < 0.25 or d > total - 0.25:
                 continue
             x, y = self._along(pts, d)
-            if any(math.hypot(x - ox, y - oy) < gap for ox, oy in others):
-                return False
+            for ox, oy in others:  # hypot is only asked of bodies that are not plainly out of reach
+                if -gap < x - ox < gap and -gap < y - oy < gap and math.hypot(x - ox, y - oy) < gap:
+                    return False
         return True
 
     def clear_prefix(self, pts: list, others: tuple, gap: float = 0.0) -> list:
@@ -105,7 +112,7 @@ class Grid:
             if d < 0.25:
                 continue
             x, y = self._along(pts, d)
-            if any(math.hypot(x - ox, y - oy) < gap for ox, oy in others):
+            if any(-gap < x - ox < gap and -gap < y - oy < gap and math.hypot(x - ox, y - oy) < gap for ox, oy in others):
                 stop = max(0.0, d - 0.3)
                 break
         if stop >= total:
@@ -134,11 +141,14 @@ class Grid:
     def crosses_solid(self, a: tuple[float, float], b: tuple[float, float]) -> str:
         """The wall or piece of furniture the straight line a-b passes through (its own box, not grown), or ""."""
         n = max(1, int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.05))
+        boxes = self._solid_boxes(0.0)
+        ax, ay, dx, dy = a[0], a[1], b[0] - a[0], b[1] - a[1]
         for k in range(1, n):
             f = k / n
-            hit = self.inside_solid(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)
-            if hit:
-                return hit
+            x, y = ax + dx * f, ay + dy * f
+            for oid, x0, x1, y0, y1 in boxes:
+                if x0 <= x <= x1 and y0 <= y <= y1:
+                    return oid
         return ""
 
     def free(self, x: float, y: float, others: tuple = ()) -> bool:
@@ -282,11 +292,14 @@ class Grid:
         moves = ((1, 0, 1.0), (-1, 0, 1.0), (0, 1, 1.0), (0, -1, 1.0), (1, 1, r2), (1, -1, r2), (-1, 1, r2), (-1, -1, r2))
         W = 1.5  # greedy: the path is pulled tight afterwards anyway
         i0, j0, i1, j1 = window if window is not None else (0, 0, nx - 1, ny - 1)  # a local search stays near its route
-        g = {start: 0.0}
+        g = [1e18] * (nx * ny)
+        g[start] = 0.0
         came: dict[int, int] = {}
         heap = [(0.0, start)]
+        flat = tuple((di, dj, w, dj * nx + di) for di, dj, w in moves)  # the same neighbour order, as flat index steps
+        push, pop = heapq.heappush, heapq.heappop
         while heap:
-            _f, cur = heapq.heappop(heap)
+            _f, cur = pop(heap)
             if budget is not None:
                 budget -= 1
                 if budget < 0:
@@ -302,19 +315,26 @@ class Grid:
                 return [a] + [self.centre(c % nx, c // nx) for c in keep] + [b]
             ci, cj = cur % nx, cur // nx
             gc = g[cur]
-            for di, dj, w in moves:
-                i, j = ci + di, cj + dj
-                if not (i0 <= i <= i1 and j0 <= j <= j1):
+            inside = i0 < ci < i1 and j0 < cj < j1  # not on the window's edge: no neighbour can fall outside it
+            for di, dj, w, step in flat:
+                if inside:
+                    n = cur + step
+                    i, j = ci + di, cj + dj
+                else:
+                    i, j = ci + di, cj + dj
+                    if not (i0 <= i <= i1 and j0 <= j <= j1):
+                        continue
+                    n = cur + step
+                if closed[n]:
                     continue
-                n = j * nx + i
-                if closed[n] or (di and dj and (closed[cj * nx + i] or closed[j * nx + ci])):
+                if di and dj and (closed[cur + di] or closed[cur + dj * nx]):
                     continue  # no cutting corners
                 ng = gc + w
-                if ng < g.get(n, 1e18) - 1e-9:
+                if ng < g[n] - 1e-9:
                     g[n] = ng
                     came[n] = cur
                     dx, dy = abs(i - gi), abs(j - gj)
-                    heapq.heappush(heap, (ng + W * (dx + dy + (r2 - 2) * min(dx, dy)), n))
+                    push(heap, (ng + W * (dx + dy + (r2 - 2) * min(dx, dy)), n))
         return None
 
     def _pull(self, pts: list, others: tuple, gap: float = BODY_GAP) -> list[tuple[float, float]]:

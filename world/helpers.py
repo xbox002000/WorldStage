@@ -74,7 +74,7 @@ def soft_delta(current: float, delta: float) -> float:
 def rel_delta(conn: sqlite3.Connection, current: float, delta: float, field: str = "trust") -> float:
     """The change a relationship field takes: clamped to [-1, 1], and softened at the ends in worlds where people
     answer each other (social.exchange), since there words come many times a day."""
-    if field in ("trust", "affection", "fear", "rivalry"):
+    if field in ("trust", "affection", "fear", "rivalry", "resentment", "respect", "familiarity", "attraction"):
         from world.recipes import enabled
         if enabled(conn, "social.exchange"):
             delta = soft_delta(current, delta)

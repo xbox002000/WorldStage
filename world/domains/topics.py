@@ -58,6 +58,16 @@ def known_taste(conn: sqlite3.Connection, me: str, other: str, topic: str) -> fl
     return row[1] if row[0] == "like" else -row[1]
 
 
+def known_tastes(conn: sqlite3.Connection, me: str, other: str) -> dict[str, float]:
+    """`known_taste` for every topic at once: {topic: +confidence (likes) or -confidence (dislikes)}, the latest memory of each."""
+    out: dict[str, float] = {}
+    for obj, act, conf in conn.execute(
+            "SELECT c.object, c.act, m.confidence FROM memories m JOIN claims c USING (claim_id) WHERE m.observer_id = ? "
+            "AND c.subject = ? AND c.act IN ('like', 'dislike') AND c.polarity = 'affirm' ORDER BY m.memory_id", (me, other)):
+        out[obj] = conf if act == "like" else -conf  # a later memory replaces an earlier one
+    return out
+
+
 def knows_grievance(conn: sqlite3.Connection, me: str, other: str, third: str) -> bool:
     """Does `me` have reason to think `other` resents `third`: something `third` did to `other`, or `other`'s own
     cold or hostile words to `third`, that `me` knows of?"""
@@ -96,11 +106,14 @@ class Topics(Domain):
         if prof is None:
             return scored
         out = []
+        picked: dict[str, tuple[str, float]] = {}  # one topic per person spoken to, however many tones are weighed
         for score, it in scored:
             if it is None or it.action != "talk" or it.topic or it.tone == "hostile":
                 out.append((score, it))
                 continue
-            topic, expect = self.pick(conn, actor, it.target, prof, now)
+            if it.target not in picked:
+                picked[it.target] = self.pick(conn, actor, it.target, prof, now)
+            topic, expect = picked[it.target]
             if topic:
                 it = replace(it, topic=topic)
                 # a topic shapes what is said, never whether one talks: a score bonus here once crowded out gossip
@@ -109,11 +122,12 @@ class Topics(Domain):
 
     def pick(self, conn: sqlite3.Connection, me: str, other: str, prof, now: int) -> tuple[str, float]:
         cands: list[tuple[str, float]] = []
+        known = known_tastes(conn, me, other)
         for t, w in sorted(prof.interests.items()):
-            k = known_taste(conn, me, other, t)
+            k = known.get(t)
             cands.append((t, w * (k if k is not None else PRIOR)))
         for t, w in sorted(prof.dislikes.items()):
-            k = known_taste(conn, me, other, t)
+            k = known.get(t)
             if k is not None and k < 0:
                 cands.append((t, w * -k))  # a dislike we share
         for (third, trust) in conn.execute("SELECT target_id, trust FROM relationships WHERE actor_id = ? AND trust < ? "

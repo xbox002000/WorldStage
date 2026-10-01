@@ -99,9 +99,10 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
     # themselves as someone who cannot trust anyone)
     from world.recipes import enabled
     standing = 0.2 * (var_or(conn, f"rep.{a}", 0.5) - 0.5) if enabled(conn, "reputation") else 0.0
+    from world.domains import solidarity  # one of one's own is believed more readily
     confidence = round(min(0.95, max(0.10, listener_confidence(rel(conn, b, a, "trust"))
                                      + 0.4 * (trait(conn, b, "trust_default") - 0.5) + standing
-                                     + self_bias(conn, b).get("belief", 0.0))), 2)
+                                     + self_bias(conn, b).get("belief", 0.0) + 0.3 * solidarity(conn, b, a))), 2)
 
     verdict = evaluate(conn, asserted, about)
     deceived = t.mode in ("lie", "distortion") and verdict in (FALSE, PARTIAL)

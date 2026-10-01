@@ -23,11 +23,13 @@ from pathlib import Path
 
 from contracts.base import canonical_json, from_dict, to_dict
 from contracts.character import CharacterProfile
-from contracts.persona import (TEMPERAMENT_KEYS, Belief, BranchOrigin, CharacterGenome, CharacterInstance, DecisionHabits,
-                               Expression, Formative, KnowledgeBoundary, Origin, SimulationBranch)
+from contracts.persona import (TEMPERAMENT_KEYS, Appearance, Belief, BranchOrigin, CharacterGenome, CharacterInstance,
+                               DecisionHabits, Expression, Formative, KnowledgeBoundary, Origin, SimulationBranch, Voice)
 
 EXTRAS = Path(__file__).parent / "content" / "genomes"
-EXTRA_TYPES = {"origin": Origin, "decisions": DecisionHabits, "expression": Expression, "knowledge": KnowledgeBoundary}
+EXTRA_TYPES = {"origin": Origin, "decisions": DecisionHabits, "expression": Expression, "knowledge": KnowledgeBoundary,
+               "appearance": Appearance, "voice": Voice}
+EXTRA_PLAIN = ("charm", "attracted_to", "attachment")
 
 
 class PersonaError(ValueError):
@@ -48,7 +50,14 @@ _override: dict | None = None
 
 
 def _extras(content: str) -> dict:
-    return _override if _override is not None else _file_extras(content)
+    """The genome extras of a content pack; a pack made from another one (a derived roster) has its people's."""
+    if _override is not None:
+        return _override
+    from world.profiles import load_roster
+    roster = load_roster(content)
+    while roster is not None and roster.based_on and not (EXTRAS / f"{content}.json").exists():
+        content, roster = roster.based_on, load_roster(roster.based_on)  # a pack made from a pack has its people's
+    return _file_extras(content)
 
 
 @contextmanager
@@ -68,7 +77,7 @@ def lift(profile: CharacterProfile, traits: dict, persona_text: str, extras: dic
     optional extras (decisions, expression, knowledge, formative, beliefs, origin). The job and the season's goal are the
     part a person plays in one world (contracts/character.py Casting): they stay in that world's profile and are not
     in the genome, so one person has the same genome in every world."""
-    profile = dataclasses.replace(profile, occupation=None, season_goal="")
+    profile = dataclasses.replace(profile, occupation=None, season_goal="", costume="")
     g = CharacterGenome(
         name=profile.name, profile=profile, persona_text=persona_text,
         temperament={k: float(traits[k]) for k in TEMPERAMENT_KEYS if k in traits})
@@ -80,6 +89,8 @@ def lift(profile: CharacterProfile, traits: dict, persona_text: str, extras: dic
             changes[key] = [from_dict(Formative, v) for v in value]
         elif key == "beliefs":
             changes[key] = [from_dict(Belief, v) for v in value]
+        elif key in EXTRA_PLAIN:
+            changes[key] = value
         else:
             raise PersonaError(f"{profile.id}: unknown genome field {key!r}")
     return dataclasses.replace(g, **changes) if changes else g

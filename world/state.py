@@ -10,6 +10,9 @@ ENTITIES: dict[str, tuple[str, tuple[str, ...]]] = {
     "object": ("objects", ("id",)),
     "var": ("world_vars", ("key",)),
     "goal": ("goals", ("person_id", "slot")),
+    "faction": ("factions", ("faction_id",)),
+    "affiliation": ("affiliations", ("person_id",)),
+    "seat": ("seats", ("seat_id",)),
 }
 
 # entity_type -> field -> value_kind. Integer fields must receive ints.
@@ -18,12 +21,19 @@ NUMERIC_INT = {
     "relationship": {"debt_cents"},
     "object": {"value_cents"},
     "goal": {"since_day", "setbacks"},
+    "seat": {"decide_by"},
 }
-NUMERIC_REAL = {"relationship": {"trust", "affection", "fear", "rivalry"}, "var": {"value"}, "goal": {"priority"}}
+NUMERIC_REAL = {"relationship": {"trust", "affection", "fear", "rivalry", "resentment", "respect", "familiarity", "attraction",
+                                 "estimate"},
+                "var": {"value"}, "goal": {"priority"}}
 SET_FIELDS = {
+    "relationship": {"bond"},
     "person": {"location_id", "goal", "emotion", "status", "schedule"},
     "object": {"owner_person_id", "location_id", "status", "rightful_owner_id"},
     "goal": {"kind", "target", "object", "status", "parent"},
+    "faction": {"name", "leader_id", "goal", "status"},
+    "affiliation": {"faction_id", "role"},
+    "seat": {"holder_id", "status"},
 }
 
 TOLERANCE = 1e-6

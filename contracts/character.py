@@ -82,6 +82,7 @@ class CharacterProfile:
     core: InnerCore = field(default_factory=InnerCore)
     life_goal: str = ""
     season_goal: str = ""
+    costume: str = ""                    # what they wear in this world (casting, like the job): 休閒上班服, 灰布長衫
     version: int = CHARACTER_VERSION
 
     def hash(self) -> str:
@@ -95,6 +96,7 @@ class Casting:
 
     occupation: Occupation | None = None
     season_goal: str = ""
+    costume: str = ""
 
 
 @dataclass(frozen=True)

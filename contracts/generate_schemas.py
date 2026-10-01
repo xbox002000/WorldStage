@@ -10,6 +10,9 @@ from contracts.capability import ProviderManifest, Selection
 from contracts.character import CharacterProfile, CharacterRoster
 from contracts.cognition import CognitiveChoice, CognitiveState
 from contracts.director import DirectorPlan
+from contracts.audience import AudienceClaim, AudienceExpectation, AudienceKnowledge
+from contracts.intervention import InterventionProposal, WorldIntervention
+from contracts.opportunity import Forecast, Opportunity
 from contracts.persona import CharacterGenome, PersonaEvidence, SimulationBranch
 from contracts.mechanic import NarrativeMechanicPack
 from contracts.packet import ProductionPacket
@@ -35,7 +38,9 @@ CONTRACTS = {"scene_spec": SceneSpec, "production_packet": ProductionPacket, "re
              "visual_failure": VisualFailure, "repair_request": RepairRequest,
              "character_profile": CharacterProfile, "character_roster": CharacterRoster,
              "cognitive_state": CognitiveState, "cognitive_choice": CognitiveChoice,
-             "character_genome": CharacterGenome, "simulation_branch": SimulationBranch, "persona_evidence": PersonaEvidence}
+             "character_genome": CharacterGenome, "simulation_branch": SimulationBranch, "persona_evidence": PersonaEvidence,
+             "intervention_proposal": InterventionProposal, "world_intervention": WorldIntervention,
+             "audience_knowledge": AudienceKnowledge, "opportunity": Opportunity, "forecast": Forecast}
 
 
 def render_all() -> dict[str, str]:

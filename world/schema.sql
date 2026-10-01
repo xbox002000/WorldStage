@@ -95,6 +95,12 @@ CREATE TABLE IF NOT EXISTS relationships (
   fear       REAL NOT NULL DEFAULT 0.0 CHECK (fear      BETWEEN -1.0 AND 1.0),
   rivalry    REAL NOT NULL DEFAULT 0.0 CHECK (rivalry   BETWEEN -1.0 AND 1.0),
   debt_cents INTEGER NOT NULL DEFAULT 0 CHECK (debt_cents >= 0),
+  resentment  REAL NOT NULL DEFAULT 0.0 CHECK (resentment  BETWEEN -1.0 AND 1.0),
+  respect     REAL NOT NULL DEFAULT 0.0 CHECK (respect     BETWEEN -1.0 AND 1.0),
+  familiarity REAL NOT NULL DEFAULT 0.0 CHECK (familiarity BETWEEN -1.0 AND 1.0),
+  attraction  REAL NOT NULL DEFAULT 0.0 CHECK (attraction  BETWEEN -1.0 AND 1.0),
+  estimate    REAL NOT NULL DEFAULT 0.5 CHECK (estimate    BETWEEN 0.0 AND 1.0),
+  bond        TEXT NOT NULL DEFAULT '' CHECK (bond IN ('', 'dating', 'ex', 'rejected')),
   PRIMARY KEY (actor_id, target_id),
   CHECK (actor_id <> target_id)
 );
@@ -123,7 +129,7 @@ CREATE TABLE IF NOT EXISTS event_participants (
 CREATE TABLE IF NOT EXISTS event_deltas (
   delta_id    INTEGER PRIMARY KEY AUTOINCREMENT,
   event_id    INTEGER NOT NULL REFERENCES events(event_id),
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('person','relationship','object','var','goal')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('person','relationship','object','var','goal','faction','affiliation','seat')),
   entity_id   TEXT NOT NULL,
   field       TEXT NOT NULL,
   old_value,
@@ -381,3 +387,49 @@ CREATE TRIGGER IF NOT EXISTS character_genomes_update BEFORE UPDATE ON character
 BEGIN SELECT RAISE(ABORT, 'a genome never changes: life changes the instance, by events'); END;
 CREATE TRIGGER IF NOT EXISTS character_genomes_delete BEFORE DELETE ON character_genomes
 BEGIN SELECT RAISE(ABORT, 'genomes cannot be deleted'); END;
+
+-- v8: groups (the relationship columns above are v8 too)
+CREATE TABLE IF NOT EXISTS factions (
+  faction_id TEXT PRIMARY KEY,
+  name       TEXT NOT NULL DEFAULT '',
+  leader_id  TEXT REFERENCES people(id),
+  goal       TEXT NOT NULL DEFAULT '',
+  status     TEXT NOT NULL DEFAULT 'dormant' CHECK (status IN ('dormant', 'active', 'dissolved'))
+);
+CREATE TABLE IF NOT EXISTS affiliations (
+  person_id  TEXT PRIMARY KEY REFERENCES people(id),
+  faction_id TEXT REFERENCES factions(faction_id),
+  role       TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS seats (
+  seat_id   TEXT PRIMARY KEY,
+  title     TEXT NOT NULL DEFAULT '',
+  holder_id TEXT REFERENCES people(id),
+  faction_id TEXT REFERENCES factions(faction_id),     -- whose seat it is: only its members may stand for it
+  status    TEXT NOT NULL DEFAULT 'held' CHECK (status IN ('held', 'vacant', 'contested')),
+  decide_by INTEGER NOT NULL DEFAULT 0 CHECK (decide_by >= 0)
+);
+CREATE TRIGGER IF NOT EXISTS factions_guard_insert BEFORE INSERT ON factions
+WHEN EXISTS (SELECT 1 FROM events) AND NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS factions_guard_update BEFORE UPDATE ON factions
+WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS factions_no_delete BEFORE DELETE ON factions
+BEGIN SELECT RAISE(ABORT, 'factions cannot be deleted'); END;
+CREATE TRIGGER IF NOT EXISTS affiliations_guard_insert BEFORE INSERT ON affiliations
+WHEN EXISTS (SELECT 1 FROM events) AND NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS affiliations_guard_update BEFORE UPDATE ON affiliations
+WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS affiliations_no_delete BEFORE DELETE ON affiliations
+BEGIN SELECT RAISE(ABORT, 'affiliations cannot be deleted'); END;
+CREATE TRIGGER IF NOT EXISTS seats_guard_insert BEFORE INSERT ON seats
+WHEN EXISTS (SELECT 1 FROM events) AND NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS seats_guard_update BEFORE UPDATE ON seats
+WHEN NOT EXISTS (SELECT 1 FROM mutation_guard)
+BEGIN SELECT RAISE(ABORT, 'state changes require an event'); END;
+CREATE TRIGGER IF NOT EXISTS seats_no_delete BEFORE DELETE ON seats
+BEGIN SELECT RAISE(ABORT, 'seats cannot be deleted'); END;

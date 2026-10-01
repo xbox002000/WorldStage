@@ -1,35 +1,148 @@
 {
   "content": "town_in_jianghu",
   "based_on": "town_v1",
-  "topics": {"swordplay": "劍法", "wine": "酒", "rumours": "江湖傳聞", "sect_rules": "門規"},
-  "topic_words": {"coffee": "茶", "games": "下棋", "basketball": "蹴鞠", "fashion": "衣裳", "old_movies": "說書",
-                  "the_boss": "掌門", "overtime": "加練", "money": "銀兩"},
+  "topics": {
+    "swordplay": "劍法",
+    "wine": "酒",
+    "rumours": "江湖傳聞",
+    "sect_rules": "門規"
+  },
+  "topic_words": {
+    "coffee": "茶",
+    "games": "下棋",
+    "basketball": "蹴鞠",
+    "fashion": "衣裳",
+    "old_movies": "說書",
+    "the_boss": "掌門",
+    "overtime": "加練",
+    "money": "銀兩"
+  },
   "casting": {
-    "ming": {"occupation": {"domain": "work", "role": "弟子", "place": "qingyun", "superior": "掌門", "duty": "train",
-                            "words": {"work": "練功", "superior": "掌門", "overtime": "加練", "quit": "離開師門",
-                                      "look": "打聽別的門派", "offer": "收到別派相邀", "accept": "答應了別派",
-                                      "decline": "婉拒了別派", "lapse": "別派的邀約過期了"}},
-             "season_goal": "今年在門派比試中出頭"},
-    "jun": {"occupation": {"domain": "work", "role": "弟子", "place": "qingyun", "superior": "掌門", "duty": "train",
-                           "words": {"work": "練功", "superior": "掌門", "overtime": "加練", "quit": "離開師門",
-                                     "look": "打聽別的門派", "offer": "收到別派相邀", "accept": "答應了別派",
-                                     "decline": "婉拒了別派", "lapse": "別派的邀約過期了"}},
-            "season_goal": "攢錢寄回家"},
-    "hao": {"occupation": {"domain": "work", "role": "弟子", "place": "qingyun", "superior": "掌門", "duty": "train",
-                           "words": {"work": "練功", "superior": "掌門", "overtime": "加練", "quit": "離開師門",
-                                     "look": "打聽別的門派", "offer": "收到別派相邀", "accept": "答應了別派",
-                                     "decline": "婉拒了別派", "lapse": "別派的邀約過期了"}},
-            "season_goal": "和客棧的常客交朋友"},
-    "kai": {"occupation": {"domain": "work", "role": "弟子", "place": "qingyun", "superior": "掌門", "duty": "train",
-                           "words": {"work": "練功", "superior": "掌門", "overtime": "加練", "quit": "離開師門",
-                                     "look": "打聽別的門派", "offer": "收到別派相邀", "accept": "答應了別派",
-                                     "decline": "婉拒了別派", "lapse": "別派的邀約過期了"}},
-            "season_goal": "成為掌門最看重的弟子"},
-    "tao": {"occupation": {"domain": "work", "role": "弟子", "place": "qingyun", "superior": "掌門", "duty": "train",
-                           "words": {"work": "練功", "superior": "掌門", "overtime": "加練", "quit": "離開師門",
-                                     "look": "打聽別的門派", "offer": "收到別派相邀", "accept": "答應了別派",
-                                     "decline": "婉拒了別派", "lapse": "別派的邀約過期了"}},
-            "season_goal": "攢夠銀兩買一匹馬"},
-    "mei": {"season_goal": "離開這片江湖"}
+    "ming": {
+      "occupation": {
+        "domain": "work",
+        "role": "弟子",
+        "place": "qingyun",
+        "superior": "掌門",
+        "duty": "train",
+        "words": {
+          "work": "練功",
+          "superior": "掌門",
+          "overtime": "加練",
+          "quit": "離開師門",
+          "look": "打聽別的門派",
+          "offer": "收到別派相邀",
+          "accept": "答應了別派",
+          "decline": "婉拒了別派",
+          "lapse": "別派的邀約過期了"
+        }
+      },
+      "season_goal": "今年在門派比試中出頭",
+      "costume": "青雲門的灰布長衫，腰繫深色束帶"
+    },
+    "jun": {
+      "occupation": {
+        "domain": "work",
+        "role": "弟子",
+        "place": "qingyun",
+        "superior": "掌門",
+        "duty": "train",
+        "words": {
+          "work": "練功",
+          "superior": "掌門",
+          "overtime": "加練",
+          "quit": "離開師門",
+          "look": "打聽別的門派",
+          "offer": "收到別派相邀",
+          "accept": "答應了別派",
+          "decline": "婉拒了別派",
+          "lapse": "別派的邀約過期了"
+        }
+      },
+      "season_goal": "攢錢寄回家",
+      "costume": "洗得發舊的灰布長衫"
+    },
+    "hao": {
+      "occupation": {
+        "domain": "work",
+        "role": "弟子",
+        "place": "qingyun",
+        "superior": "掌門",
+        "duty": "train",
+        "words": {
+          "work": "練功",
+          "superior": "掌門",
+          "overtime": "加練",
+          "quit": "離開師門",
+          "look": "打聽別的門派",
+          "offer": "收到別派相邀",
+          "accept": "答應了別派",
+          "decline": "婉拒了別派",
+          "lapse": "別派的邀約過期了"
+        }
+      },
+      "season_goal": "和客棧的常客交朋友",
+      "costume": "青雲門的灰布長衫，袖口捲起"
+    },
+    "kai": {
+      "occupation": {
+        "domain": "work",
+        "role": "弟子",
+        "place": "qingyun",
+        "superior": "掌門",
+        "duty": "train",
+        "words": {
+          "work": "練功",
+          "superior": "掌門",
+          "overtime": "加練",
+          "quit": "離開師門",
+          "look": "打聽別的門派",
+          "offer": "收到別派相邀",
+          "accept": "答應了別派",
+          "decline": "婉拒了別派",
+          "lapse": "別派的邀約過期了"
+        }
+      },
+      "season_goal": "成為掌門最看重的弟子",
+      "costume": "青雲門的灰布長衫，整整齊齊"
+    },
+    "tao": {
+      "occupation": {
+        "domain": "work",
+        "role": "弟子",
+        "place": "qingyun",
+        "superior": "掌門",
+        "duty": "train",
+        "words": {
+          "work": "練功",
+          "superior": "掌門",
+          "overtime": "加練",
+          "quit": "離開師門",
+          "look": "打聽別的門派",
+          "offer": "收到別派相邀",
+          "accept": "答應了別派",
+          "decline": "婉拒了別派",
+          "lapse": "別派的邀約過期了"
+        }
+      },
+      "season_goal": "攢夠銀兩買一匹馬",
+      "costume": "青雲門的灰布長衫，沾著塵土"
+    },
+    "mei": {
+      "season_goal": "離開這片江湖",
+      "costume": "素色布衣配舊披風"
+    },
+    "lan": {
+      "costume": "米色的長裙配披肩"
+    },
+    "yun": {
+      "costume": "深色的斗篷，帽沿壓低"
+    },
+    "ning": {
+      "costume": "素淨的青色長衫"
+    },
+    "rui": {
+      "costume": "淺色的短襖配小布包"
+    }
   }
 }

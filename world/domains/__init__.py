@@ -17,6 +17,12 @@ BUILTIN = {
     "topics": "world.domains.topics:Topics",
     "work": "world.domains.work:Work",
     "body": "world.domains.body:Body",
+    "relations": "world.domains.relations:Relations",
+    "progression": "world.domains.progression:Progression",
+    "romance": "world.domains.romance:Romance",
+    "factions": "world.domains.factions:Factions",
+    "roles": "world.domains.roles:Roles",
+    "gatherings": "world.domains.gatherings:Gatherings",
 }
 _EXTRA: dict[str, type[Domain]] = {}
 
@@ -79,6 +85,11 @@ def active(conn: sqlite3.Connection) -> tuple[Domain, ...]:
     """The domains this world's recipe switches on, in a fixed order."""
     from world.recipes import compiled, recipe_of
     return _active(tuple(compiled(recipe_of(conn)).order))
+
+
+def solidarity(conn: sqlite3.Connection, a: str, b: str) -> float:
+    """How much `a` takes `b` for one of their own, from the domains that know of groups (0 in a world with none)."""
+    return round(sum(d.solidarity(conn, a, b) for d in active(conn)), 4)
 
 
 def action_spec(name: str) -> tuple[Domain, ActionSpec] | None:

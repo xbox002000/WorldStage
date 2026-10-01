@@ -230,7 +230,8 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
             (episode,) = make_episodes(world, conn, Path(cfg.out_dir), [cand], scene_ids=[f"day_{day + 1:02d}"],
                                        sim_day=day, orientation=cfg.orientation, style=cfg.style,
                                        quality=cfg.quality, render=cfg.render, route=cfg.look,
-                                       threads=[thread] if cfg.world_c else None, shown=shown)
+                                       threads=[thread] if cfg.world_c else None, shown=shown,
+                                       runtime_cache=str(Path(cfg.out_dir) / "runtime.ckpt"))
             status = ("episode" if episode.episode_id else
                       "render_failed" if episode.qa_status == "render_failed" else "qa_failed")
             if episode.video is not None:

@@ -1,0 +1,81 @@
+{
+  "$defs": {
+    "MissingCondition": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "lack": {
+          "enum": [
+            "occasion",
+            "challenger",
+            "vacancy",
+            "strength",
+            "recovery"
+          ]
+        }
+      },
+      "required": [
+        "lack"
+      ],
+      "type": "object"
+    },
+    "Opportunity": {
+      "additionalProperties": false,
+      "properties": {
+        "day": {
+          "type": "integer"
+        },
+        "evidence": {},
+        "kind": {
+          "enum": [
+            "reversal",
+            "triangle",
+            "succession"
+          ]
+        },
+        "missing": {
+          "items": {
+            "$ref": "#/$defs/MissingCondition"
+          },
+          "type": "array"
+        },
+        "opportunity_id": {
+          "type": "string"
+        },
+        "others": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "p_success": {
+          "type": "number"
+        },
+        "potential": {
+          "type": "number"
+        },
+        "protagonist": {
+          "type": "string"
+        },
+        "suspense": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "opportunity_id",
+        "kind",
+        "protagonist",
+        "others",
+        "day",
+        "potential",
+        "suspense",
+        "p_success"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/Opportunity",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

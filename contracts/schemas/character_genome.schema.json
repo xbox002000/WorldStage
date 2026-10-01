@@ -1,5 +1,33 @@
 {
   "$defs": {
+    "Appearance": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "type": "string"
+        },
+        "face": {
+          "type": "string"
+        },
+        "hair": {
+          "type": "string"
+        },
+        "looks_age": {
+          "type": "integer"
+        },
+        "marks": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "presence": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
     "Belief": {
       "additionalProperties": false,
       "properties": {
@@ -26,11 +54,30 @@
     "CharacterGenome": {
       "additionalProperties": false,
       "properties": {
+        "appearance": {
+          "$ref": "#/$defs/Appearance"
+        },
+        "attachment": {
+          "enum": [
+            "secure",
+            "anxious",
+            "avoidant"
+          ]
+        },
+        "attracted_to": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "beliefs": {
           "items": {
             "$ref": "#/$defs/Belief"
           },
           "type": "array"
+        },
+        "charm": {
+          "type": "number"
         },
         "decisions": {
           "$ref": "#/$defs/DecisionHabits"
@@ -67,6 +114,9 @@
         },
         "version": {
           "type": "integer"
+        },
+        "voice": {
+          "$ref": "#/$defs/Voice"
         }
       },
       "required": [
@@ -89,6 +139,9 @@
         },
         "core": {
           "$ref": "#/$defs/InnerCore"
+        },
+        "costume": {
+          "type": "string"
         },
         "dislikes": {
           "additionalProperties": {
@@ -408,6 +461,25 @@
           "type": "string"
         },
         "strangers": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Voice": {
+      "additionalProperties": false,
+      "properties": {
+        "catchphrases": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "timbre": {
           "type": "string"
         }
       },
