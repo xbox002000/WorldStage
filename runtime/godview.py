@@ -88,7 +88,7 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
                  "thing": i.target, "hand": i.hand, "event": i.event_id} for i in rt.interactions if t0 <= i.contact <= t1]
     actions = [{"t": a.start, "end": a.end, "actor": a.actor, "kind": a.kind, "target": a.target, "event": a.event_id}
                for a in rt.actions if t0 <= a.start <= t1 and a.kind in ("walk_to", "reach", "sniff", "face", "enter", "exit", "say")]
-    from narrative.lines import line
+    from narrative.speech import speak
     said = {}  # event -> when it is said on the runtime's clock (the speaker's voice booking)
     for a in rt.actions:
         if a.kind == "say" and t0 <= a.start <= t1:
@@ -105,7 +105,7 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
         who = [r[0] for r in conn.execute("SELECT person_id FROM event_participants WHERE event_id = ? ORDER BY person_id", (eid,))]
         ev = {"id": eid, "t": ts * 60.0, "type": etype, "place": place or "", "who": who,
               "importance": imp, "caption": caption(etype, d, place or "", names), "why": d.get("reason") or ""}
-        spoken = line(eid, etype, d, names)
+        spoken = speak(conn, eid, etype, d, names, ts, place or "")
         if spoken:  # a line to show over the speaker (a read model: narrative/lines.py), when the runtime says it
             ev.update(line=spoken, actor=d.get("actor"), target=d.get("target") or d.get("victim") or "",
                       say=said.get(eid, [ts * 60.0, ts * 60.0 + 2.5]))

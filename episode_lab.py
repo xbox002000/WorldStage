@@ -1,5 +1,15 @@
 """Episode planner over a produced fortnight.   python episode_lab.py --days 14 --seeds 17,29,31 --out out/episode_lab
 
+The world is run once per seed (the planner only reads, so it cannot change it) and every day each *variant* of the planner makes its
+own episode, with its own memory of what it has shown. The variants (narrative/episode_planner.py `Options`):
+
+  v1         the planner as first built: a scene changed only if the world's entities did, set-up scenes kept by a special case,
+             a thread chosen by ranking alone, the next goal an event, whatever question the analysis gave
+  narrative  plus what the audience gains (a growth the crowd has not seen, a feeling nobody has said) as a kind of change
+  ab         the progress planner, with a B story and an ordinary moment in each episode
+  progress   plus: a thread in which nothing real happened is not the day's story, the new state is a consequence, voters are
+             bystanders, a question is a goal, a choice or a revelation (never "will they regret it")
+
 For each seed a world is run (jianghu_story_v1, the greedy director) a day at a time, and each day the planner makes the episode
 (narrative/episode_planner.py). Reported: how many days had an episode, how many were a release the audience waited for
 ("payoff") against a running story ("thread"), how many have a core question and something left open at the end, how many
@@ -15,6 +25,11 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+
+
+from narrative.episode_planner import DEFAULT, V1, Options  # noqa: E402
+
+VARIANTS = {"v1": V1, "narrative": Options("narrative", False, False, "v1", "free"), "progress": DEFAULT, "ab": Options(ab_story=True)}
 
 
 def run(args) -> dict:
@@ -33,43 +48,69 @@ def run(args) -> dict:
     build_world(conn, seed, recipe)
     d = VolitionDecider(seed)
     sim = Simulation(conn, d, d, set(), feed="synthetic_v1", producer=Director("greedy", seed))
-    shown: set[int] = set()
-    plans = []
-    dilemmas = 0
+    state = {v: {"shown": set(), "plans": []} for v in VARIANTS}
     for day in range(days):
         sim.run(1)
         sit = analyse(conn)["situations"]
-        recent = tuple(frozenset(q["people"]) for q in plans[-2:] if not q.get("quiet"))
-        plan = EP.plan_day(conn, day, shown, sit, recent)
-        if plan is None:
-            plans.append({"day": day, "quiet": True})
-            continue
-        for b in plan.beats:
-            shown |= set(b.event_ids)
-        plans.append(to_dict(plan))
+        for v, opt in VARIANTS.items():
+            st = state[v]
+            recent = tuple(frozenset(q["people"]) for q in st["plans"][-2:] if not q.get("quiet"))
+            plan = EP.plan_day(conn, day, st["shown"], sit, recent, opt)
+            if plan is None:
+                st["plans"].append({"day": day, "quiet": True})
+                continue
+            for b in plan.beats:
+                st["shown"] |= set(b.event_ids)
+            st["plans"].append(to_dict(plan))
     dil = {k: conn.execute("SELECT COUNT(*) FROM events WHERE json_extract(truth, '$.dilemma.tension') >= ?", (k,)).fetchone()[0] for k in (0.3, 0.4, 0.5)}
-    return {"seed": seed, "plans": plans, "dilemmas_05": dil[0.5], "dilemmas": dil}
+    return {"seed": seed, "variants": {v: st["plans"] for v, st in state.items()}, "dilemmas": dil}
 
 
-def summarize(rows: list[dict]) -> dict:
-    eps = [p for r in rows for p in r["plans"] if not p.get("quiet")]
+def summarize(rows: list[dict], variant: str) -> dict:
+    plans_by_seed = [r["variants"][variant] for r in rows]
+    eps = [p for plans in plans_by_seed for p in plans if not p.get("quiet")]
     n = len(eps)
-    days = sum(len(r["plans"]) for r in rows)
+    days = sum(len(plans) for plans in plans_by_seed)
     filmed = [b for p in eps for b in p["beats"] if b["shoot"]]
     allb = [b for p in eps for b in p["beats"]]
     pay = [p for p in eps if p["kind"] == "payoff"]
+    thread = [p for p in eps if p["kind"] == "thread"]
+    pairs = [(a, b) for plans in plans_by_seed for a, b in zip(plans, plans[1:]) if not a.get("quiet") and not b.get("quiet")]
+    # a growth is *hidden* when the audience was ahead at that scene (the narrative variant measures the gap at every scene; the first
+    # planner cannot see it, so it is judged by the same scenes)
+    gap = {(r["seed"], i): b["checklist"]["audience_advantage"] for r in rows for p in r["variants"]["narrative"] if not p.get("quiet")
+           for b in p["beats"] for i in b["event_ids"] if b["checklist"]["audience_advantage"] > 0}
+    seeds = [r["seed"] for r in rows]
+    growth_eps, kept = [], []
+    for si, plans in enumerate(plans_by_seed):
+        for p in plans:
+            if p.get("quiet") or p["kind"] != "payoff":
+                continue
+            ids = {i for g in p["grammar"] if g["step"] == "hidden_growth" for i in g["event_ids"] if (seeds[si], i) in gap}
+            if ids:
+                growth_eps.append(p)
+                if all(b["shoot"] for b in p["beats"] if set(b["event_ids"]) & ids):
+                    kept.append(p)
+    stagnant = [p for p in thread if not any(b["shoot"] and b["checklist"]["progress"] for b in p["beats"])]
+    step = lambda name: sum(1 for p in pay for g in p["grammar"] if g["step"] == name and g["present"])  # noqa: E731
     return {
-        "days": days, "episodes": n, "quiet_days": days - n, "payoff_episodes": len(pay), "thread_episodes": n - len(pay),
+        "days": days, "episodes": n, "quiet_days": days - n, "payoff": len(pay), "inner": sum(1 for p in eps if p["kind"] == "inner"), "thread": len(thread),
+        "repeated_pair_rate": round(sum(1 for a, b in pairs if a["kind"] == "thread" and b["kind"] == "thread" and set(a["people"]) == set(b["people"])) / max(1, len(pairs)), 3),
+        "single_intent_rate": round(sum(1 for p in eps if len({b["intent"] for b in p["beats"] if b["shoot"]}) == 1) / max(1, n), 3),
+        "stagnant_thread_episodes": len(stagnant), "stagnant_rate": round(len(stagnant) / max(1, len(thread)), 3),
+        "hidden_growth_present": len(growth_eps), "hidden_growth_kept": len(kept),
+        "bystanders": step("bystanders"), "new_state_or_next_goal": step("new_state"), "payoff_episodes": len(pay),
+        "grammar_complete": sum(1 for p in pay if p["grammar_complete"]),
         "core_question": sum(1 for p in eps if p["core_question"]), "open_ending": sum(1 for p in eps if p["ending_question"]),
         "breath": sum(1 for p in eps if p["has_breath"]), "inner_conflict": sum(1 for p in eps if p["inner_conflict"]),
-        "near_miss": sum(1 for p in eps if p["near_miss"]), "shootable": sum(1 for p in eps if p["shootable"]),
-        "beats": len(allb), "dropped_beats": len(allb) - len(filmed),
-        "intents": {k: sum(1 for b in filmed if b["intent"] == k) for k in sorted({b["intent"] for b in filmed})},
-        "distinct_intents_per_episode": round(sum(len({b["intent"] for b in p["beats"] if b["shoot"]}) for p in eps) / n, 2) if n else 0,
-        "grammar_complete": sum(1 for p in pay if p["grammar_complete"]),
-        "grammar_missing": {s: sum(1 for p in pay for g in p["grammar"] if g["step"] == s and not g["present"]) for s in
-                            ("belittled", "hidden_growth", "gathering", "reversal", "bystanders", "next_goal")},
-        "dilemma_events": {str(k): sum(r["dilemmas"][k] if k in r["dilemmas"] else r["dilemmas"][str(k)] for r in rows) for k in (0.3, 0.4, 0.5)},
+        "regret_questions": sum(1 for p in eps if p["core_question"].endswith("會後悔嗎？") or p["ending_question"].endswith("會後悔嗎？")),
+        "question_types": {k: sum(1 for p in eps if p["question_type"] == k) for k in ("goal", "choice", "revelation", "open")} if variant in ("progress", "ab") else {},
+        "b_story_episodes": sum(1 for p in eps if any(b["story"] == "B" for b in p["beats"])),
+        "texture_episodes": sum(1 for p in eps if any(b["story"] == "texture" for b in p["beats"])),
+        "scenes_per_episode": round(len(filmed) / max(1, n), 2),
+        "dropped_beats": len(allb) - len(filmed), "beats": len(allb),
+        "expectation_scenes": sum(1 for b in filmed if "expectation" in b["checklist"]["delta_kinds"]),
+        "distinct_intents_per_episode": round(sum(len({b["intent"] for b in p["beats"] if b["shoot"]}) for p in eps) / max(1, n), 2),
     }
 
 
@@ -85,10 +126,14 @@ def main() -> None:
         rows = list(ex.map(run, [(s, a.days, a.recipe) for s in seeds]))
     Path(a.out).mkdir(parents=True, exist_ok=True)
     (Path(a.out) / "plans.json").write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
-    s = summarize(rows)
+    s = {v: summarize(rows, v) for v in VARIANTS}
     (Path(a.out) / "summary.json").write_text(json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8")
     sys.stdout.reconfigure(encoding="utf-8")
-    print(json.dumps(s, ensure_ascii=False, indent=1))
+    keys = [k for k in s["v1"] if not isinstance(s["v1"][k], dict)]
+    print(f"{'':32}" + "".join(f"{v:>12}" for v in VARIANTS))
+    for k in keys:
+        print(f"{k:32}" + "".join(f"{s[v][k]:>12}" for v in VARIANTS))
+    print("question types (progress):", s["progress"]["question_types"], "(ab):", s["ab"]["question_types"], " dilemmas:", {k: sum(r["dilemmas"][k] for r in rows) for k in rows[0]["dilemmas"]})
 
 
 if __name__ == "__main__":

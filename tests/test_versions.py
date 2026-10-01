@@ -33,6 +33,10 @@ class Versions(unittest.TestCase):
         from narrative.episode_planner import PLANNER_VERSION
         self.assertEqual(episode_plan.EPISODE_PLAN_VERSION, VERSIONS["episode_plan_contract"])
         self.assertEqual(PLANNER_VERSION, VERSIONS["episode_planner"])
+        from narrative.state import STATE_VERSION
+        self.assertEqual(STATE_VERSION, VERSIONS["narrative_state"])
+        from narrative.speech import SPEECH_VERSION
+        self.assertEqual(SPEECH_VERSION, VERSIONS["speech_model"])
         from narrative.debt import DEBT_VERSION
         from narrative.novelty import NOVELTY_VERSION
         self.assertEqual(NOVELTY_VERSION, VERSIONS["novelty_model"])

@@ -134,13 +134,16 @@ class PayoffEpisode(unittest.TestCase):
             kept = [b for b in self.plan.beats if set(b.event_ids) & set(growth.event_ids)]
             self.assertTrue(all(b.shoot for b in kept if b.who))
 
-    def test_the_next_goal_is_the_heros_own(self):
+    def test_the_new_state_is_read_from_the_reversal_not_asked_of_the_world_to_log(self):
         events = load_events(self.c)
-        step = next(g for g in self.plan.grammar if g.step == "next_goal")
+        step = next(g for g in self.plan.grammar if g.step == "new_state")
         peak = next(g for g in self.plan.grammar if g.step == "reversal").event_ids[0]
         hero = events[peak].truth.get("winner") or events[peak].truth.get("actor")
-        for i in step.event_ids:
+        for i in step.event_ids:                      # an event, when there is one, is the hero's own
             self.assertEqual(events[i].truth.get("actor"), hero)
+        if step.present:                              # and a consequence is only claimed with evidence
+            self.assertTrue(step.derived)
+            self.assertTrue({"standing", "state", "want", "opening"} & set(step.derived))
 
     def test_the_room_reacts_in_a_beat_of_its_own(self):
         shock = [b for b in self.plan.beats if b.intent == "bystander_shock"]
@@ -174,6 +177,131 @@ class ToTheCamera(unittest.TestCase):
         b = plan_direction(self.c, self.spec, None, set(), intents=None)
         self.assertEqual(a.plan_hash, b.plan_hash)
         self.assertFalse({"face_slap", "bystander_shock"} & {s.function for s in a.shots})
+
+
+class WhatChanged(unittest.TestCase):
+    """The change of a scene is the world's and the audience's: a growth only the audience has seen is a scene, without a special case."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.c = produced(17, 6)
+        cls.day = next(d for d in range(6) if P.choose_material(cls.c, d, set())[2] == "payoff")
+        cls.arc, cls.thread, cls.kind, cls.payoff, cls.steps = P.choose_material(cls.c, cls.day, set())
+
+    def plan(self, options):
+        return P.plan_episode(self.c, self.arc, None, set(), self.day, self.kind, self.payoff, self.steps, None, options)
+
+    def test_a_hidden_growth_is_kept_because_the_audience_is_ahead_not_because_it_is_special(self):
+        growth = {i for g in self.steps if g.step == "hidden_growth" for i in g.event_ids}
+        ahead = [b for b in self.plan(P.DEFAULT).beats if set(b.event_ids) & growth and b.checklist.audience_advantage > 0]
+        self.assertTrue(ahead)
+        for b in ahead:
+            self.assertTrue(b.shoot)
+            self.assertIn("expectation", b.checklist.delta_kinds)
+            self.assertTrue(b.checklist.expectation)
+        self.assertFalse(P.DEFAULT.keep_setup)
+
+    def test_by_the_worlds_delta_alone_the_same_scene_changes_nothing(self):
+        growth = {i for g in self.steps if g.step == "hidden_growth" for i in g.event_ids}
+        world = self.plan(P.Options(delta="world", keep_setup=False, stagnation=False, grammar="v1", questions="free"))
+        mine = [b for b in world.beats if set(b.event_ids) & growth]
+        self.assertTrue(mine)
+        self.assertTrue(all("expectation" not in b.checklist.delta_kinds for b in mine))
+
+    def test_a_scene_that_moved_nothing_is_not_progress_but_a_blow_is(self):
+        names = {r[0]: r[1] for r in self.c.execute("SELECT id, name FROM people")}
+        events = load_events(self.c)
+        calm = [e for e in events.values() if e.type == "talk" and e.truth.get("tone") == "warm" and not P.real_progress(self.c, e, names)]
+        duels = [e for e in events.values() if e.type == "duel"]
+        self.assertTrue(calm)
+        self.assertTrue(duels)
+        self.assertTrue(all(P.real_progress(self.c, e, names) for e in duels))
+
+    def test_the_voters_of_a_succession_are_its_bystanders(self):
+        from narrative import payoff as PP
+        votes = [p for p in PP.payoffs(self.c) if p["kind"] == "succession"]
+        if not votes:
+            self.skipTest("no succession in this fortnight")
+        arc, steps = P.payoff_material(self.c, load_events(self.c), votes[0], P.DEFAULT)
+        by = next(g for g in steps if g.step == "bystanders")
+        self.assertTrue(by.present)
+        old = P.payoff_material(self.c, load_events(self.c), votes[0], P.V1)[1]
+        self.assertFalse(next(g for g in old if g.step == "bystanders").present)
+
+
+class Questions(unittest.TestCase):
+    def test_a_question_is_a_goal_a_choice_or_a_revelation(self):
+        self.assertEqual(P._question_type("誰拿了錢袋？"), "revelation")
+        self.assertEqual(P._question_type("阿俊被看輕了，能在眾人面前證明自己嗎？"), "goal")
+        self.assertEqual(P._question_type("小瑞和阿寧會和好，還是徹底決裂？"), "choice")
+        self.assertEqual(P._question_type("阿蘭要為了忠誠，付出安穩的代價嗎？"), "choice")
+        self.assertEqual(P._question_type("然後呢"), "open")
+
+    def test_a_question_to_predict_a_feeling_is_not_one_the_planner_poses(self):
+        self.assertTrue(P._regret("阿蘭會後悔嗎？"))
+        c = produced(17, 8)
+        shown: set[int] = set()
+        for day in range(8):
+            plan = P.plan_day(c, day, shown)
+            if plan is not None:
+                self.assertFalse(P._regret(plan.core_question), plan.core_question)
+                self.assertFalse(P._regret(plan.ending_question), plan.ending_question)
+                self.assertIn(plan.question_type, ("goal", "choice", "revelation", "open"))
+                shown |= {i for b in plan.beats for i in b.event_ids}
+
+    def test_an_inner_conflict_asks_what_the_choice_costs(self):
+        c = produced(17, 3)
+        apply_event(c, EventSpec(timestamp=3 * 1440 + 600, type="lend", trigger_type="decision", importance=0.5,
+                                 truth={"actor": "kai", "target": "ming", "dilemma": {"tension": 0.7, "serves": {"loyalty": 0.6}, "costs": {"security": 0.5}}},
+                                 participants=[("kai", "actor"), ("ming", "target")]))
+        arc, thread, kind, payoff, steps = P.choose_material(c, 3, set())
+        plan = P.plan_episode(c, arc, thread, set(), 3, kind, payoff, steps)
+        self.assertEqual(plan.question_type, "choice")
+        self.assertIn("忠誠", plan.core_question)
+        self.assertIn("安穩", plan.core_question)
+
+
+class StoriesAndTexture(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.c = produced(17, 10)
+        cls.sit = analyse(cls.c)["situations"]
+
+    def plans(self, options):
+        shown: set[int] = set()
+        out = []
+        for day in range(10):
+            plan = P.plan_day(self.c, day, shown, self.sit, (), options)
+            if plan is not None:
+                shown |= {i for b in plan.beats for i in b.event_ids}
+                out.append(plan)
+        return out
+
+    def test_without_the_option_an_episode_is_one_story(self):
+        self.assertTrue(all(b.story == "A" for p in self.plans(P.DEFAULT) for b in p.beats))
+
+    def test_a_second_story_is_of_other_people_and_the_ordinary_moment_comes_before_the_peak(self):
+        plans = self.plans(P.AB)
+        events = load_events(self.c)
+        saw_b = saw_t = False
+        for plan in plans:
+            mine = set(plan.people)
+            a_ids = [i for b in plan.beats if b.story == "A" for i in b.event_ids]
+            for b in plan.beats:
+                if b.story == "B":
+                    saw_b = True
+                    self.assertFalse({p for i in b.event_ids for p in events[i].people[:2]} & mine)
+                if b.story == "texture":
+                    saw_t = True
+                    self.assertTrue(b.shoot)
+                    self.assertLess(max(b.event_ids), max(a_ids))
+        self.assertTrue(saw_b or saw_t)
+
+    def test_the_questions_and_the_ending_are_the_a_storys(self):
+        for day in range(2, 10):          # the same day, with nothing shown yet: the B story and the ordinary moment add scenes, not questions
+            a, b = P.plan_day(self.c, day, set(), self.sit, (), P.DEFAULT), P.plan_day(self.c, day, set(), self.sit, (), P.AB)
+            if a is not None and b is not None:
+                self.assertEqual((a.core_question, a.ending_question, a.kind), (b.core_question, b.ending_question, b.kind))
 
 
 class InnerEpisode(unittest.TestCase):

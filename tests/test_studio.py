@@ -29,7 +29,7 @@ class Exporting(unittest.TestCase):
         self.assertEqual(self.doc["meta"]["days"], 6)
         self.assertEqual([d["day"] for d in self.doc["days"]], list(range(6)))
         for d in self.doc["days"]:
-            self.assertEqual(set(d), {"day", "pacing", "episode", "producer", "payoffs", "events"})
+            self.assertEqual(set(d), {"day", "state", "pacing", "episode", "producer", "payoffs", "events"})
             self.assertIn(d["pacing"]["phase"], ("calm", "warm", "peak"))
             self.assertEqual(set(d["producer"]), {"decisions", "entries", "spent_week"})
 

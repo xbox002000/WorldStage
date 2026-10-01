@@ -25,6 +25,8 @@ from agent.volition import VolitionDecider
 from contracts.base import canonical_json, to_dict
 from narrative import debt, episode_planner, pacing, payoff
 from narrative.dramaturgy import analyse
+from narrative.speech import speak
+from narrative.state import compile_state
 from producer.director import Director
 from runtime.godview import _names, caption
 from world.db import connect, init_db
@@ -70,7 +72,7 @@ class Studio:
         self.sim.run(1)
         names = self._names()
         sit = analyse(self.conn)["situations"]
-        plan = episode_planner.plan_day(self.conn, day, self.shown, sit, self.recent)
+        plan = episode_planner.plan_day(self.conn, day, self.shown, sit, self.recent, episode_planner.AB)
         episode = None
         if plan is not None:
             for b in plan.beats:
@@ -80,8 +82,9 @@ class Studio:
         led = self.director.ledger if self.director is not None else None
         today_entries = [e for e in (led.entries if led else []) if e["day"] == day]
         found = [p for p in payoff.payoffs(self.conn) if p["day"] == day]
+        state = compile_state(self.conn, day, [sorted(x) for x in self.recent])
         self.days.append({
-            "day": day, "pacing": {"intensity": pacing.intensity(self.conn, day), "phase": pacing.phase(self.conn, day)},
+            "day": day, "state": state, "pacing": {"intensity": pacing.intensity(self.conn, day), "phase": pacing.phase(self.conn, day)},
             "episode": episode,
             "producer": {"decisions": [d for d in (led.decisions if led else []) if d["day"] == day],
                          "entries": [self._entry(e, names) for e in today_entries],
@@ -105,6 +108,12 @@ class Studio:
                     ev[eid] = {"id": eid, "type": r["type"], "clock": f"{(r['timestamp'] % 1440) // 60:02d}:{(r['timestamp'] % 1440) % 60:02d}",
                                "day": r["timestamp"] // 1440, "place": names.get(r["location_id"] or "", ""), "place_id": r["location_id"] or "",
                                "t": r["timestamp"] * 60, "caption": caption(r["type"], json.loads(r["truth"]), r["location_id"] or "", names)}
+                    truth = json.loads(r["truth"])
+                    spoken = speak(self.conn, eid, r["type"], truth, names, r["timestamp"], r["location_id"] or "")
+                    if spoken:
+                        ev[eid]["speech"] = {"say": spoken.get("say", ""), "answer": spoken.get("answer", ""), "subtext": spoken.get("subtext", ""),
+                                             "speaker": names.get(truth.get("actor", ""), ""), "listener": names.get(truth.get("target") or truth.get("victim") or "", ""),
+                                             "reactions": [{"who": names.get(x["who"], x["who"]), "say": x["say"]} for x in spoken.get("reactions", [])]}
             b["events"] = [ev[i] for i in b["event_ids"]]
         for g in d["grammar"]:
             g["events"] = [ev[i] if i in ev else self._event(i, names) for i in g["event_ids"]]

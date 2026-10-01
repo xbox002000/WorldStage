@@ -33,7 +33,7 @@ INTENTS: tuple[str, ...] = ("orient", "reveal", "hide", "escalate", "reaction", 
                             "confession", "choice", "aftermath", "next_question")
 
 # the web-novel grammar, in order (docs/episode_planner.md)
-GRAMMAR_STEPS: tuple[str, ...] = ("belittled", "hidden_growth", "gathering", "reversal", "bystanders", "next_goal")
+GRAMMAR_STEPS: tuple[str, ...] = ("belittled", "hidden_growth", "gathering", "reversal", "bystanders", "new_state")
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,12 @@ class SceneChecklist:
     state: list[str] = field(default_factory=list)               # what else changed: a seat, a skill, a goal, a thing
     leaves_question: str = ""
     changed: bool = False
+    # what kinds of change the scene made: state, relationship, emotion, goal (the world's), knowledge (somebody learns), turn (an
+    # irreversible step), expectation (the audience is shown a gap between what somebody is and what the others take them for)
+    delta_kinds: list[str] = field(default_factory=list)
+    expectation: str = ""                                        # the gap, in words, when the audience is ahead
+    audience_advantage: float = 0.0
+    progress: bool = False                                       # the world itself moved (not only knowledge or the audience's view)
 
 
 @dataclass(frozen=True)
@@ -63,6 +69,7 @@ class EpisodeBeat:
     shoot: bool                         # False: nothing changed, or nobody is on stage; it is not filmed
     reason: str
     derived: bool = False               # a reaction beat added for the same event (bystanders), not a new event
+    story: str = "A"                    # "A" (the story the episode is about), "B" (a second story that moves in the same days) or "texture" (an ordinary moment)
 
 
 @dataclass(frozen=True)
@@ -71,6 +78,7 @@ class GrammarStep:
     event_ids: list[int]
     present: bool                       # the world produced it (a missing step is reported, never invented)
     note: str = ""
+    derived: dict = field(default_factory=dict)   # for a step that is a consequence, not an event: what follows from the reversal (new_state)
 
 
 @dataclass(frozen=True)
@@ -92,6 +100,8 @@ class EpisodePlan:
     dropped: list[int] = field(default_factory=list)   # beat indexes not filmed
     shootable: bool = True
     people: list[str] = field(default_factory=list)    # who it is about (ids), so that the next day can avoid the same pair
+    question_type: str = ""             # goal ("can they get X") | choice ("will they pick A or B") | revelation ("who will find out X") | open
+    options: dict = field(default_factory=dict)        # which planner settings made it (so that two plans can be compared)
     plan_hash: str = ""
 
 

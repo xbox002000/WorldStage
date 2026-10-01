@@ -113,19 +113,21 @@ function speech(t) {
     if (e.say[0] > t) break;
     const hold = Math.max(e.say[1], e.say[0] + 2.2) + 0.8;  // linger a little so a line can be read at 1x
     if (t > hold) continue;
-    now.push([e.actor, e.line.say, e.line.stance]);
+    now.push([e.actor, e.line.say, e.line.stance, e.line.subtext]);
     if (e.line.answer && t > (e.say[0] + e.say[1]) / 2) now.push([e.target, e.line.answer, "answer"]);
+    for (const r of e.line.reactions || []) if (t > e.say[0] + (e.say[1] - e.say[0]) * 0.75) now.push([r.who, r.say, "react"]);   // the ones who watched
   }
   const last = {};
   for (const n of now) last[n[0]] = n;  // one bubble a head: the latest line
   let k = 0;
-  for (const [who, text, stance] of Object.values(last)) {
+  for (const [who, text, stance, subtext] of Object.values(last)) {
     const xy = headAt(who, 0.55);
     if (!xy) continue;
     const d = bubbles[k] || bubble(); k++;
     d.style.display = "block"; d.style.left = `${xy[0]}px`; d.style.top = `${xy[1]}px`;
     d.className = "bubble " + (TONE_CLASS[stance] || "");
     d.textContent = text;
+    if (subtext) { const sm = document.createElement("div"); sm.textContent = `（${subtext}）`; sm.style.cssText = "font-size:11px;font-weight:400;opacity:.7;margin-top:2px"; d.appendChild(sm); }
   }
   for (; k < bubbles.length; k++) bubbles[k].style.display = "none";
 }
@@ -450,7 +452,14 @@ if (params.get("embed") === "1") {
   $("#toStory").onclick = () => parent.postMessage({ type: "story", t: state.t, who: state.who }, location.origin);
 }
 addEventListener("message", e => {
-  if (e.origin !== location.origin || !e.data || e.data.type !== "seek") return;
+  if (e.origin !== location.origin || !e.data) return;
+  if (e.data.type === "play") {   // an episode: its scenes in order, a few seconds each, at 1x (the same follow the story list uses)
+    const list = (e.data.events || []).filter(x => inSave(x.t));
+    if (!list.length) { flash("這一集的場景不在這份存檔的回放範圍內"); return; }
+    state.mode = "god"; $("#mode").value = "god"; state.who = ""; state.follow = { list, i: 0, until: 0 }; state.playing = true;
+    return;
+  }
+  if (e.data.type !== "seek") return;
   const m = e.data;
   if (m.who && figs[m.who]) { state.who = m.who; state.mode = "follow"; $("#mode").value = "follow"; renderCharacter(); }
   else { state.mode = "god"; $("#mode").value = "god"; }

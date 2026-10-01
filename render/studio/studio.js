@@ -20,7 +20,7 @@ const KIND = { payoff: "爽點集", inner: "內在衝突集", thread: "故事線
 const STEP = {
   belittled: ["被看輕", "沒有人當眾看輕他的紀錄"], hidden_growth: ["暗中成長", "沒有他私下練功的紀錄"],
   gathering: ["公開場合", "沒有公開的場合"], reversal: ["反轉", ""], bystanders: ["旁觀者反應", "沒有旁觀者看見"],
-  next_goal: ["下一個目標", "他還沒有新的目標"],
+  new_state: ["新的處境", "反轉之後沒有留下可以讀出來的改變"],
 };
 const STRATEGY = { off: "不製作", greedy: "標準製作人", portfolio: "作品組合製作人", lookahead: "會想像未來的製作人", matched: "隨機對照", blind: "盲選對照", aggressive: "不停手", unlimited: "不限預算" };
 const REASON = {
@@ -130,15 +130,16 @@ function renderEpisode() {
     [reveal[0], reveal[1], "真相什麼時候到觀眾手上"],
     [ep.inner_conflict ? "有內在衝突" : "沒有內在衝突", ep.inner_conflict ? "hot" : "no", "有人做了違背自己在乎的事的選擇"],
     [ep.near_miss.length ? "差一點揭開" : "沒有差一點揭開", ep.near_miss.length ? "hot" : "no", "有人差一點就發現了真相"],
+    [{ goal: "目標的問題", choice: "抉擇的問題", revelation: "揭曉的問題", open: "開放的問題" }[ep.question_type] || "", "no", "這個問題問的是：能不能得到、選哪一個、誰會發現"],
     [`${filmed.length} 場要拍・${dropped.length} 場不拍`, "no", "什麼都沒改變、或沒人在場的場景不拍"],
   ];
   const people = ep.people_names.map(avatar).join("");
   root.innerHTML = `
   <div class="card ephead ${ep.kind}">
-    <div class="kicker"><span class="badge ${ep.kind}">${KIND[ep.kind]}</span><span>第 ${d.day + 1} 天</span><span class="who">${people}</span>${seekBtn((filmed[0] || {}).events && filmed[0].events[0], "", "從第一場在現場看")}</div>
+    <div class="kicker"><span class="badge ${ep.kind}">${KIND[ep.kind]}</span><span>第 ${d.day + 1} 天</span><span class="who">${people}</span>${D.world3d ? `<button class="seek" data-play="1" title="在 3D 世界裡，依序看這一集的每一場">▶ 在現場播放這一集</button>` : ""}</div>
     <div class="question">${esc(ep.core_question)}</div>
     ${ep.ending_question ? `<div class="ending"><b>結尾留下</b>${esc(ep.ending_question)}</div>` : `<div class="ending"><b>結尾</b><span class="dim">這集把事情都收掉了，沒有留下問題</span></div>`}
-    <div class="facts">${facts.map(([t, c, tip]) => `<span class="fact ${c}" title="${esc(tip)}">${esc(t)}</span>`).join("")}</div>
+    <div class="facts">${facts.filter(([t]) => t).map(([t, c, tip]) => `<span class="fact ${c}" title="${esc(tip)}">${esc(t)}</span>`).join("")}</div>
   </div>
   ${ep.grammar.length ? `<div class="card block"><h3>爽文六步</h3><p class="note">亮起來的，是世界真的產生了的；虛線的，是世界沒有產生，這裡不會替它編。</p>
     <div class="steps">${ep.grammar.map((g, i) => `<button class="step${g.present ? "" : " miss"}" data-s="${i}" aria-expanded="${S.step === i}">
@@ -181,6 +182,9 @@ function sceneCard(b, n) {
   if (c.audience_only) tags.push(`<span class="tag ao" title="觀眾看到了，台上的人不知道">只有觀眾知道</span>`);
   if (b.reason.startsWith("set-up")) tags.push(`<span class="tag">鋪陳：還沒有改變</span>`);
   if (b.derived) tags.push(`<span class="tag">反應鏡頭</span>`);
+  if (b.story === "B") tags.push(`<span class="tag" title="同一時期另一條在動的故事">副線</span>`);
+  if (b.story === "texture") tags.push(`<span class="tag" title="一個平常的時刻，讓高潮有東西可以對比">平常時刻</span>`);
+  if (c.expectation) tags.push(`<span class="tag ao" title="${esc(c.expectation)}">觀眾領先</span>`);
   return `<article class="scene${b.derived ? " derived" : ""}${S.scene === b.index ? " on" : ""}" id="sc${b.index}" data-b="${b.index}">
     <div class="row1"><span class="no">${n}</span><span class="intent" title="${esc(tip)}">${esc(name)}</span>${tags.join("")}</div>
     <div class="tbar" title="張力 ${pct(b.tension)}%"><i style="width:${pct(b.tension)}%"></i></div>
@@ -189,8 +193,20 @@ function sceneCard(b, n) {
     <div class="who">${b.who.map(avatar).join("")}</div>
     ${changes ? `<div class="changes">${changes}</div>` : `<div class="wants">這場沒有留下改變</div>`}
     ${c.leaves_question ? `<div class="wants">留下的問題：${esc(c.leaves_question)}</div>` : ""}
+    ${speechHtml(b)}
     ${seekBtn(ev, b.who_ids && b.who_ids[0], "在現場看這一幕")}
   </article>`;
+}
+
+function speechHtml(b) {
+  const said = b.events.filter((e) => e.speech && e.speech.say);
+  if (!said.length) return "";
+  return `<div class="said">${said.slice(0, 3).map((e) => {
+    const s = e.speech;
+    return `<div class="line"><span class="sp">${esc(s.speaker || "")}</span>「${esc(s.say)}」${s.subtext ? `<span class="sub">（${esc(s.subtext)}）</span>` : ""}
+      ${s.answer ? `<div class="line ans"><span class="sp">${esc(s.listener || "")}</span>「${esc(s.answer)}」</div>` : ""}
+      ${(s.reactions || []).map((r) => `<div class="line ans"><span class="sp">${esc(r.who)}</span>「${esc(r.say)}」</div>`).join("")}</div>`;
+  }).join("")}</div>`;
 }
 
 function showStep(i) {
@@ -198,6 +214,14 @@ function showStep(i) {
   document.querySelectorAll(".step").forEach((b) => b.setAttribute("aria-expanded", String(+b.dataset.s === S.step)));
   if (S.step == null) { box.innerHTML = ""; return; }
   const name = STEP[g.step][0];
+  if (g.step === "new_state" && g.present) {
+    const d = g.derived || {}; const bits = [];
+    if (d.standing) bits.push("別人對他的看法變了：" + d.standing.map((x) => relChip(x)).join(" "));
+    if (d.state) bits.push("世界變了：" + d.state.map(stateChip).join(" "));
+    if (d.want) bits.push("他有了新的想要：" + esc(d.want));
+    if (d.opening) bits.push(`下一個機會：${STORY[d.opening.kind] || d.opening.kind}${d.opening.against && d.opening.against.length ? "，對 " + esc(d.opening.against.join("、")) : ""}`);
+    box.innerHTML = `<b>${name}</b>：` + bits.join("；"); return;
+  }
   box.innerHTML = g.present && g.events.length
     ? `<b>${name}</b>：` + g.events.map((e) => `第 ${e.day + 1} 天 ${esc(e.caption)}`).join("；")
     : g.present ? `<b>${name}</b>：${g.note ? esc(g.note) : "有"}` : `<b>${name}</b>：${STEP[g.step][1]}。這個世界沒有產生它，所以這一集不會替它編。`;
@@ -255,6 +279,28 @@ function renderProducer() {
 }
 const nameOf = (id) => (D.people.find((p) => p.id === id) || {}).name || id;
 
+/* ---------- side: the stories the world has formed ---------- */
+const STATUS = { seeded: "剛冒出來", forming: "成形中", active: "進行中", escalating: "升溫", climax: "高潮", resolved: "已解決", dormant: "休眠" };
+const MECH = { face_slap: "打臉", chosen: "被選中", succession: "奪位" };
+function renderState() {
+  const st = dayOf(S.day).state; if (!st) return `<div class="card sec"><div class="empty">這個世界沒有故事狀態</div></div>`;
+  const live = st.arcs.filter((a) => ["seeded", "forming", "active", "escalating", "climax"].includes(a.status));
+  const pairs = Object.entries(st.patterns.pairs).filter(([, n]) => n > 1);
+  return `<div class="card sec"><h3>在跑的故事線</h3><p class="dim" style="font-size:12.5px;margin-bottom:6px">故事線存在，不代表它在動。「動」是指真的有人心情變了、關係變了一段距離、位子或目標換了。</p>
+    ${live.length ? live.map((a) => `<div class="act-item"><span class="ic">${a.stalled ? "⏸" : "▶"}</span><div>
+      <div class="tt">${esc(a.question)}</div>
+      <div class="sm">${esc(a.people.join("、"))} ・ ${STATUS[a.status] || a.status} ・ ${a.stalled ? `<b class="neg">已經 ${a.stagnation} 天沒有進展</b>` : a.moved_recently ? `最近 7 天有 ${a.moved_recently} 場有進展` : "最近沒有進展"}</div></div></div>`).join("") : '<div class="empty">沒有在跑的故事線</div>'}</div>
+  <div class="card sec"><h3>觀眾比眾人先知道</h3>${st.expectations.length ? st.expectations.map((x) => `<div class="act-item"><span class="ic">👁</span><div>
+      <div class="tt">${esc(x.name)}</div><div class="sm">真實武功 ${pct(x.knows)}，眾人以為 ${pct(x.expected)}（差 ${pct(x.gap)}）・ 已經等了 ${x.waited} 天</div></div></div>`).join("") : '<div class="empty">沒有人被低估到值得等</div>'}</div>
+  <div class="card sec"><h3>快要發生的故事</h3>${st.opportunities.length ? st.opportunities.map((o) => `<div class="act-item"><span class="ic">✨</span><div>
+      <div class="tt">${STORY[o.kind] || o.kind}：${esc(o.name)}${o.others.length ? ` 對 ${esc(o.others.join("、"))}` : ""}</div>
+      <div class="sm">價值 ${pct(o.potential)} ・ 主角勝算約 ${pct(o.p_success)}%${o.missing.length ? ` ・ 還缺：${o.missing.map((l) => LACK[l] || l).join("、")}` : " ・ 條件都有了"}</div></div></div>`).join("") : '<div class="empty">目前沒有</div>'}</div>
+  <div class="card sec"><h3>已經說過的</h3>${Object.keys(st.patterns.mechanics).length ? `<div class="changes">${Object.entries(st.patterns.mechanics).map(([k, n]) => `<span class="cg">${MECH[k] || k} × ${n}</span>`).join("")}</div>` : '<div class="dim">還沒有爽點</div>'}
+    ${pairs.length ? `<p class="dim" style="font-size:12.5px;margin-top:6px">同一對人說了不只一次：${pairs.map(([k, n]) => `${esc(k.replace("|", " 和 "))}（${n} 次）`).join("、")}。說得越多，下一次越不新。</p>` : ""}</div>
+  <div class="card sec"><h3>積累最多、還沒有出口的人</h3>${st.debts.map((d) => `<div class="act-item"><span class="ic">${esc(String(d.name).slice(-1))}</span><div><div class="tt">${esc(d.name)}（${d.debt.toFixed(1)}）</div>
+      <div class="sm">${Object.entries(d.parts).filter(([, v]) => v > 0).map(([k, v]) => `${DEBT[k] || k} ${v.toFixed(1)}`).join(" ・ ") || "沒有"}</div></div></div>`).join("")}</div>`;
+}
+
 /* ---------- side: payoffs ---------- */
 function renderPayoffs() {
   const list = allPayoffs().sort((a, b) => b.day - a.day || b.event_id - a.event_id); const t = D.totals || {};
@@ -309,7 +355,20 @@ function setView(v) {
 }
 function flush() {
   const f = $("#worldFrame");
-  if (S.pending && S.frameReady && f.contentWindow) { f.contentWindow.postMessage({ type: "seek", ...S.pending }, location.origin); S.pending = null; }
+  if (S.pending && S.frameReady && f.contentWindow) {
+    const p = S.pending; S.pending = null;
+    f.contentWindow.postMessage(p.play ? { type: "play", events: p.play } : { type: "seek", ...p }, location.origin);
+  }
+}
+function playEpisode() {
+  const ep = dayOf(S.day).episode, w = D.world3d;
+  if (!ep || !w) { toast("這個世界沒有 3D 空間"); return; }
+  const scenes = ep.beats.filter((b) => b.shoot && !b.derived && b.story !== "texture").flatMap((b) => b.events.slice(0, 1))
+    .filter((e) => e.t != null).sort((a, b) => a.t - b.t)
+    .map((e) => ({ t: e.t, place: e.place_id, caption: `${e.clock} ${e.caption}` }));
+  const ok = scenes.filter((e) => { const d = Math.floor(e.t / 86400); return d >= w.first_day && d <= w.last_day; });
+  if (!ok.length) { toast(`這一集的場景不在 3D 回放的範圍內（第 ${w.first_day + 1}–${w.last_day + 1} 天）`); return; }
+  S.pending = { play: ok }; setView("world"); flush();
 }
 function seek(t, place, who) {
   const w = D.world3d;
@@ -352,7 +411,7 @@ async function worldPicker() {
 /* ---------- wiring ---------- */
 function renderSide() {
   document.querySelectorAll("#tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.t === S.tab)));
-  $("#pane").innerHTML = S.tab === "producer" ? renderProducer() : S.tab === "payoffs" ? renderPayoffs() : renderPeople();
+  $("#pane").innerHTML = S.tab === "producer" ? renderProducer() : S.tab === "state" ? renderState() : S.tab === "payoffs" ? renderPayoffs() : renderPeople();
 }
 function select(n, scroll = true) {
   S.day = Math.max(0, Math.min(D.days.length - 1, n)); S.scene = null; S.step = null;
@@ -392,6 +451,7 @@ function bind() {
   });
   document.addEventListener("click", (e) => {
     const b = e.target.closest(".seek"); if (!b) return;
+    if (b.dataset.play) { playEpisode(); return; }
     seek(+b.dataset.seekT, b.dataset.seekPlace || undefined, b.dataset.seekWho || undefined);
   });
   $("#views").addEventListener("click", (e) => {

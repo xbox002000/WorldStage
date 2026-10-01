@@ -9,6 +9,7 @@ They are now one page over one world, with links both ways: 導播室 | 世界�
 
 - **From a scene to the world**: every scene card has 「▶ 在現場看這一幕」; the episode has 「從第一場在現場看」; a person has 「在現場看他」. The 3D view
   opens at that moment, in that place (and follows that person), playing at 1x.
+- **Watch an episode**: 「▶ 在現場播放這一集」 opens the 3D world and follows the episode's scenes in order, a few seconds each, at 1x (with what people say as bubbles: the line, its subtext in small type, the answer, those who watched).
 - **From the world to the story**: in the 3D view the first button of the bar is 「↩ 回導播室」: it goes to the episode of the day the clock is at.
 - **Switching worlds**: the 「世界」 menu at the top lists every world (one folder each under `out/studio`) and 「＋ 新增一個世界…」 makes
   another (小鎮日常, 江湖故事; a seed; how many days to run first; it takes 1–3 minutes, during which the page does not answer). A world made in
@@ -23,6 +24,7 @@ They are now one page over one world, with links both ways: 導播室 | 世界�
 | **The episode** | the one question it poses, what is left open, small facts (breath, who knows what when, inner conflict, near miss, how many scenes are filmed); for a payoff the six steps (lit: the world produced it; dashed: it did not, and nothing is invented; click one for the events); the tension curve (a dot per scene; click to go to the scene); the scene cards (what the scene is for, who is there, the caption of what happened, what it changed in feelings and relationships, who stood against whom); the scenes not filmed, with why |
 | **Producer** (side) | this day's decision in plain words (acted, or kept still and why), what it did and what it cost, its strength (輕/中/重), the producer's private reason, the week's budget, the world's rhythm (calm, warming, peak) |
 | **Payoffs** (side) | every payoff of the season, how much of it the person earned themselves against the producer's set-up or luck; click to go to its day |
+| **Story state** (side) | the stories the world has formed, as of that day (`narrative/state.py`): the running threads and for how many days each has *not moved*; who the audience knows to be more than they are taken for, and for how long it has waited; what is a step from happening and what it lacks; what has been told (by mechanic and by pair); who carries most unanswered |
 | **People** (side) | by what has piled up unanswered; real martial skill against what everyone takes it to be (a gap is "被低估"); a person's closest ties, debt and payoffs |
 
 Design choices: one question per screen, plain Chinese words for every internal term (the ladder, the shot intents, the six steps),
