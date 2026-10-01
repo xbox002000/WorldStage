@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+from dataclasses import replace
 
 from world.intent import Intent
 from world.rng import rng as make_rng
@@ -113,7 +114,14 @@ class Replier:
             if seized is not None:
                 return seized
         scored = self.scored(conn, row, turn, now)
-        return _pick(scored, make_rng(self.world_seed, now, f"{me}:{row['event_id']}", "reply")) if scored else None
+        if not scored:
+            return None
+        choice = _pick(scored, make_rng(self.world_seed, now, f"{me}:{row['event_id']}", "reply"))
+        if choice is None:
+            return None
+        from agent.trace import build
+        return replace(choice, trace=build(conn, me, scored, choice, TEMPERATURE, now, {
+            "kind": "reply", "to": row["event_id"], "heat": heat, "wrong": wrong, "accused": accused}))
 
     def scored(self, conn: sqlite3.Connection, row: sqlite3.Row, turn: int, now: int) -> list | None:
         """Every answer `row` could get now, with how much it is wanted (before the pick; a seizure aside). The

@@ -162,6 +162,14 @@ def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v
         conn.execute("INSERT INTO goals(person_id, slot, kind, target, object, status, priority, since_day, setbacks, parent) "
                      "VALUES (?,?,?,?,?,?,?,?,?,?)", row)
     backstory(conn)
+    _persona_layer(conn, recipe, world_seed)
+
+
+def _persona_layer(conn: sqlite3.Connection, recipe: str, world_seed: int) -> None:
+    """What made each person (as background events), then which run this is (the branch)."""
+    from world.personas import write_branch, write_formative
+    write_formative(conn)
+    write_branch(conn, recipe, world_seed)
 
 
 def _profiles_and_domains(conn: sqlite3.Connection, content: str, people: list[str]) -> dict[str, float]:
@@ -169,6 +177,8 @@ def _profiles_and_domains(conn: sqlite3.Connection, content: str, people: list[s
     from world.domains import active
     from world.profiles import load_roster, profile, store
     store(conn, load_roster(content), people)
+    from world.personas import store as store_genomes
+    store_genomes(conn, content, people)
     out: dict[str, float] = {}
     for dom in active(conn):
         for pid in people:

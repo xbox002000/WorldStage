@@ -1,0 +1,420 @@
+{
+  "$defs": {
+    "Belief": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "type": "number"
+        },
+        "kind": {
+          "enum": [
+            "world",
+            "causal",
+            "people"
+          ]
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "type": "object"
+    },
+    "CharacterGenome": {
+      "additionalProperties": false,
+      "properties": {
+        "beliefs": {
+          "items": {
+            "$ref": "#/$defs/Belief"
+          },
+          "type": "array"
+        },
+        "decisions": {
+          "$ref": "#/$defs/DecisionHabits"
+        },
+        "expression": {
+          "$ref": "#/$defs/Expression"
+        },
+        "formative": {
+          "items": {
+            "$ref": "#/$defs/Formative"
+          },
+          "type": "array"
+        },
+        "knowledge": {
+          "$ref": "#/$defs/KnowledgeBoundary"
+        },
+        "name": {
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/Origin"
+        },
+        "persona_text": {
+          "type": "string"
+        },
+        "profile": {
+          "$ref": "#/$defs/CharacterProfile"
+        },
+        "temperament": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "profile"
+      ],
+      "type": "object"
+    },
+    "CharacterProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "age": {
+          "type": "integer"
+        },
+        "background": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "core": {
+          "$ref": "#/$defs/InnerCore"
+        },
+        "dislikes": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "gender": {
+          "type": "string"
+        },
+        "habits": {
+          "items": {
+            "$ref": "#/$defs/Habit"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interests": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "life_goal": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "occupation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Occupation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "season_goal": {
+          "type": "string"
+        },
+        "social": {
+          "$ref": "#/$defs/SocialStyle"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "age"
+      ],
+      "type": "object"
+    },
+    "DecisionHabits": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "people": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "risk": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "typical_choices": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Expression": {
+      "additionalProperties": false,
+      "properties": {
+        "rhetoric": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "rhythm": {
+          "type": "string"
+        },
+        "tone": {
+          "type": "string"
+        },
+        "vocabulary": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Formative": {
+      "additionalProperties": false,
+      "properties": {
+        "age": {
+          "type": "integer"
+        },
+        "experience": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "childhood",
+            "turning_point",
+            "loss",
+            "success",
+            "relationship"
+          ]
+        },
+        "people": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "text": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "type": "object"
+    },
+    "Habit": {
+      "additionalProperties": false,
+      "properties": {
+        "do": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "when": {
+          "enum": [
+            "morning",
+            "after_work",
+            "evening",
+            "at_meal",
+            "alone",
+            "stressed",
+            "anxious",
+            "angry",
+            "hurt",
+            "happy",
+            "lonely",
+            "bored"
+          ]
+        }
+      },
+      "required": [
+        "when",
+        "do",
+        "label"
+      ],
+      "type": "object"
+    },
+    "InnerCore": {
+      "additionalProperties": false,
+      "properties": {
+        "false_belief": {
+          "type": "string"
+        },
+        "fear": {
+          "type": "string"
+        },
+        "life_question": {
+          "type": "string"
+        },
+        "need": {
+          "type": "string"
+        },
+        "want": {
+          "type": "string"
+        },
+        "wound": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "KnowledgeBoundary": {
+      "additionalProperties": false,
+      "properties": {
+        "knows": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "learns_on_day": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        "unknown": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Occupation": {
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "duty": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "superior": {
+          "type": "string"
+        },
+        "words": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Origin": {
+      "additionalProperties": false,
+      "properties": {
+        "derived_from": {
+          "type": "string"
+        },
+        "fictionalized": {
+          "type": "boolean"
+        },
+        "kind": {
+          "enum": [
+            "public_person",
+            "historical_person",
+            "fictional_character",
+            "original_character",
+            "user_created",
+            "synthetic"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "real_names": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "SocialStyle": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict": {
+          "enum": [
+            "avoid",
+            "bottle_up",
+            "confront",
+            "sulk",
+            "appease"
+          ]
+        },
+        "friends": {
+          "type": "string"
+        },
+        "intimate": {
+          "type": "string"
+        },
+        "strangers": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/CharacterGenome",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

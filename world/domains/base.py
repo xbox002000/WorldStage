@@ -144,6 +144,11 @@ class Domain:
         """How short-fused someone is right now (tired, hungry, worked up): adds to the heat of their words."""
         return 0.0
 
+    def influences(self, conn: sqlite3.Connection, pid: str, now: int) -> list[dict]:
+        """What of this domain is leaning someone's choices now, for the record of a decision (agent/trace.py): a list of
+        {"kind": <this domain>, ...} with plain numbers. Reads only; empty when nothing is."""
+        return []
+
     def lean(self, conn: sqlite3.Connection, goal: sqlite3.Row, it: Intent) -> float | None:
         """How much an open goal of one of this domain's kinds pushes an option (times the goal's priority)."""
         return None

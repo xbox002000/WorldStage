@@ -280,6 +280,15 @@ class Body(Domain):
         p = person(conn, pid)
         return round(0.25 * (p["energy"] < 30) + 0.25 * (p["hunger"] > 70) + 0.4 * arousal(conn, pid, now), 3)
 
+    def influences(self, conn: sqlite3.Connection, pid: str, now: int) -> list[dict]:
+        if not has_body(conn, pid):
+            return []
+        a, p = arousal(conn, pid, now), person(conn, pid)
+        if a < 0.05 and p["energy"] >= 30 and p["hunger"] <= 70:
+            return []
+        return [{"kind": "body", "arousal": round(a, 3), "control": control(conn, pid), "tired": p["energy"] < 30,
+                 "hungry": p["hunger"] > 70}]
+
     # -- the world -----------------------------------------------------------------------------------------------------
     def effects(self, conn: sqlite3.Connection, spec: EventSpec, primitives: set[str]) -> EventSpec:
         """What winds people up and what calms them, on the events that do it."""

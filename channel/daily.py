@@ -121,6 +121,16 @@ def _usage(client, decider, sim: Simulation) -> dict:
     }
 
 
+def _refuse_real_people(live: Path) -> None:
+    """A world that holds a real public figure who was not fictionalized is research: it is never filmed."""
+    from world.personas import assert_publishable
+    check = connect(live)
+    try:
+        assert_publishable(check)
+    finally:
+        check.close()
+
+
 def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] | None = None,
               sleep: Callable[[float], None] = time.sleep,
               on_day: Callable[[DayResult], None] | None = None) -> list[DayResult]:
@@ -130,6 +140,7 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
             raise FileNotFoundError(f"{live} does not exist (use init to create a new world)")
         live.parent.mkdir(parents=True, exist_ok=True)
         create_world(live, cfg.seed, cfg.recipe)
+    _refuse_real_people(live)
     Path(cfg.prod_db).parent.mkdir(parents=True, exist_ok=True)
     conn = prod.open_production_db(cfg.prod_db)
     try:

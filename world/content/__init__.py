@@ -85,3 +85,5 @@ def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, 
         conn.execute("INSERT INTO goals(person_id, slot, kind, target, object, status, priority, since_day, setbacks, parent) "
                      "VALUES (?,?,?,?,?,?,?,?,?,?)", row)
     c.backstory(conn)
+    from world.seed import _persona_layer
+    _persona_layer(conn, recipe, world_seed)

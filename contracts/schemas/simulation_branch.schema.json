@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "BranchOrigin": {
+      "additionalProperties": false,
+      "properties": {
+        "branch_id": {
+          "type": "string"
+        },
+        "day": {
+          "type": "integer"
+        },
+        "snapshot_hash": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "SimulationBranch": {
+      "additionalProperties": false,
+      "properties": {
+        "forked_from": {
+          "$ref": "#/$defs/BranchOrigin"
+        },
+        "model": {
+          "type": "string"
+        },
+        "recipe": {
+          "type": "string"
+        },
+        "recipe_hash": {
+          "type": "string"
+        },
+        "roster_hash": {
+          "type": "string"
+        },
+        "ruleset_hash": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "visibility": {
+          "enum": [
+            "private",
+            "public"
+          ]
+        }
+      },
+      "required": [
+        "recipe",
+        "recipe_hash",
+        "ruleset_hash",
+        "roster_hash",
+        "seed"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/SimulationBranch",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

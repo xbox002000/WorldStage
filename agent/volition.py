@@ -81,7 +81,8 @@ def seizure(conn: sqlite3.Connection, actor: str, now: int, targets: list[str] |
     for d in doms:
         it = d.seize(conn, actor, targets, now)
         if it is not None:
-            return it
+            return replace(it, trace={"p": 1.0, "options": [{"action": it.action, "p": 1.0}], "seized": True,
+                                      "factors": d.influences(conn, actor, now)})
     return None
 
 
@@ -371,12 +372,16 @@ class VolitionDecider:
         seized = seizure(conn, actor, now)
         if seized is not None:
             return seized
-        return self.pick(self.scored(conn, actor, now), actor, now)
+        return self.pick(self.scored(conn, actor, now), actor, now, conn)
 
-    def pick(self, scored: list, actor: str, now: int) -> Intent | None:
+    def pick(self, scored: list, actor: str, now: int, conn: sqlite3.Connection | None = None) -> Intent | None:
+        """The draw. With `conn`, the choice carries the record of why (agent/trace.py): it changes nothing about it."""
         if len(scored) == 1:
             return None
         weights = [math.exp(s / self.temperature) for s, _ in scored]
         rng = make_rng(self.world_seed, now, actor, "volition_pick")
         _, choice = rng.choices(scored, weights)[0]
+        if conn is not None and choice is not None:
+            from agent.trace import build
+            choice = replace(choice, trace=build(conn, actor, scored, choice, self.temperature, now))
         return choice

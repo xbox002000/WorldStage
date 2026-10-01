@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from world.state import WorldError
 
@@ -40,6 +40,7 @@ class Intent:
     withheld: tuple[int, ...] = ()  # tell (omission): other held claims to keep quiet about
     memory_id: int | None = None  # confront: the told memory being challenged
     topic: str = ""  # talk: what it is about (a content topic, or "@person" for someone both resent); see world/domains
+    trace: dict | None = field(default=None, compare=False)  # why it was chosen (agent/trace.py): record only, not identity
 
 
 def intent_hash(it: Intent) -> str:

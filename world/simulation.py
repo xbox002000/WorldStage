@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import replace
 from collections import Counter
 from typing import Protocol
 
@@ -51,6 +52,9 @@ class Simulation:
                                             conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0])
         from world.recipes import compiled, recipe_of
         self.primitives = set(compiled(recipe_of(conn)).order) if self.economy else set()
+        # worlds with exchanges record why a choice was made (agent/trace.py); the record is the world's truth and
+        # changes nothing about the choice (tests/test_trace.py runs the same world with it off)
+        self.trace = "social.exchange" in self.primitives
         from world.domains import active as active_domains
         self.domains = active_domains(conn) if self.economy else ()
         for d in {id(active): active, id(ambient): ambient}.values():
@@ -227,6 +231,8 @@ class Simulation:
             if trigger == "decision" and "character.values" in self.primitives:
                 from world.values import with_dilemma  # a choice that betrays one held value to serve another
                 spec = with_dilemma(self.conn, intent, spec)
+        if self.trace and intent.trace is not None and trigger == "decision":
+            spec = replace(spec, truth={**spec.truth, "influences": intent.trace})
         if self.animals:
             from world.animals import with_senses
             spec = with_senses(self.conn, spec)

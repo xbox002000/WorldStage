@@ -50,6 +50,46 @@ HARM_DIRECTION = {"vigilance": 1, "cynicism": 1, "aggression": 1, "withdrawal": 
 SCAR = 0.25
 
 
+# What a formative experience (contracts/persona.py Formative.experience) leaves in someone before the world starts: how far
+# it moves each adaptive trait at weight 1, and the self-model it forms outright when it was strong. The marks are scars
+# like any lived harm: healing stops short of rest.
+SHAPING = {
+    "betrayal": ({"vigilance": 0.25, "trust_default": -0.25, "cynicism": 0.15}, "cannot_trust"),
+    "wronged": ({"vigilance": 0.10, "cynicism": 0.10}, "always_blamed"),
+    "shame": ({"withdrawal": 0.15}, None),
+    "kindness": ({"vigilance": -0.10, "trust_default": 0.20, "withdrawal": -0.05}, "some_are_kind"),
+    "hostility": ({"aggression": 0.20, "vigilance": 0.10}, "world_is_hostile"),
+    "failure": ({"withdrawal": 0.20}, "on_my_own"),
+    "success": ({"withdrawal": -0.10, "trust_default": 0.10}, None),
+}
+SHAPING_SELF_MODEL_AT = 0.7
+
+
+def shaping_changes(conn: sqlite3.Connection, pid: str, experience: str, weight: float) -> tuple[list[Change], dict]:
+    """The changes to someone's adaptive state from a formative experience, and what they were: {key: delta}."""
+    if experience not in SHAPING or var(conn, f"psy.{pid}.vigilance", None) is None:
+        return [], {}
+    moves, model = SHAPING[experience]
+    changes, shifted = [], {}
+    for key, step in moves.items():
+        cur = var(conn, f"psy.{pid}.{key}", ADAPTIVE[key])
+        value = round(min(1.0, max(0.0, cur + step * weight)), 6)
+        if value == cur:
+            continue
+        changes.append(Change("var", f"psy.{pid}.{key}", "value", delta=round(value - cur, 6)))
+        shifted[key] = round(value - cur, 6)
+        sign = HARM_DIRECTION[key]
+        worst = var(conn, f"psy.{pid}.worst.{key}", ADAPTIVE[key])
+        if (value - worst) * sign > 0:
+            changes.append(Change("var", f"psy.{pid}.worst.{key}", "value", delta=round(value - worst, 6)))
+    if model and weight >= SHAPING_SELF_MODEL_AT and var(conn, f"psy.{pid}.self.{model}", None) is not None:
+        cur = var(conn, f"psy.{pid}.self.{model}", 0.0)
+        if cur < 1.0:
+            changes.append(Change("var", f"psy.{pid}.self.{model}", "value", delta=round(1.0 - cur, 6)))
+            shifted[f"self.{model}"] = round(1.0 - cur, 6)
+    return changes, shifted
+
+
 def keys_for(pid: str) -> dict[str, float]:
     out = {f"psy.{pid}.{k}": v for k, v in ADAPTIVE.items()}
     out.update({f"psy.{pid}.worst.{k}": v for k, v in ADAPTIVE.items()})
@@ -92,16 +132,24 @@ def _home(conn: sqlite3.Connection, pid: str) -> str:
 # -- appraisal: what a day meant to someone, from what they know ----------------------------------------------------
 def appraise(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, float], list[int]]:
     """Experiences of `pid` on `day`, only from events they took part in or noticed."""
+    exp, cited, _ = appraise_detail(conn, pid, day)
+    return exp, cited
+
+
+def appraise_detail(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, float], list[int], dict[str, list]]:
+    """As `appraise`, and which event gave how much of each experience: {kind: [[event_id, weight], ...]}."""
     rows = conn.execute(
         "SELECT e.event_id, e.type, e.truth, e.parent_event_id, e.timestamp, p.role FROM events e JOIN event_participants p "
         "ON p.event_id = e.event_id WHERE p.person_id = ? AND e.timestamp >= ? AND e.timestamp < ? ORDER BY e.event_id",
         (pid, day * 1440, (day + 1) * 1440)).fetchall()
     exp = {k: 0.0 for k in EXPERIENCES}
     cited: list[int] = []
+    by_kind: dict[str, list] = {}
 
     def add(kind: str, w: float, eid: int) -> None:
         exp[kind] += w
         cited.append(eid)
+        by_kind.setdefault(kind, []).append([eid, w])
 
     for r in rows:
         t, kind, role = json.loads(r["truth"]), r["type"], r["role"]
@@ -145,7 +193,7 @@ def appraise(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, fl
                     for exp_kind, w in dom.appraise(conn, pid, kind, t):
                         if exp_kind in exp:
                             add(exp_kind, w, r["event_id"])
-    return exp, cited
+    return exp, cited, by_kind
 
 
 def _provoked(conn: sqlite3.Connection, pid: str, row: sqlite3.Row) -> bool:
@@ -173,7 +221,7 @@ def _unexpected(conn: sqlite3.Connection, pid: str, other: str | None) -> bool:
 def reflect(conn: sqlite3.Connection, pid: str, day: int, now: int) -> EventSpec | None:
     if var(conn, f"psy.{pid}.vigilance", None) is None:
         return None
-    today, cited = appraise(conn, pid, day)
+    today, cited, by_kind = appraise_detail(conn, pid, day)
     acc = {k: round(var(conn, f"psy.{pid}.exp.{k}", 0.0) * DECAY + today[k], 6) for k in EXPERIENCES}
     new: dict[str, float] = {}
 
@@ -221,15 +269,17 @@ def reflect(conn: sqlite3.Connection, pid: str, day: int, now: int) -> EventSpec
         move("value.revenge", VALUE_STEP)
     if acc["kindness"] >= 2 * REPEAT and today["kindness"]:
         move("value.belonging", VALUE_STEP)
-    formed = []
+    formed, formed_keys, softened = [], [], []
     for key, (text, source, threshold) in SELF_MODEL.items():
         if var(conn, f"psy.{pid}.self.{key}", None) is None:
             continue  # a world made before this self-model existed has no place for it
         if acc[source] >= threshold and var(conn, f"psy.{pid}.self.{key}", 0.0) < 0.5:
             new[f"self.{key}"] = 1.0
             formed.append(text)
+            formed_keys.append(key)
         elif acc[source] < threshold / 3 and var(conn, f"psy.{pid}.self.{key}", 0.0) >= 0.5:
             new[f"self.{key}"] = 0.5  # the belief softens, it does not vanish
+            softened.append(key)
     changes = [Change("var", f"psy.{pid}.exp.{k}", "value", delta=round(acc[k] - var(conn, f"psy.{pid}.exp.{k}", 0.0), 6))
                for k in EXPERIENCES if abs(acc[k] - var(conn, f"psy.{pid}.exp.{k}", 0.0)) > 1e-6]
     shifted = {}
@@ -240,10 +290,17 @@ def reflect(conn: sqlite3.Connection, pid: str, day: int, now: int) -> EventSpec
             shifted[key] = d
     if not changes:
         return None
+    truth = {"actor": pid, "day": day, "experiences": {k: round(v, 3) for k, v in today.items() if v},
+             "shifted": shifted, "self_model": formed, "cites": sorted(set(cited)), "depends_on": sorted(set(cited))}
+    from world.recipes import enabled
+    if enabled(conn, "social.exchange"):
+        # the three memories (narrative/causal_audit.py): what happened to me (which event gave how much of each
+        # experience), and how I came to see myself (which self-models formed or softened tonight)
+        truth.update(experienced={k: [[e, round(w, 3)] for e, w in v] for k, v in sorted(by_kind.items())},
+                     formed=formed_keys, softened=softened)
     return EventSpec(
         timestamp=now, type="reflection", trigger_type="rule", location_id=_home(conn, pid),
         importance=0.2 + (0.4 if formed else 0.0) + min(0.3, sum(abs(v) for v in shifted.values())),
-        truth={"actor": pid, "day": day, "experiences": {k: round(v, 3) for k, v in today.items() if v},
-               "shifted": shifted, "self_model": formed, "cites": sorted(set(cited)), "depends_on": sorted(set(cited))},
+        truth=truth,
         participants=[(pid, "actor")], changes=changes,
         memories=[MemorySpec(pid, f"我開始覺得：{t}", 1.0) for t in formed])

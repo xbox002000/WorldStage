@@ -199,7 +199,7 @@ class CharacterAgent:
         day = now // 1440
         if not wake or self.used[day] >= self.budget or len(scored) < 2:
             self.stats["rule"] += 1
-            return self.rule.pick(scored, actor, now)
+            return self.rule.pick(scored, actor, now, conn)
         self.used[day] += 1
         top = sorted(scored, key=lambda s: -s[0])[: self.top_k]
         if not any(it is None for _, it in top):
@@ -213,7 +213,7 @@ class CharacterAgent:
         except Exception as e:  # unusable or unavailable: live by habit this time
             self.stats["agent_failed"] += 1
             self.log.append({"person": actor, "t": now, "wake": wake, "error": type(e).__name__})
-            return self.rule.pick(scored, actor, now)
+            return self.rule.pick(scored, actor, now, conn)
         self.stats["agent"] += 1
         self.log.append({"person": actor, "t": now, "wake": wake, "chose": state.options[choice.option].text,
                          "reason": choice.reason, "inner": choice.inner})
