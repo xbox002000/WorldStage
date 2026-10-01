@@ -18,6 +18,9 @@ keeps those out: a hero who is bound to win is no story), and it keeps a record 
 
 Strategies, so that what each part adds can be measured (producer_lab.py):
   greedy      steps 1-4 and 6
+  portfolio   greedy with a pattern memory (a story that would repeat what has been told is gated out and the rest weighed by how new
+              it is: a hard constraint before the payoff) and arc death (a story nothing has come of in a week is given up, not
+              rescued with more)
   lookahead   greedy, with step 5 choosing among the three best stories and silence
   matched     the same pacing, budget and shaper, but the story is drawn at random from those the world is making (is it choosing
               well among real stories, or only doing something at the right time?)
@@ -40,7 +43,9 @@ from producer.arcs import Threads, protected
 from producer.intervention import WEEK_BUDGET, Ledger
 from world.rng import rng as make_rng
 
-STRATEGIES = ("greedy", "lookahead", "matched", "blind", "aggressive", "unlimited")
+STRATEGIES = ("greedy", "portfolio", "lookahead", "matched", "blind", "aggressive", "unlimited")
+STRENGTH = {"cast_role": "soft", "deliver_parcel": "soft", "announce_visitor": "soft", "announce_gathering": "medium", "open_seat": "medium"}
+NOVELTY_FLOOR = 0.3    # a story that would only repeat what has been told (portfolio) is not taken up, whatever it would pay
 RANDOM_AIM = ("matched", "blind")
 MAX_PER_DAY = 3
 STAGE_GAP = 5          # days between one announced gathering and the next
@@ -92,8 +97,9 @@ class Director:
         plans = [(op, self._proposals(shaper.candidates(conn, op, day, prot), op, day)) for op in picks]
         plans = [(op, props) for op, props in plans if props]
         if not plans:
-            self.threads.take_up(picks[0], day)
-            self.ledger.decide(day, "silence", "the world has what this story needs", phase=phase, opportunity=picks[0].opportunity_id, kind=picks[0].kind)
+            self.threads.take_up(picks[0], day, acted=self.strategy != "portfolio")
+            self.ledger.decide(day, "silence", "the world has what this story needs", phase=phase, opportunity=picks[0].opportunity_id,
+                               kind=picks[0].kind, arc_phase="hold", arcs_active=len(self.threads.active()))
             return
         pick, props, imagined = plans[0][0], plans[0][1], None
         if self.strategy == "lookahead" and self._clean is not None:
@@ -103,8 +109,20 @@ class Director:
         self._admit(conn, pick, props, day, now, phase, imagined)
 
     # -- who is the story today ----------------------------------------------------------------------------------------
+    def _novelty(self, o: Opportunity) -> float:
+        """How new this story would be, told: what has been told in the world (and what is being told now) counts against it."""
+        from narrative import novelty
+        mem = novelty.PatternMemory.of(self.threads.found)
+        for t in self.threads.active():
+            mem.mechanics[novelty.MECHANIC_OF_STORY[t.kind]] = mem.mechanics.get(novelty.MECHANIC_OF_STORY[t.kind], 0) + 1
+        pair = f"seat:{o.evidence['seat']}" if o.kind == "succession" else "|".join(sorted([o.protagonist, o.evidence.get("object") or o.others[0]]))
+        return mem.novelty(novelty.MECHANIC_OF_STORY[o.kind], pair)
+
     def _worth(self, o: Opportunity, day: int) -> float:
-        fresh = VARIETY ** sum(1 for d, k in self._taken if k == o.kind and day - d < VARIETY_DAYS)
+        if self.strategy == "portfolio":
+            fresh = self._novelty(o)
+        else:
+            fresh = VARIETY ** sum(1 for d, k in self._taken if k == o.kind and day - d < VARIETY_DAYS)
         return o.potential * fresh * (1.0 + WAIT_BONUS * self.threads.waited(o.protagonist, day))
 
     def _ranked(self, conn: sqlite3.Connection, ops: list[Opportunity], day: int) -> list[Opportunity]:
@@ -115,6 +133,8 @@ class Director:
                  and role_of(conn, o.protagonist, day) is None]
         if self.strategy in RANDOM_AIM:
             return open_
+        if self.strategy == "portfolio":   # the hard constraints first: not given up lately, and not a repeat
+            open_ = [o for o in open_ if not self.threads.blocked(o.opportunity_id, day) and self._novelty(o) >= NOVELTY_FLOOR]
         out, seen = [], set()
         for o in sorted(open_, key=lambda o: (-self._worth(o, day), o.opportunity_id)):
             if o.protagonist not in seen:
@@ -167,4 +187,5 @@ class Director:
         self.ledger.decide(day, "intervene" if done else "silence", "supplied what the story lacked" if done else "nothing could be admitted",
                            phase=phase, opportunity=pick.opportunity_id, kind=pick.kind, protagonist=pick.protagonist, others=pick.others,
                            potential=pick.potential, p_success=pick.p_success, lacks=[m.lack for m in pick.missing],
-                           admitted=[t for t, _ in done], refused=refused, **extra)
+                           admitted=[t for t, _ in done], refused=refused, strength=[STRENGTH[t] for t, _ in done], arc_phase="build",
+                           arcs_active=len(self.threads.active()), **extra)

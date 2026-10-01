@@ -138,9 +138,9 @@
         "function": {
           "enum": [
             "orient",
-            "escalate",
             "reveal",
             "hide",
+            "escalate",
             "reaction",
             "payoff",
             "misdirect",
@@ -148,7 +148,16 @@
             "isolate",
             "connect",
             "contrast",
-            "observe"
+            "observe",
+            "setup",
+            "face_slap",
+            "bystander_shock",
+            "longing_glance",
+            "rival_standoff",
+            "confession",
+            "choice",
+            "aftermath",
+            "next_question"
           ]
         },
         "grammar_step": {
@@ -388,9 +397,9 @@
           "items": {
             "enum": [
               "orient",
-              "escalate",
               "reveal",
               "hide",
+              "escalate",
               "reaction",
               "payoff",
               "misdirect",
@@ -398,7 +407,16 @@
               "isolate",
               "connect",
               "contrast",
-              "observe"
+              "observe",
+              "setup",
+              "face_slap",
+              "bystander_shock",
+              "longing_glance",
+              "rival_standoff",
+              "confession",
+              "choice",
+              "aftermath",
+              "next_question"
             ]
           },
           "type": "array"

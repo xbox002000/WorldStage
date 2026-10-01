@@ -182,7 +182,7 @@ def _succession(conn: sqlite3.Connection, row: sqlite3.Row) -> dict | None:
              "investment": _clip(len(camp) / 4.0)}
     own = min(OWN_CAP, float(len(camp))) + 1.0
     stage = _stage(conn, ("open_seat",), day, eid, {"target": t["seat"]})
-    return {"kind": "succession", "event_id": eid, "day": day, "protagonist": hero, "against": favourite if favourite != hero else None,
+    return {"kind": "succession", "event_id": eid, "day": day, "protagonist": hero, "against": favourite if favourite != hero else None, "seat": t["seat"],
             "causes": {"campaign": [r["event_id"] for r in camp], "stage": stage, "favourite": favourite},
             **_score(parts, _agency(own, STAGE_UNITS * len(stage), 0.0))}
 

@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 REST_DAYS = 5
 DORMANT_AFTER = 10
+STALL_DAYS = 7        # an arc the producer has done something for, and in which nothing has been played since, is given up
+ABANDON_REST = 12     # ... and not taken up again for this long
 PROTECT_AT = 0.15     # a triangle at least this worth watching is the world's own, and left alone
 
 
@@ -28,7 +30,7 @@ class Thread:
     others: list[str]
     opened: int
     last_action: int
-    status: str = "active"          # active | completed | failed | dormant
+    status: str = "active"          # active | completed | failed | dormant | abandoned
     ended: int = -1
 
 
@@ -38,15 +40,18 @@ class Threads:
         self.last_focus: dict[str, int] = {}      # protagonist -> the last day they were the focus
         self._seen_events = -1
         self._payoffs: set[tuple[str, int]] = set()
+        self.found: list[dict] = []               # every payoff seen so far (what has been told: the pattern memory's input)
 
-    def take_up(self, op, day: int) -> Thread:
+    def take_up(self, op, day: int, acted: bool = True) -> Thread:
         t = self.by_id.get(op.opportunity_id)
         if t is None:
             t = self.by_id[op.opportunity_id] = Thread(op.opportunity_id, op.kind, op.protagonist, list(op.others), day, day)
         if t.status != "active":       # taken up again after it ended: a new telling, so nothing before it counts
             t.opened, t.ended = day, -1
-        t.status, t.last_action = "active", day
-        self.last_focus[op.protagonist] = day
+        t.status = "active"
+        if acted:                      # only something done for the story counts as tending it; noticing that it needs nothing does not
+            t.last_action = day
+            self.last_focus[op.protagonist] = day
         return t
 
     def resting(self, pid: str, day: int) -> bool:
@@ -61,7 +66,8 @@ class Threads:
         if n != self._seen_events:
             self._seen_events = n
             from narrative import payoff
-            self._payoffs = {(p["protagonist"], p["day"]) for p in payoff.payoffs(conn)}
+            self.found = payoff.payoffs(conn)
+            self._payoffs = {(p["protagonist"], p["day"]) for p in self.found}
         for t in self.by_id.values():
             if t.status != "active":
                 continue
@@ -72,8 +78,24 @@ class Threads:
                     "json_extract(truth, '$.winner') IN (%s) LIMIT 1" % ",".join("?" * len(t.others)),
                     (t.opened * 1440, t.protagonist, *t.others)).fetchone():
                 t.status, t.ended = "failed", day
+            elif day - t.last_action >= STALL_DAYS and not self._played(conn, t):
+                t.status, t.ended = "abandoned", day      # nothing came of it: not rescued with more, given up
             elif day - t.last_action >= DORMANT_AFTER:
                 t.status = "dormant"
+
+    @staticmethod
+    def _played(conn: sqlite3.Connection, t: Thread) -> bool:
+        """Has anything of this story been played since it was taken up: a bout, a courtship, a vote involving them?"""
+        who = [t.protagonist, *t.others]
+        for r in conn.execute("SELECT truth FROM events WHERE type IN ('duel', 'flirt', 'confession', 'succession') AND timestamp >= ?", (t.opened * 1440,)):
+            tr = json.loads(r[0])
+            if t.protagonist in {tr.get(k) for k in ("winner", "loser", "actor", "target")} or (t.kind == "succession" and tr.get("winner")):
+                return True
+        return False
+
+    def blocked(self, opportunity_id: str, day: int) -> bool:
+        t = self.by_id.get(opportunity_id)
+        return t is not None and t.status == "abandoned" and day - t.ended < ABANDON_REST
 
     def active(self) -> list[Thread]:
         return [t for t in self.by_id.values() if t.status == "active"]

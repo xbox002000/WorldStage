@@ -92,7 +92,7 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                   style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True, route: str = "procedural",
                   registry: CapabilityRegistry | None = None, policy: Policy = Policy(),
                   threads: list | None = None, shown: set[int] | frozenset[int] = frozenset(),
-                  runtime_cache: str | None = None) -> list[EpisodeResult]:
+                  runtime_cache: str | None = None, intents: dict[int, list[str]] | None = None) -> list[EpisodeResult]:
     """Turn chosen arcs into episodes, one after another (a later episode's recap can cite an earlier one).
 
     With `threads` (one StoryThread per candidate, from the story director) each scene gets a DirectorPlan first,
@@ -108,7 +108,7 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         validate_spec(world, spec)
         recap = series.build_recap(conn, spec)
         thread = threads[i] if threads else None
-        direction = plan_direction(world, spec, thread, set(shown)) if thread is not None else None
+        direction = plan_direction(world, spec, thread, set(shown), intents=intents) if threads else None   # (a day's material with no thread is told plainly)
         performance = plan_performance(world, spec, direction) if direction is not None else None
         runtime = _runtime(world, runtime_cache).trace([b.event_id for b in spec.beats]) if direction is not None else None
         packet = compile_packet(spec, style, orientation, recap=recap, direction=direction, performance=performance,

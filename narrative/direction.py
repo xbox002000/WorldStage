@@ -246,6 +246,27 @@ def _shots_for(i: int, b: Beat, functions: list[str], focal: FocalizationPlan, s
                           "the absurd thing that says it"))
         elif fn == "observe":
             shots.append((fn, "MS", "eye_level", "profile", "static", "slow", actor, "body", 2.5, "two_shot", "watch"))
+        elif fn == "face_slap":
+            shots.append((fn, "CU", "eye_level", "frontal", "push_in", "fast", other or actor, "face", 2.0, "over_shoulder",
+                          "the one who looked down sees it"))
+            shots.append((fn, "MS", "low", "frontal", "static", "slow", actor, "body", 2.0, "wide", "the one proved right stands there"))
+        elif fn == "bystander_shock":
+            wit = next((p.id for p in b.participants if p.role == "witness"), actor)
+            shots.append((fn, "MS", "eye_level", "frontal", "static", "fast", wit, "face", 2.0, "wide", "the room goes quiet"))
+        elif fn == "longing_glance":
+            shots.append((fn, "CU", "eye_level", "profile", "push_in", "slow", actor, "eyes", 3.0, "over_shoulder", "a look held a moment too long"))
+        elif fn == "rival_standoff":
+            shots.append((fn, "MS", "low", "two_shot", "static", "slow", actor, "body", 3.0, "two_shot", "two who want the same thing, face to face"))
+        elif fn == "confession":
+            shots.append((fn, "MCU", "eye_level", "two_shot", "push_in", "slow", actor, "face", 3.5, "two_shot", "it is said"))
+        elif fn == "choice":
+            shots.append((fn, "CU", "eye_level", "frontal", "static", "slow", actor, "eyes", 3.0, "over_shoulder", "the moment before choosing"))
+        elif fn == "aftermath":
+            shots.append((fn, "WS", "high", "profile", "static", "slow", actor, "space", 3.0, "wide", "what is left after"))
+        elif fn == "setup":
+            shots.append((fn, "MS", "eye_level", "profile", "static", "slow", actor, "body", 2.5, "two_shot", "where it starts"))
+        elif fn == "next_question":
+            shots.append((fn, "CU", "eye_level", "frontal", "static", "slow", actor, "eyes", 2.5, "over_shoulder", "what they want now"))
     if focal.mode == "limited" and focal.focalizer in _people(b, ("witness",)):
         shots.append(("observe", "MS", "eye_level", "subjective", "handheld", "slow", actor, "body", 2.5, "pov",
                       f"through {focal.focalizer}'s eyes: they only watched"))
@@ -407,7 +428,8 @@ def _character_turn(conn, focal: str, spec: SceneSpec) -> str:
 
 def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThread | None = None,
                    shown: set[int] | frozenset[int] = frozenset(), *, focalizer: str | None = None,
-                   strategy: str | None = None, camera: str | None = None, edit: str | None = None) -> DirectorPlan:
+                   strategy: str | None = None, camera: str | None = None, edit: str | None = None,
+                   intents: dict[int, list[str]] | None = None) -> DirectorPlan:
     """The director decides everything unless a benchmark forces a choice (focalizer, strategy, camera style, edit).
     A forced choice changes only how the scene is told; the scene, its events and its truth stay the same.
     focalizer="omniscient": no one's eyes, the camera stands outside everyone."""
@@ -418,6 +440,7 @@ def plan_direction(conn: sqlite3.Connection, spec: SceneSpec, thread: StoryThrea
     beats = []
     for i, b in enumerate(spec.beats):
         fns = beat_functions(i, b, spec, knowledge)
+        fns = fns + [x for x in (intents or {}).get(b.event_id, []) if x not in fns]   # what the episode plan wants of this event
         inner = focal.focalizer if focal.focalizer in _people(b) else (_role(b, "actor") or "")
         beats.append(DramaticBeat(i, b.event_id, fns, inner, _note(fns, knowledge)))
     shots: list[CameraShot] = []

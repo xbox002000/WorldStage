@@ -39,6 +39,7 @@ producer that learns from them would learn to hand them over.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import sys
 from concurrent.futures import ProcessPoolExecutor
@@ -46,10 +47,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 V1 = ("random", "full", "stage", "cast", "parcel")
-V2 = ("greedy", "lookahead", "matched", "blind", "aggressive", "unlimited")
+V2 = ("greedy", "portfolio", "lookahead", "matched", "blind", "aggressive", "unlimited")
 STRATEGIES = ("off",) + V1 + V2
 EPISODE_DAYS = 10
-PAIRS = (("greedy", "off"), ("matched", "off"), ("blind", "off"), ("greedy", "matched"), ("greedy", "blind"), ("matched", "blind"),
+PAIRS = (("portfolio", "off"), ("portfolio", "matched"), ("portfolio", "greedy"), ("greedy", "off"), ("matched", "off"), ("blind", "off"), ("greedy", "matched"), ("greedy", "blind"), ("matched", "blind"),
          ("aggressive", "greedy"), ("unlimited", "greedy"), ("lookahead", "greedy"), ("lookahead", "off"), ("lookahead", "matched"), ("full", "off"), ("greedy", "full"))
 TURNING = ("breakthrough", "succession", "found_faction", "defect", "confession", "break_up", "duel")
 RELATION_EVENTS = ("flirt", "confession", "date", "break_up", "recruit", "defect", "campaign", "succession")
@@ -62,7 +63,7 @@ def run_branch(seed: int, strategy: str, days: int, recipe: str = RECIPE) -> dic
     sys.path.insert(0, str(ROOT))
     from agent.volition import VolitionDecider
     from drama_gate import measure
-    from narrative import payoff
+    from narrative import novelty, payoff
     from persona_lab import TRAITS, VALUES, _life
     from producer.showrunner import Showrunner
     from world.db import connect, init_db
@@ -96,7 +97,8 @@ def run_branch(seed: int, strategy: str, days: int, recipe: str = RECIPE) -> dic
         "by_type": {t: sum(e["budget_cost"] for e in ledger if e["admitted"] and e["type"] == t) for t in sorted({e["type"] for e in ledger})},
         "life": _life(conn)["people"], "traits": TRAITS, "values": VALUES,
         "director": list(getattr(getattr(sr, "ledger", None), "decisions", [])), "episodes": episodes(conn, sr, found),
-        "calibration": calibration(sr, found),
+        "calibration": calibration(sr, found), "novel": novelty.summary(found),
+        "threads": dict(Counter(t.status for t in sr.threads.by_id.values())) if hasattr(sr, "threads") else {},
     }
 
 
@@ -175,12 +177,13 @@ def _hero_rate(by, seeds, strategy) -> tuple[float, float, float]:
 
 METRICS = {"payoffs": lambda r: r["payoff"]["count"], "earned": lambda r: r["payoff"]["earned"], "earned_payoffs": lambda r: r["payoff"]["earned_payoffs"],
            "tension_v1": lambda r: r["tension_v1"] or 0.0, "turning_points": lambda r: r["turning_points"], "events": lambda r: r["events"],
-           "cost": lambda r: r["cost"]}
+           "cost": lambda r: r["cost"], "earned_novel": lambda r: r["novel"]["earned_novel"], "mean_novelty": lambda r: r["novel"]["mean_novelty"],
+           "mechanics": lambda r: r["novel"]["mechanics"]}
 
 
 def paired(by, seeds, a: str, b: str) -> dict:
     out = {name: bootstrap([f(by[(s, a)]) - f(by[(s, b)]) for s in seeds]) for name, f in METRICS.items()}
-    out["shown"] = [k for k in ("payoffs", "earned", "earned_payoffs") if out[k][1] > 0]
+    out["shown"] = [k for k in ("payoffs", "earned", "earned_payoffs", "earned_novel") if out[k][1] > 0]
     return out
 
 
@@ -262,6 +265,8 @@ def main() -> None:
                             "own_share": _mean(by[(s, st)]["payoff"]["earned_share"] for s in seeds),
                             "stuffing": _mean(by[(s, st)]["events"] / by[(s, "off")]["events"] for s in seeds),
                             "fairness_gini": _mean(by[(s, st)]["payoff"]["fairness_gini"] for s in seeds),
+                            "earned_novel": _mean(by[(s, st)]["novel"]["earned_novel"] for s in seeds),
+                            "threads": {k: _mean(by[(s, st)]["threads"].get(k, 0) for s in seeds) for k in ("active", "completed", "failed", "dormant", "abandoned")},
                             "payoff_kinds": {k: _mean(by[(s, st)]["payoff"]["by_kind"].get(k, 0) for s in seeds) for k in ("face_slap", "chosen", "succession")}}
                        for st in strategies if st in V2}
     Path(a.out).mkdir(parents=True, exist_ok=True)

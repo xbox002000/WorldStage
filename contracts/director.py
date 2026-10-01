@@ -17,8 +17,7 @@ DIRECTOR_VERSION = 1
 Strategy = Literal["irony", "mystery", "plain"]  # audience knows more / less / the same as the characters
 FocalMode = Literal["omniscient", "limited", "subjective", "witness"]
 FocalKind = Literal["person", "animal", "device", "none"]
-Function = Literal["orient", "escalate", "reveal", "hide", "reaction", "payoff", "misdirect", "foreshadow",
-                   "isolate", "connect", "contrast", "observe"]
+from contracts.episode_plan import ShotIntent as Function  # noqa: E402  (one closed vocabulary: what a shot is for)
 Scale = Literal["EWS", "WS", "MS", "MCU", "CU", "ECU", "INSERT"]
 Angle = Literal["eye_level", "high", "low", "overhead", "ground"]
 Relation = Literal["frontal", "profile", "rear", "over_shoulder", "two_shot", "subjective"]

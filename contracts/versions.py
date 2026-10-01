@@ -17,4 +17,8 @@ VERSIONS = {
     "opportunity_contract": 1,            # contracts/opportunity.py OPPORTUNITY_VERSION
     "opportunity_model": "opportunity_model_v0.1",  # narrative/opportunity.py MODEL_VERSION (a draft)
     "pacing_model": "pacing_v0.1",                  # narrative/pacing.py PACING_VERSION (a draft)
+    "episode_plan_contract": 1,           # contracts/episode_plan.py EPISODE_PLAN_VERSION
+    "episode_planner": "episode_planner_v0.1",      # narrative/episode_planner.py PLANNER_VERSION (a draft)
+    "novelty_model": "novelty_v0.1",                # narrative/novelty.py NOVELTY_VERSION (a draft)
+    "debt_model": "debt_model_v0.1",                # narrative/debt.py DEBT_VERSION (a draft; a read model, not used by the director)
 }

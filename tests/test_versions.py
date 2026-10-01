@@ -5,7 +5,7 @@ import re
 import unittest
 from pathlib import Path
 
-from contracts import audience, character, intervention, opportunity, persona, runtime, seed
+from contracts import audience, character, episode_plan, intervention, opportunity, persona, runtime, seed
 from contracts.versions import VERSIONS
 from world import db
 
@@ -30,6 +30,13 @@ class Versions(unittest.TestCase):
         self.assertEqual(opportunity.OPPORTUNITY_VERSION, VERSIONS["opportunity_contract"])
         self.assertEqual(MODEL_VERSION, VERSIONS["opportunity_model"])
         self.assertEqual(PACING_VERSION, VERSIONS["pacing_model"])
+        from narrative.episode_planner import PLANNER_VERSION
+        self.assertEqual(episode_plan.EPISODE_PLAN_VERSION, VERSIONS["episode_plan_contract"])
+        self.assertEqual(PLANNER_VERSION, VERSIONS["episode_planner"])
+        from narrative.debt import DEBT_VERSION
+        from narrative.novelty import NOVELTY_VERSION
+        self.assertEqual(NOVELTY_VERSION, VERSIONS["novelty_model"])
+        self.assertEqual(DEBT_VERSION, VERSIONS["debt_model"])
 
     def test_the_payoff_metric_is_a_draft_until_it_is_frozen(self):
         self.assertTrue(VERSIONS["payoff_metric"].endswith("v0.1"))

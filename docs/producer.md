@@ -136,6 +136,54 @@ Two findings from step 0 (diagnosis of version 1, 8 seeds) changed the plan befo
    hero; the underrated heroes were within 0.1 of the strongest, so the bout was an even one and the crowd's surprise at a win was
    small. (The hero won 3 of the 5 bouts against the doubter, so this was a smaller effect than guessed.)
 
+## Producer 2.1: what a third research brief changed, and what measuring it said (plan v0.7)
+
+The brief proposed Dramatic Debt, a Story Portfolio, intervention storylets, pattern saturation, arc death, adaptive pacing, a
+"bottleneck" lookahead and a layered objective (legality, then agency, then novelty, then payoff). It was measured, not adopted whole.
+
+| proposal | what was done | verdict |
+|---|---|---|
+| Pattern saturation | `narrative/novelty.py`: the same mechanic and the same pair of people count 1.0, 0.6, 0.3, 0.1 on each telling. A measure (`earned_novel`, a sibling of payoff_metric_v0.1, which is left alone) and the director's gate (`portfolio`) | adopted as a measure; as a gate it **did not help** |
+| Arc death | `producer/arcs.py`: only something *done* for a story counts as tending it; nothing played in 7 days and it is given up, not taken up again for 12 | works (about one arc given up per world), costs nothing |
+| Intervention strength | soft / medium / hard recorded with each decision | annotation only: the vocabulary has no hard type yet |
+| Layered objective | legality and agency were already hard (ledger, vocabulary, hero never cast); novelty is now a gate before worth | as above |
+| Dramatic Debt | `narrative/debt.py` (humiliation, betrayal, gap, longing, grudge), `debt_lab.py` | measured: **does not predict better than what we have** |
+| Storylets | the shaper's table (lack -> least intervention) is already that | not rebuilt |
+| Bottleneck lookahead | | not built: lookahead has not been shown to help at all |
+| Surprise and post-dictability | | deferred until the causal audit feeds the measure |
+
+**Debt as a predictor** (8 seeds, 1520 person-days, no producer; AUC of "carried more, then had a payoff in the next ten days"):
+the composite debt 0.58; the opportunity detector's own worth **0.74**; the gap alone 0.69; humiliation 0.57, betrayal 0.59,
+longing 0.49, grudge 0.46 (the last two carry no information at all). A composite that is worse than its best part and
+worse than what already exists is not wired into the director; it stays as an explanatory read model with this number next to it.
+
+**The portfolio director against the first one** (20 more fresh seeds, 28 days, per world):
+
+| | off | matched | greedy | portfolio |
+|---|---|---|---|---|
+| payoffs | 1.55 | 3.40 | 5.55 | 5.05 |
+| earned | 0.79 | 1.38 | 2.62 | 2.23 |
+| earned, discounted for repeats | | 1.03 | 1.65 | 1.45 |
+| face slaps / votes / confessions | | 2.3 / 0.8 / 0.3 | 2.5 / 2.4 / 0.7 | 2.6 / 2.0 / 0.5 |
+| arcs given up | | 0.65 | 0.35 | 0.95 |
+
+Pre-registered, and what happened:
+
+1. *earned_novel, portfolio - matched, interval above zero*: **met** (+0.42, +0.22..+0.61).
+2. *votes at most 40% of the payoffs* (greedy about 47%): **met, barely** (39.6%; greedy 43% on these seeds).
+3. *a followed reversal pays off for its hero in 55%, own share 0.7, stuffing 1.05*: **not met**: 52% (24 of 46; greedy 56%, matched 48%); own share 0.79 and stuffing 1.00 hold.
+4. *arcs are given up, and the spend is not higher than greedy's*: **met** (11.5 against 12.5 units).
+
+But the point of the exercise was to stop paying for repetition without losing the story, and it did not work:
+**portfolio earns less than greedy, even on the metric that discounts repetition** (-0.39 earned, -0.62..-0.16; -0.20 earned_novel,
+-0.34..-0.06), and it is not measurably newer (mean novelty +0.03, not distinguishable from zero; mechanics -0.15). The gate removes
+stories that were still worth telling and does not bring in better ones. Greedy, with its softer variety weight, stays the default;
+`portfolio` stays in the code as an option and as the record of this.
+
+What this says about the brief's worry: the repeated vote *is* the cheapest payoff and a producer that is paid by payoffs does lean
+on it (2.4 a world), but a hard gate on repetition is a blunt cure. What would help is not another gate but making the other stories as
+cheap to bring off, which is the reversal's 55% (a hero with an open result cannot be promised a win) and the confession's 0.7 a world.
+
 ## Versions
 
 Kept apart in `contracts/versions.py` and pinned by `tests/test_versions.py`: database schema 8; character 1; persona 1; seed 1;

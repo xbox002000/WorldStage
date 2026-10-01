@@ -1,0 +1,258 @@
+{
+  "$defs": {
+    "EpisodeBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "checklist": {
+          "$ref": "#/$defs/SceneChecklist"
+        },
+        "derived": {
+          "type": "boolean"
+        },
+        "event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "index": {
+          "type": "integer"
+        },
+        "intent": {
+          "enum": [
+            "orient",
+            "reveal",
+            "hide",
+            "escalate",
+            "reaction",
+            "payoff",
+            "misdirect",
+            "foreshadow",
+            "isolate",
+            "connect",
+            "contrast",
+            "observe",
+            "setup",
+            "face_slap",
+            "bystander_shock",
+            "longing_glance",
+            "rival_standoff",
+            "confession",
+            "choice",
+            "aftermath",
+            "next_question"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "shoot": {
+          "type": "boolean"
+        },
+        "stage": {
+          "enum": [
+            "daily",
+            "anomaly",
+            "doubt",
+            "rising",
+            "conflict",
+            "choice",
+            "irreversible",
+            "change"
+          ]
+        },
+        "tension": {
+          "type": "number"
+        },
+        "who": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "index",
+        "event_ids",
+        "stage",
+        "tension",
+        "intent",
+        "who",
+        "checklist",
+        "shoot",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "EpisodePlan": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/EpisodeBeat"
+          },
+          "type": "array"
+        },
+        "core_question": {
+          "type": "string"
+        },
+        "day": {
+          "type": "integer"
+        },
+        "dropped": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "ending_question": {
+          "type": "string"
+        },
+        "grammar": {
+          "items": {
+            "$ref": "#/$defs/GrammarStep"
+          },
+          "type": "array"
+        },
+        "grammar_complete": {
+          "type": "boolean"
+        },
+        "has_breath": {
+          "type": "boolean"
+        },
+        "inner_conflict": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "near_miss": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "people": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "plan_hash": {
+          "type": "string"
+        },
+        "reveal": {},
+        "shootable": {
+          "type": "boolean"
+        },
+        "tension_curve": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "day",
+        "kind",
+        "thread_id",
+        "core_question",
+        "beats",
+        "tension_curve",
+        "has_breath",
+        "inner_conflict",
+        "near_miss",
+        "reveal",
+        "ending_question"
+      ],
+      "type": "object"
+    },
+    "GrammarStep": {
+      "additionalProperties": false,
+      "properties": {
+        "event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "note": {
+          "type": "string"
+        },
+        "present": {
+          "type": "boolean"
+        },
+        "step": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "event_ids",
+        "present"
+      ],
+      "type": "object"
+    },
+    "SceneChecklist": {
+      "additionalProperties": false,
+      "properties": {
+        "audience_only": {
+          "type": "boolean"
+        },
+        "changed": {
+          "type": "boolean"
+        },
+        "emotion": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "knows": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "leaves_question": {
+          "type": "string"
+        },
+        "obstructs": {
+          "type": "string"
+        },
+        "relationship": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "wants": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/EpisodePlan",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

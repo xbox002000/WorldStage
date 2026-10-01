@@ -63,6 +63,9 @@ class DailyConfig:
     feed: str | None = None
     recipe: str = "town_v1"  # which world recipe a new world is built from (world/recipes/*.json)
     look: str = "procedural"  # procedural | cast (the directed cartoon look; World C episodes only)
+    # World C: pick the day's material with the episode planner (a payoff the audience waited for, then a choice against oneself,
+    # then the best thread) instead of the thread ranking alone. Off by default: it changes which episode a day makes.
+    episode_first: bool = False
 
 
 @dataclass(frozen=True)
@@ -156,7 +159,7 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
         conn.close()
 
 
-def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown: set[int]) -> None:
+def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown: set[int], episode_plan=None) -> None:
     """How the chosen scene is staged in space (read-only), for a spatial backend such as Blender later."""
     spec = build_scene_specs(world, [cand], [folder.name])[0]
     plan = compile_spatial(spec)
@@ -165,6 +168,8 @@ def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown:
     (folder / "thread.json").write_text(canonical_json(thread), encoding="utf-8")
     from narrative.direction import plan_direction
     (folder / "director_plan.json").write_text(canonical_json(plan_direction(world, spec, thread, shown)), encoding="utf-8")
+    if episode_plan is not None:
+        (folder / "episode_plan.json").write_text(canonical_json(episode_plan), encoding="utf-8")
 
 
 def _freeze(cfg: DailyConfig, live: Path, conn: sqlite3.Connection) -> None:
@@ -220,24 +225,38 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
 
     world = open_world_reader(live)
     try:
-        if cfg.world_c:
+        planned = None   # (kind, payoff, grammar steps) when the episode planner chose the material
+        if cfg.world_c and cfg.episode_first:
+            from narrative import episode_planner as ep
+            from narrative.selector import Candidate
+            arc, thread, kind, payoff, steps = ep.choose_material(world, day, series.used_event_ids(conn))
+            cand = None if arc is None else Candidate(arc, payoff["earned"] if payoff else 0.5, {"episode_planner": 1.0})
+            planned = (kind, payoff, steps)
+        elif cfg.world_c:
             cand, thread, _ = select_thread(world, day, series.used_event_ids(conn))
         else:
             cand, _ = select_daily(world, day, cfg.protagonists, cfg.style.weights, series.used_event_ids(conn))
         status, episode = "quiet_day", None
+        plan = intents = None
         if cand is not None:
             shown = series.used_event_ids(conn)
+            if cfg.world_c:
+                from narrative.episode_planner import plan_episode
+                kind, payoff, steps = planned or ("thread", None, None)
+                plan = plan_episode(world, cand.arc, thread, shown, day, kind, payoff, steps)
+                if planned is not None:   # the planner chose it, so what it wants of each scene goes to the director
+                    intents = {i: [b.intent] for b in plan.beats if b.shoot for i in b.event_ids}
             (episode,) = make_episodes(world, conn, Path(cfg.out_dir), [cand], scene_ids=[f"day_{day + 1:02d}"],
                                        sim_day=day, orientation=cfg.orientation, style=cfg.style,
                                        quality=cfg.quality, render=cfg.render, route=cfg.look,
                                        threads=[thread] if cfg.world_c else None, shown=shown,
-                                       runtime_cache=str(Path(cfg.out_dir) / "runtime.ckpt"))
+                                       runtime_cache=str(Path(cfg.out_dir) / "runtime.ckpt"), intents=intents)
             status = ("episode" if episode.episode_id else
                       "render_failed" if episode.qa_status == "render_failed" else "qa_failed")
             if episode.video is not None:
                 LocalPublisher(conn, episode.episode_id).publish(episode.video.parent)
             if cfg.world_c:
-                _write_spatial(world, cand, Path(cfg.out_dir) / f"day_{day + 1:02d}", thread, shown)
+                _write_spatial(world, cand, Path(cfg.out_dir) / f"day_{day + 1:02d}", thread, shown, plan)
         conn.execute("INSERT INTO daily_runs(experiment_id, sim_day, world_revision, snapshot_hash, episode_id, status, usage_json, "
                      "created_at) VALUES (?,?,?,?,?,?,?,strftime('%s','now'))",
                      (cfg.experiment, day, revision, snap, episode.episode_id if episode else None, status,
