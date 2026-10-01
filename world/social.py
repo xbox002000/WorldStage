@@ -53,6 +53,12 @@ def var_or(conn: sqlite3.Connection, key: str, default: float) -> float:
     return var(conn, key, default)
 
 
+def register_belief_effect(act: str, affirm: float, deny: float = 0.0) -> None:
+    BELIEF_EFFECT.setdefault((act, "affirm"), affirm)
+    if deny:
+        BELIEF_EFFECT.setdefault((act, "deny"), deny)
+
+
 def belief_effect(claim: Claim) -> float:
     return BELIEF_EFFECT.get((claim.act, claim.polarity), 0.0)
 
@@ -88,12 +94,14 @@ def resolve_tell(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -
     about = src["about_event_id"] if src["about_event_id"] is not None else src["event_id"]
     names = labels(conn)
     here = person(conn, a)["location_id"]
-    from world.psyche import trait
-    # someone who has learned not to trust believes less of what they are told
+    from world.psyche import self_bias, trait
+    # someone who has learned not to trust believes less of what they are told (and more so if they now think of
+    # themselves as someone who cannot trust anyone)
     from world.recipes import enabled
     standing = 0.2 * (var_or(conn, f"rep.{a}", 0.5) - 0.5) if enabled(conn, "reputation") else 0.0
     confidence = round(min(0.95, max(0.10, listener_confidence(rel(conn, b, a, "trust"))
-                                     + 0.4 * (trait(conn, b, "trust_default") - 0.5) + standing)), 2)
+                                     + 0.4 * (trait(conn, b, "trust_default") - 0.5) + standing
+                                     + self_bias(conn, b).get("belief", 0.0))), 2)
 
     verdict = evaluate(conn, asserted, about)
     deceived = t.mode in ("lie", "distortion") and verdict in (FALSE, PARTIAL)

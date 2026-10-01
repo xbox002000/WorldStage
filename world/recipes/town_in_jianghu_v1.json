@@ -1,0 +1,14 @@
+{
+  "recipe_id": "town_in_jianghu_v1",
+  "title": "小鎮的十個人，放進江湖（跨題材角色測試）",
+  "content": "town_in_jianghu",
+  "core": "martial_arts",
+  "pillars": ["reputation", "duel", "sect_factions"],
+  "accents": ["gossip.drift"],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "同一群人，換了一個世界：誰還是原來的自己？",
+  "director_prefers": {"feud": 0.08, "item": 0.04},
+  "base": ["events", "claims", "attention", "schedule", "volition", "goals", "psyche", "items.ownership", "items.accusation",
+           "social.exchange", "social.topics", "life.work", "character.values", "body.arousal"]
+}

@@ -25,8 +25,8 @@ CLOSED = ("abandoned", "revised", "completed", "transformed")
 TEXT = {
     "recover": "找回{o}", "expose": "讓{t}承認拿了{o}", "revenge": "報復{t}", "clear_name": "向{t}證明自己的清白",
     "make_amends": "彌補{t}", "repay": "還清欠{t}的錢", "save": "存到{o}元", "reconcile": "和{t}和好",
-    "befriend": "和{t}成為朋友", "keep_secret": "守住秘密", "outshine": "壓過{t}", "surpass": "有一天打贏{t}",
-}
+    "befriend": "和{t}成為朋友", "keep_secret": "守住秘密", "outshine": "壓過{t}",
+}  # domain packs add their own kinds (world/domains): see text_of
 # initial goals from the personas: person -> (kind, target, object, priority)
 INITIAL = {
     "ming": ("outshine", "kai", "", 0.5), "mei": ("save", "", "500", 0.6), "jun": ("repay", "tao", "", 0.7),
@@ -54,8 +54,14 @@ def initial_rows(people: list[str], initial: dict | None = None) -> list[tuple]:
 
 
 def describe(conn: sqlite3.Connection, g: sqlite3.Row | dict) -> str:
-    names = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM people UNION ALL SELECT id, name FROM objects")}
-    return TEXT.get(g["kind"], g["kind"]).format(t=names.get(g["target"], g["target"]), o=names.get(g["object"], g["object"]))
+    names = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM people UNION ALL SELECT id, name FROM objects "
+                                               "UNION ALL SELECT id, name FROM locations")}
+    return text_of(g["kind"]).format(t=names.get(g["target"], g["target"]), o=names.get(g["object"], g["object"]))
+
+
+def text_of(kind: str) -> str:
+    from world.domains import goal_text
+    return TEXT.get(kind) or goal_text().get(kind, kind)
 
 
 def has_goals(conn: sqlite3.Connection) -> bool:
@@ -296,11 +302,15 @@ def overnight(conn: sqlite3.Connection, day: int, now: int) -> list[EventSpec]:
             if kind in ("clear_name", "make_amends") and age >= SOFT_GOAL_DAYS:
                 w.status(g, "abandoned", "算了", day)
                 continue
-        if kind == "surpass" and conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'world_vars'").fetchone():
-            from world.jianghu import skill
-            if skill(conn, pid) > skill(conn, g["target"]) + 0.05:
-                w.status(g, "completed", "已經比他強了", day)
-                continue
+        verdict = None
+        from world.domains import active
+        for dom in active(conn):  # a domain's own goal kinds are judged by the domain
+            verdict = dom.review_goal(conn, g, day)
+            if verdict:
+                break
+        if verdict:
+            w.status(g, verdict[0], verdict[1], day)
+            continue
         if kind == "revenge":
             if age >= REVENGE_COOLS_DAYS:
                 w.status(g, "abandoned", "氣消了", day)

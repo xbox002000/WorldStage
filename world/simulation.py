@@ -16,6 +16,10 @@ DECISION_SLOTS = (730, 1090, 1270)  # after arrivals at cafe, park and home
 UPKEEP_SLOT = 1439
 JITTER_MAX = 25  # minutes: people never act on the dot
 PRELUDE = ("backstory", "mechanic", "awakening")  # set-up events that may precede a day without being part of one
+# a night's sleep: anger and shame settle into unease, lighter feelings pass (social.exchange)
+OVERNIGHT = {"angry": "uneasy", "ashamed": "uneasy", "scared": "uneasy", "embarrassed": "calm", "uneasy": "calm",
+             "hurt": "calm", "happy": "calm", "relieved": "calm"}
+FADE = 0.02  # social.exchange: a night apart moves trust and affection this share of the way to indifference
 MISPLACE_RATE = 0.06  # chance per carried item per departure, times the person's absent_minded trait
 
 
@@ -47,6 +51,8 @@ class Simulation:
                                             conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0])
         from world.recipes import compiled, recipe_of
         self.primitives = set(compiled(recipe_of(conn)).order) if self.economy else set()
+        from world.domains import active as active_domains
+        self.domains = active_domains(conn) if self.economy else ()
         for d in {id(active): active, id(ambient): ambient}.values():
             if hasattr(d, "mechanics"):
                 d.mechanics = self.mechanics
@@ -55,11 +61,33 @@ class Simulation:
         self.active_ids = active_ids
         self.stats: Counter = Counter()
         self.seed = conn.execute("SELECT value FROM meta WHERE key = 'world_seed'").fetchone()[0]
+        self._now = 0  # the last moment an event was applied at: an exchange never makes time run backwards
+        from agent.reply import Replier
+        self.replier = Replier(self.seed)
         if "space.perception" in self.primitives:  # simulated inside its own space: witnesses must see, finders must see
             from world.space import attach, oracle
             if oracle(conn) is None:
                 from runtime.perception import RuntimeSpace
                 attach(conn, RuntimeSpace(conn))
+        # where the time goes (world/profiling.py): measured, never used to decide
+        from world.profiling import Profile
+        self.profile = Profile()
+        for d in {id(active): active, id(ambient): ambient}.values():
+            if not getattr(d, "_timed", False) and hasattr(d, "decide"):
+                self.profile.wrap(d, "decide", "decide")
+                d._timed = True
+        self.profile.wrap(self.replier, "reply", "reply")
+        self.profile.wrap(self.replier, "intervene", "reply")
+        self.profile.wrap(self, "_after", "after")
+        self.profile.wrap(self, "_upkeep", "upkeep")
+        if "space.perception" in self.primitives:
+            from world.space import oracle as _oracle
+            sp = _oracle(conn)
+            if sp is not None and hasattr(sp, "rt") and not getattr(sp, "_timed", False):
+                self.profile.wrap(sp.rt, "advance", "space.runtime")
+                self.profile.wrap(sp, "weight", "space.query")
+                self.profile.wrap(sp, "perceives_thing", "space.query")
+                sp._timed = True
 
     # -- days ----------------------------------------------------------------------------------------------------
     def next_day(self) -> int:
@@ -77,7 +105,9 @@ class Simulation:
         start = self.next_day()
         done = list(range(start, start + days))
         for day in done:
-            self.run_day(day)
+            with self.profile.section("day"):
+                self.run_day(day)
+            self.profile.end_day(day)
         return done
 
     def run_day(self, day: int) -> None:
@@ -90,15 +120,23 @@ class Simulation:
                 self.stats[f"seed_{cand.status}"] += 1
         for m in self.mechanics:
             m.on_dawn(self.conn, day)
+        for dom in self.domains:
+            for spec in dom.dawn(self.conn, day, day * DAY):
+                self._after(apply_event(self.conn, spec))
         for i, slot in enumerate(slots):
             window = (slots[i + 1] if i + 1 < len(slots) else UPKEEP_SLOT) - slot
             base = day * DAY + slot
             scripted = []
+            deciders = [p for p in ids if schedules[p].get(str(slot)) == "decide"] if slot not in DECISION_SLOTS else ids
             for pid in ids:
                 spec = schedules[pid].get(str(slot))
-                intent = self._scripted_intent(pid, spec) if spec else None
+                intent = self._scripted_intent(pid, spec) if spec and spec != "decide" else None
                 if intent is not None:
-                    scripted.append((self._stamp(pid, base, window), intent))
+                    ts = self._stamp(pid, base, window)
+                    for dom in self.domains:  # a domain may keep, change or drop a routine step (kept late at work)
+                        intent = dom.scripted(self.conn, intent, ts) if intent is not None else None
+                    if intent is not None:
+                        scripted.append((ts, intent))
             for ts, intent in sorted(scripted, key=lambda s: intent_sort_key(s[0], s[1])):
                 self._apply(intent, ts, "schedule")
             if slot in DECISION_SLOTS and "props.parrot" in self.primitives:
@@ -106,10 +144,13 @@ class Simulation:
                 for spec in parrot_events(self.conn, base):
                     self._after(apply_event(self.conn, spec))
                     self.stats["parrot_speaks"] += 1
-            if slot in DECISION_SLOTS:
+            if deciders:
                 # Each person decides at their own moment inside the slot; earlier deciders shape what later ones see.
-                for ts, pid in sorted((self._stamp(p, base, window), p) for p in ids):
-                    self._decide(pid, ts)
+                # What they start may be answered: an exchange runs until someone lets it go, or the next one's turn.
+                turns = sorted((self._stamp(p, base, window), p) for p in deciders)
+                for k, (ts, pid) in enumerate(turns):
+                    limit = turns[k + 1][0] if k + 1 < len(turns) else base + max(0, window - 1)
+                    self._decide(pid, max(ts, self._now), limit)
         self._upkeep(ids, day * DAY + UPKEEP_SLOT)
         apply_event(self.conn, EventSpec(timestamp=day * DAY + UPKEEP_SLOT, type="day_end", trigger_type="rule",
                                          importance=0.0, truth={"day": day}))
@@ -128,7 +169,7 @@ class Simulation:
             return None  # already there
         return Intent(pid, action, target or None)
 
-    def _decide(self, pid: str, now: int) -> None:
+    def _decide(self, pid: str, now: int, limit: int | None = None) -> None:
         if pid in self.animals:
             if self.conn.execute("SELECT status FROM people WHERE id = ?", (pid,)).fetchone()[0] == "inactive":
                 return
@@ -141,30 +182,64 @@ class Simulation:
         intent = (self.active if tier == "active" else self.ambient).decide(self.conn, pid, now)
         self.stats[f"{tier}_decisions"] += 1
         if intent is not None:
-            self._apply(intent, now, "decision")
+            event_id = self._apply(intent, now, "decision")
+            if event_id is not None and "social.exchange" in self.primitives:
+                self._exchange(event_id, now, now if limit is None else limit)
 
-    def _apply(self, intent: Intent, now: int, trigger: str) -> None:
+    def _exchange(self, event_id: int, now: int, limit: int) -> None:
+        """Whoever was just spoken to, accused or confronted answers; then the other answers them, and so on,
+        within the same minute (the runtime's voice bookings play it line by line; `limit`, the next person's moment
+        to decide, is never passed). It ends when one lets it go or walks out. When it turns ugly, one bystander may
+        step in once."""
+        from agent.reply import MAX_TURNS, heat_of
+        last, stepped_in = event_id, False
+        for turn in range(1, MAX_TURNS + 1):
+            row = self.conn.execute("SELECT * FROM events WHERE event_id = ?", (last,)).fetchone()
+            ts = max(self._now, min(now, limit))
+            if not stepped_in and heat_of(row) >= 3:
+                stepped_in = True
+                it = self.replier.intervene(self.conn, row, ts)
+                if it is not None and self._apply(it, ts, "decision") is not None:
+                    self.stats["interventions"] += 1
+            it = self.replier.reply(self.conn, row, turn, ts)
+            if it is None:
+                break
+            answered = self._apply(it, ts, "decision")
+            if answered is None or it.action == "move":
+                break
+            self.stats["replies"] += 1
+            last = answered
+
+    def _apply(self, intent: Intent, now: int, trigger: str) -> int | None:
         try:
-            validate(self.conn, intent)
+            with self.profile.section("apply.validate"):
+                validate(self.conn, intent)
         except WorldError:
             self.stats[f"rejected_{trigger}"] += 1
-            return
+            return None
         if intent.action == "move" and "items.ownership" in self.primitives:
             self._maybe_misplace(intent.actor, now)
-        spec = resolve(self.conn, intent, now, trigger)
-        if self.primitives & {"reputation", "sect_factions"}:
-            from world.jianghu import with_jianghu_effects
-            spec = with_jianghu_effects(self.conn, spec, self.primitives)
+        with self.profile.section("apply.resolve"):
+            spec = resolve(self.conn, intent, now, trigger)
+        with self.profile.section("apply.effects"):
+            for dom in self.domains:  # what each domain adds to any event (reputation after a public shaming, ...)
+                spec = dom.effects(self.conn, spec, self.primitives)
+            if trigger == "decision" and "character.values" in self.primitives:
+                from world.values import with_dilemma  # a choice that betrays one held value to serve another
+                spec = with_dilemma(self.conn, intent, spec)
         if self.animals:
             from world.animals import with_senses
             spec = with_senses(self.conn, spec)
-        event_id = apply_event(self.conn, spec)
+        with self.profile.section("apply.write"):
+            event_id = apply_event(self.conn, spec)
         self.stats[f"applied_{intent.action}"] += 1
         if intent.action == "tell":
             self.stats[f"tell_{intent.mode}"] += 1
         elif intent.action == "confront":
             self.stats[f"confront_{spec.truth['outcome']}"] += 1
+        self._now = max(self._now, now)
         self._after(event_id)
+        return event_id
 
     def _after(self, event_id: int) -> None:
         """What follows from an event without anyone choosing it: mechanics react, goals are reviewed."""
@@ -175,6 +250,10 @@ class Simulation:
             for spec in after_event(self.conn, event_id):
                 apply_event(self.conn, spec)
                 self.stats["goal_changes"] += 1
+        for dom in self.domains:  # what each domain makes of it (a demand at work after the day's work, an offer ...)
+            for spec in dom.after_event(self.conn, event_id):
+                self.stats[f"domain_{spec.type}"] += 1
+                self._after(apply_event(self.conn, spec))
 
     def _maybe_misplace(self, pid: str, now: int) -> None:
         """Leaving a place, an absent-minded person may leave something behind. Nobody decides this."""
@@ -191,9 +270,35 @@ class Simulation:
                 apply_event(self.conn, misplace(self.conn, pid, obj["id"], now))
                 self.stats["misplaced"] += 1
 
+    def _met_today(self, now: int) -> dict[str, set[str]]:
+        """Who dealt with whom today (as actor and target of anything)."""
+        out: dict[str, set[str]] = {}
+        day0 = now // DAY * DAY
+        for a, b in self.conn.execute(
+                "SELECT json_extract(truth, '$.actor'), json_extract(truth, '$.target') FROM events WHERE timestamp >= ? "
+                "AND json_extract(truth, '$.target') IS NOT NULL", (day0,)):
+            if a and b:
+                out.setdefault(a, set()).add(b)
+                out.setdefault(b, set()).add(a)
+        return out
+
+    def _fade(self, pid: str, met: set[str]) -> list[Change]:
+        """A night apart: trust and affection drift 2% towards indifference (social.exchange)."""
+        out = []
+        for other, trust, aff in self.conn.execute(
+                "SELECT target_id, trust, affection FROM relationships WHERE actor_id = ? ORDER BY target_id", (pid,)).fetchall():
+            if other in met or other in self.animals:
+                continue
+            for fld, v in (("trust", trust), ("affection", aff)):
+                d = round(-FADE * v, 6)
+                if abs(v) > 0.05 and d:
+                    out.append(Change("relationship", f"{pid}:{other}", fld, delta=d))
+        return out
+
     def _upkeep(self, ids: list[str], now: int) -> None:
         """Overnight: everyone goes home, pays rent, sleeps and gets hungry (one event per person); then props do
         what they do, and people notice what they no longer have."""
+        met = self._met_today(now) if "social.exchange" in self.primitives else None
         for pid in ids:
             if pid in self.animals:
                 continue  # an animal sleeps where it is; hunger and rent are people's business
@@ -210,6 +315,12 @@ class Simulation:
             if "money.rent" in self.primitives:
                 from world.money import rent_changes
                 changes += rent_changes(self.conn, pid)
+            for dom in self.domains:  # life state that moves in one's sleep
+                changes += dom.overnight(self.conn, pid, now)
+            if met is not None:  # feelings for people one did not deal with today fade a little
+                changes += self._fade(pid, met.get(pid, set()))
+            if "social.exchange" in self.primitives and OVERNIGHT.get(p["emotion"], p["emotion"]) != p["emotion"]:
+                changes.append(Change("person", pid, "emotion", value=OVERNIGHT[p["emotion"]]))
             if changes:
                 apply_event(self.conn, EventSpec(
                     timestamp=now, type="upkeep", trigger_type="rule", location_id=home,
@@ -238,10 +349,15 @@ class Simulation:
         for spec in (goals_overnight(self.conn, now // 1440, now) if "goals" in self.primitives else []):
             apply_event(self.conn, spec)
             self.stats["goal_changes"] += 1
+        for dom in self.domains:
+            for spec in dom.nightly(self.conn, now // 1440, now):
+                apply_event(self.conn, spec)
+                self.stats[f"domain_{spec.type}"] += 1
         if "psyche" in self.primitives:
             from world.psyche import reflect
             for pid in ids:
-                spec = reflect(self.conn, pid, now // 1440, now)
+                with self.profile.section("upkeep.psyche"):
+                    spec = reflect(self.conn, pid, now // 1440, now)
                 if spec is not None:
                     apply_event(self.conn, spec)
                     self.stats["reflections"] += 1

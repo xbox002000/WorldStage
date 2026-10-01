@@ -50,9 +50,15 @@ BEATS = {
     ("repay", None): ("hand_over", "receive", "calm", "calm", "two_shot", "static", 3),
     ("parrot_speaks", None): ("squawk", "startled", "calm", "shocked", "medium", "static", 4),
     ("seed", None): ("establish", "unaware", "calm", "calm", "wide", "static", 3),
-    ("duel", None): ("strike", "parry", "fierce", "fierce", "wide", "slow_push_in", 6),
-    ("train", None): ("practise", "watch", "focused", "calm", "medium", "static", 3),
-}
+}  # domain packs add their events' beats (world/domains: EventStyle.beat)
+
+
+def _beat_row(key: tuple) -> tuple:
+    from world.domains import style
+    st = style(key[0])
+    if st is not None and st.beat is not None:
+        return st.beat
+    return BEATS.get(key, BEATS[("talk", "neutral")])
 FOCAL_MM = {"wide": 24, "two_shot": 35, "medium": 35, "close_up": 85, "insert": 50}
 CANVAS = {"portrait": (1080, 1920), "landscape": (1920, 1080)}
 POSITION = {"actor": "left", "target": "right", "victim": "right"}
@@ -106,10 +112,10 @@ def caption(beat: Beat, names: dict[str, str], agentless: bool = False, animals:
     if t == "accuse":
         return {"caught": f"{a} 當場指認 {b} 拿了{thing}，{b} 無從抵賴", "denied": f"{a} 指控 {b} 拿了{thing}，{b} 否認",
                 "false": f"{a} 冤枉了 {b}，說 {b} 拿了{thing}"}.get(v or "", f"{a} 指控 {b} 拿了{thing}")
-    if t == "duel":
-        return f"{a} 向 {b} 挑戰比武"
-    if t == "train":
-        return f"{a} 獨自練功"
+    from world.domains import style
+    st = style(t)
+    if st is not None and st.describe:
+        return st.describe.format(a=a, b=b, thing=thing)
     if t == "bark":
         return f"{a} 對著 {b} 吠"
     if t == "parrot_speaks":
@@ -154,8 +160,8 @@ def _shot(spec: SceneSpec, beat: Beat, index: int, start: float, style: StylePac
           previous: Beat | None, last: bool) -> Shot:
     key = (beat.event_type, beat.variant if beat.event_type not in ("steal", "take", "misplace", "find", "give",
                                                                     "notice_missing", "lend", "repay", "parrot_speaks",
-                                                                    "seed", "duel", "train") else None)
-    a_act, t_act, a_emo, t_emo, shot_type, movement, seconds = BEATS.get(key, BEATS[("talk", "neutral")])
+                                                                    "seed") else None)
+    a_act, t_act, a_emo, t_emo, shot_type, movement, seconds = _beat_row(key)
     shot_type = _tighten(shot_type, style.camera_bias)
     duration = max(1, round(seconds * style.duration_scale)) + (2 if beat.trust_flipped else 0)
     if last and style.ending == "unresolved":

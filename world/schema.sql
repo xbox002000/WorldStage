@@ -322,3 +322,44 @@ CREATE TABLE IF NOT EXISTS llm_cache (
   response_json TEXT NOT NULL,
   created_at    INTEGER NOT NULL
 );
+
+-- v4 -> v5: who each person is (contracts/character.py): identity, tastes, values, habits, social style, the
+-- question their life is about. Written once with the world, before anything happens, and never changed: what life
+-- changes is adaptive state (world_vars, goals, relationships) that events move. The topics are the content pack's
+-- vocabulary for what people like and hate.
+CREATE TABLE IF NOT EXISTS character_profiles (
+  person_id    TEXT PRIMARY KEY REFERENCES people(id),
+  profile      TEXT NOT NULL CHECK (json_valid(profile)),
+  profile_hash TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS content_topics (
+  topic TEXT PRIMARY KEY,
+  label TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS character_profiles_insert BEFORE INSERT ON character_profiles
+WHEN EXISTS (SELECT 1 FROM events)
+BEGIN SELECT RAISE(ABORT, 'profiles are written with the world, before anything happens'); END;
+CREATE TRIGGER IF NOT EXISTS character_profiles_update BEFORE UPDATE ON character_profiles
+BEGIN SELECT RAISE(ABORT, 'a profile never changes: life changes adaptive state, by events'); END;
+CREATE TRIGGER IF NOT EXISTS character_profiles_delete BEFORE DELETE ON character_profiles
+BEGIN SELECT RAISE(ABORT, 'profiles cannot be deleted'); END;
+CREATE TRIGGER IF NOT EXISTS content_topics_insert BEFORE INSERT ON content_topics
+WHEN EXISTS (SELECT 1 FROM events)
+BEGIN SELECT RAISE(ABORT, 'topics are written with the world, before anything happens'); END;
+CREATE TRIGGER IF NOT EXISTS content_topics_update BEFORE UPDATE ON content_topics
+BEGIN SELECT RAISE(ABORT, 'topics never change'); END;
+CREATE TRIGGER IF NOT EXISTS content_topics_delete BEFORE DELETE ON content_topics
+BEGIN SELECT RAISE(ABORT, 'topics cannot be deleted'); END;
+
+-- v5 -> v6: indexes only (no table, no row, no hash changes). The queries the rules and the agents ask most, by a
+-- profile of 30-day worlds: what someone believes about someone (memories by observer and claim, claims by
+-- subject/object/act), what someone took part in (participants by person), the events of a kind in a time range,
+-- and events by who did what to whom (the actor and target inside truth, as expression indexes that the queries'
+-- json_extract(truth, '$.actor') = ? use as written).
+CREATE INDEX IF NOT EXISTS idx_memories_claim      ON memories(observer_id, claim_id);
+CREATE INDEX IF NOT EXISTS idx_memories_by_claim   ON memories(claim_id);
+CREATE INDEX IF NOT EXISTS idx_claims_key          ON claims(subject, object, act);
+CREATE INDEX IF NOT EXISTS idx_participants_person ON event_participants(person_id, event_id);
+CREATE INDEX IF NOT EXISTS idx_events_type_time    ON events(type, timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_actor        ON events(json_extract(truth, '$.actor'), timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_target       ON events(json_extract(truth, '$.target'), timestamp);

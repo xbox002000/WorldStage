@@ -1,0 +1,258 @@
+{
+  "$defs": {
+    "Casting": {
+      "additionalProperties": false,
+      "properties": {
+        "occupation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Occupation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "season_goal": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "CharacterProfile": {
+      "additionalProperties": false,
+      "properties": {
+        "age": {
+          "type": "integer"
+        },
+        "background": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "core": {
+          "$ref": "#/$defs/InnerCore"
+        },
+        "dislikes": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "gender": {
+          "type": "string"
+        },
+        "habits": {
+          "items": {
+            "$ref": "#/$defs/Habit"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interests": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "life_goal": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "occupation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Occupation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "season_goal": {
+          "type": "string"
+        },
+        "social": {
+          "$ref": "#/$defs/SocialStyle"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "age"
+      ],
+      "type": "object"
+    },
+    "CharacterRoster": {
+      "additionalProperties": false,
+      "properties": {
+        "based_on": {
+          "type": "string"
+        },
+        "casting": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Casting"
+          },
+          "type": "object"
+        },
+        "content": {
+          "type": "string"
+        },
+        "people": {
+          "items": {
+            "$ref": "#/$defs/CharacterProfile"
+          },
+          "type": "array"
+        },
+        "topic_words": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "topics": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "content",
+        "topics"
+      ],
+      "type": "object"
+    },
+    "Habit": {
+      "additionalProperties": false,
+      "properties": {
+        "do": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "when": {
+          "enum": [
+            "morning",
+            "after_work",
+            "evening",
+            "at_meal",
+            "alone",
+            "stressed",
+            "anxious",
+            "angry",
+            "hurt",
+            "happy",
+            "lonely",
+            "bored"
+          ]
+        }
+      },
+      "required": [
+        "when",
+        "do",
+        "label"
+      ],
+      "type": "object"
+    },
+    "InnerCore": {
+      "additionalProperties": false,
+      "properties": {
+        "false_belief": {
+          "type": "string"
+        },
+        "fear": {
+          "type": "string"
+        },
+        "life_question": {
+          "type": "string"
+        },
+        "need": {
+          "type": "string"
+        },
+        "want": {
+          "type": "string"
+        },
+        "wound": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Occupation": {
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "duty": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "superior": {
+          "type": "string"
+        },
+        "words": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "SocialStyle": {
+      "additionalProperties": false,
+      "properties": {
+        "conflict": {
+          "enum": [
+            "avoid",
+            "bottle_up",
+            "confront",
+            "sulk",
+            "appease"
+          ]
+        },
+        "friends": {
+          "type": "string"
+        },
+        "intimate": {
+          "type": "string"
+        },
+        "strangers": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/CharacterRoster",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

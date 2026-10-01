@@ -19,7 +19,7 @@ from contracts.spatial import BeatStaging, CameraShot, Placement, SightCheck, Sp
 from narrative.layouts import LAYOUTS, layout_ref
 
 COMPILER_VERSION = "spatial-0.1"
-BOUNDS = {"cafe": (10.0, 8.0), "office": (12.0, 8.0), "apartment": (16.0, 10.0), "park": (18.0, 14.0), "station": (16.0, 8.0)}
+BOUNDS = {"cafe": (14.0, 10.0), "office": (12.0, 8.0), "apartment": (16.0, 10.0), "park": (18.0, 14.0), "station": (16.0, 8.0)}
 PRINCIPAL_ROLES = ("actor", "target", "victim", "suspect", "receiver", "addressee")
 LOUD = ("confront", "accuse", "steal")
 LONE = ("take", "find", "misplace", "notice_missing", "cash_prize", "give", "seed", "feed_pet")

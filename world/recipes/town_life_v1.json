@@ -1,0 +1,14 @@
+{
+  "recipe_id": "town_life_v1",
+  "title": "同一座小鎮，人人有自己的人生（不模擬空間，快）",
+  "content": "town_v1",
+  "core": "everyday_life",
+  "pillars": ["items.ownership", "money.rent", "gossip.drift"],
+  "accents": ["props.parrot", "props.animals", "seeds.external"],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "小事會長成大事：一句回嘴、一次偷偷找工作、一個背後說的壞話",
+  "director_prefers": {"item": 0.05, "rumor": 0.05},
+  "base": ["events", "claims", "attention", "schedule", "volition", "goals", "psyche", "items.accusation", "money.debt",
+           "social.exchange", "social.topics", "life.work", "character.values", "body.arousal"]
+}

@@ -7,7 +7,7 @@ from typing import Iterator
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 MIGRATIONS_DIR = Path(__file__).with_name("migrations")
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 
 
 def connect(path: str | Path = ":memory:") -> sqlite3.Connection:
@@ -17,7 +17,23 @@ def connect(path: str | Path = ":memory:") -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     if str(path) != ":memory:":
         conn.execute("PRAGMA journal_mode = WAL")
+        # WAL with NORMAL never corrupts the database; a power cut can only lose the last commits since the latest
+        # checkpoint. FULL synced every event to disk: on the project drive that was 75% of a simulated day.
+        conn.execute("PRAGMA synchronous = NORMAL")
     return conn
+
+
+def save_to(conn: sqlite3.Connection, path: str | Path) -> Path:
+    """Write an in-memory world to a file (the same database, page for page): experiments simulate in memory and
+    keep their worlds this way, without touching the disk for every event."""
+    path = Path(path)
+    for x in (path, Path(str(path) + "-wal"), Path(str(path) + "-shm")):
+        if x.exists():
+            x.unlink()
+    out = sqlite3.connect(path)
+    conn.backup(out)
+    out.close()
+    return path
 
 
 def init_db(conn: sqlite3.Connection, world_seed: int = 0) -> None:

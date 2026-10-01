@@ -51,7 +51,19 @@ STEP = 0.65  # a walking person's step length
 FOOT = 0.1  # a foot's distance from the body's centre line
 CLEAR = 0.7  # nobody is placed closer than this to somebody else
 TRIES = 120  # a walk waits up to a minute (in half seconds) for a way that passes nobody
-SOCIAL = ("talk", "tell", "confront", "accuse", "lend", "repay", "bark", "challenge", "duel")
+SOCIAL = ("talk", "tell", "confront", "accuse", "lend", "repay", "bark")  # the core's; domains add theirs (styles)
+# how long saying it takes (seconds): the speaker's and the listener's voice are booked, so an answer waits for the
+# words it answers, and a quarrel plays line by line even when the world logs it within one minute
+SAY = {"talk": 2.5, "tell": 3.5, "confront": 3.5, "accuse": 3.5, "lend": 2.5, "repay": 2.5, "bark": 1.5}
+
+
+def _staging(etype: str) -> tuple[bool, float, int]:
+    """(two people face each other, seconds of voice, blows exchanged) for an event type."""
+    from world.domains import style
+    st = style(etype)
+    if st is not None:
+        return st.social, st.say, st.strikes
+    return etype in SOCIAL, SAY.get(etype, 0.0), 0
 MOVING = ("walk", "turn", "rise", "settle", "lift", "fall")  # poses that change something before the next key
 
 
@@ -211,6 +223,8 @@ class WorldRuntime:
             return 0.0
         if o.kind in ("table", "desk"):
             return _yaw((x, y), (o.position[0], o.position[1]))
+        if o.kind == "counter":  # a bar stool faces the bar
+            return 90.0 if o.position[1] > y else 270.0
         return _yaw((o.position[0], o.position[1]), (x, y)) if abs(y - o.position[1]) < 1e-6 else             (90.0 if y > o.position[1] else 270.0)
 
     def _spot(self, place: str, who: str, event_id: int) -> tuple[float, float, float, str]:
@@ -713,17 +727,26 @@ class WorldRuntime:
             if etype_ == "object" and ent in self.things:
                 moves.setdefault(ent, {})[fld] = new
         actor = d.get("actor")
-        if etype in SOCIAL and actor in self.bodies:
+        social, say, strikes = _staging(etype)
+        if social and actor in self.bodies:
             other = d.get("target") or d.get("victim")
             if other in self.bodies:
                 t = self._approach(eid, actor, other, t)
-                if etype == "duel":
+                if say and self.bodies[actor].place and self.bodies[actor].place == self.bodies[other].place:
+                    t = max(t, self._free(actor, "voice"), self._free(other, "voice"))
+                    end = round(t + say, 3)
+                    self._book(actor, ("voice",), t, end, "say")
+                    self._book(other, ("voice",), t, end, "listen")
+                    self.actions.append(RuntimeAction(eid, actor, "say", other, round(t, 3), end, self.bodies[actor].place))
+                    self.bodies[actor].busy = max(self.bodies[actor].busy, end)
+                    self.bodies[other].busy = max(self.bodies[other].busy, end)
+                if strikes:  # blows exchanged, a second each
                     t = max(t, self._free(actor, "move", "hands"), self._free(other, "move", "hands"))
-                    for k in range(3):
+                    for k in range(strikes):
                         self.interactions.append(RuntimeInteraction(eid, actor, "strike", other, t + k, t + k + 0.3,
                                                                     t + k + 0.6, "right"))
-                    self._book(actor, ("move", "hands"), t, t + 3, "duel")
-                    self._book(other, ("move", "hands"), t, t + 3, "duel")
+                    self._book(actor, ("move", "hands"), t, t + strikes, etype)
+                    self._book(other, ("move", "hands"), t, t + strikes, etype)
         for oid, m in sorted(moves.items()):
             self._hand_off(eid, oid, m, t, etype, actor, here)
         self.world_holder[eid] = {o: th.holder for o, th in self.things.items()}

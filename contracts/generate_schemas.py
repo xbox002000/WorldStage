@@ -7,6 +7,8 @@ from pathlib import Path
 from contracts.backends import ShotRequest
 from contracts.base import schema_for
 from contracts.capability import ProviderManifest, Selection
+from contracts.character import CharacterProfile, CharacterRoster
+from contracts.cognition import CognitiveChoice, CognitiveState
 from contracts.director import DirectorPlan
 from contracts.mechanic import NarrativeMechanicPack
 from contracts.packet import ProductionPacket
@@ -29,7 +31,9 @@ CONTRACTS = {"scene_spec": SceneSpec, "production_packet": ProductionPacket, "re
              "director_plan": DirectorPlan, "performance_plan": PerformancePlan,
              "runtime_trace": RuntimeTrace, "runtime_snapshot": RuntimeSnapshot,
              "provider_manifest": ProviderManifest, "provider_selection": Selection, "shot_request": ShotRequest,
-             "visual_failure": VisualFailure, "repair_request": RepairRequest}
+             "visual_failure": VisualFailure, "repair_request": RepairRequest,
+             "character_profile": CharacterProfile, "character_roster": CharacterRoster,
+             "cognitive_state": CognitiveState, "cognitive_choice": CognitiveChoice}
 
 
 def render_all() -> dict[str, str]:

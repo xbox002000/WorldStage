@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from agent.volition import CONFLICT, recovery_bias, strain
+from agent.volition import conflict_actions, recovery_bias, strain
 from narrative.rhythm import label_days, rhythm
 from tests.test_jianghu import jianghu
 from tests.test_world_c import fresh, put
@@ -47,7 +47,7 @@ class RecoveryTests(unittest.TestCase):
         after = recovery_bias(c, "ming", 200, scored)
         self.assertLess(after[0][0], 1.0)  # the accusation is dampened
         self.assertEqual(after[1][0], 1.0)  # a warm word is not
-        self.assertIn("challenge", CONFLICT)
+        self.assertIn("challenge", conflict_actions())  # a duel (world/domains/martial.py) is a clash
 
     def test_a_beaten_fighter_heals_before_fighting_again(self):
         c = jianghu()

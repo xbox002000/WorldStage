@@ -62,14 +62,33 @@ def last_event_between(conn: sqlite3.Connection, a: str, b: str) -> int | None:
     ).fetchone()[0]
 
 
+def soft_delta(current: float, delta: float) -> float:
+    """Diminishing returns at the ends: a push further out counts for (1 - |current|)^2 of itself, a pull back towards
+    the middle counts in full. Feelings that are already strong move little; love-and-hate stays possible. (A linear
+    factor still left 19% of relationships at the ends after 30 days: friends meet every day.)"""
+    if current * delta > 0:
+        return delta * (1.0 - abs(current)) ** 2
+    return delta
+
+
+def rel_delta(conn: sqlite3.Connection, current: float, delta: float, field: str = "trust") -> float:
+    """The change a relationship field takes: clamped to [-1, 1], and softened at the ends in worlds where people
+    answer each other (social.exchange), since there words come many times a day."""
+    if field in ("trust", "affection", "fear", "rivalry"):
+        from world.recipes import enabled
+        if enabled(conn, "social.exchange"):
+            delta = soft_delta(current, delta)
+    return clamp_delta(current, delta, -1.0, 1.0)
+
+
 def trust_change(conn: sqlite3.Connection, observer: str, subject: str, delta: float) -> Change | None:
-    d = clamp_delta(rel(conn, observer, subject, "trust"), delta, -1.0, 1.0)
+    d = rel_delta(conn, rel(conn, observer, subject, "trust"), delta)
     return Change("relationship", f"{observer}:{subject}", "trust", delta=d) if d else None
 
 
 def field_change(conn: sqlite3.Connection, observer: str, subject: str, field: str, delta: float) -> Change | None:
     """A clamped change to one relationship field (values live in [-1, 1])."""
-    d = clamp_delta(rel(conn, observer, subject, field), delta, -1.0, 1.0)
+    d = rel_delta(conn, rel(conn, observer, subject, field), delta, field)
     return Change("relationship", f"{observer}:{subject}", field, delta=d) if d else None
 
 

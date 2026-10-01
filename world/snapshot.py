@@ -23,6 +23,8 @@ TABLES: dict[str, str] = {
     "relationships": "actor_id, target_id",
     "world_vars": "key",
     "goals": "person_id, slot",
+    "character_profiles": "person_id",
+    "content_topics": "topic",
     "events": "event_id",
     "event_participants": "event_id, person_id, role",
     "event_deltas": "delta_id",
@@ -31,7 +33,7 @@ TABLES: dict[str, str] = {
     "memories": "memory_id",
     "memory_sources": "memory_id, COALESCE(derived_from_memory_id, 0), COALESCE(derived_from_event_id, 0)",
 }
-JSON_COLUMNS = {"tags", "schedule", "truth", "traits"}
+JSON_COLUMNS = {"tags", "schedule", "truth", "traits", "profile"}
 
 
 def world_revision(conn: sqlite3.Connection) -> int:

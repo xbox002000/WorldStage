@@ -30,6 +30,10 @@ LIBRARY: dict[str, MechanicPrimitive] = {p.id: p for p in [
       ["attention"], cost=0),
     P("schedule", "physics", "daily routines move people between places", ["events"], cost=0),
     P("volition", "social", "rule motives from traits, needs, feelings, beliefs", ["claims"], cost=0),
+    P("character.values", "social", "acts cost the values people hold; an act that serves one held value and "
+      "betrays another is a recorded internal conflict", ["volition"], cost=0),
+    P("social.exchange", "social", "a word gets an answer: replies, escalation, walking out, a bystander stepping in; "
+      "feelings last until slept on", ["volition"], cost=0),
     P("goals", "social", "goals form, get blocked, transform, are abandoned or completed", ["volition"], cost=0),
     P("psyche", "social", "repeated experience slowly moves traits, values and the self-model", ["volition"], cost=0),
     # the small town's primitives (World C)
@@ -45,16 +49,25 @@ LIBRARY: dict[str, MechanicPrimitive] = {p.id: p for p in [
     # narrative mechanics
     P("rebirth", "narrative", "a timeline fork; one person remembers the first run", ["claims"], cost=2),
     P("system", "narrative", "hidden quests with true hints and rewards", ["goals"], cost=2),
-    # named for recipes still to come; they do not compile until they have code
-    P("reputation", "social", "public standing that acts raise or ruin", ["claims"]),
-    P("duel", "adventure", "a challenge settled by skill and luck, with stakes", ["reputation", "martial_arts"]),
-    P("sect_factions", "social", "membership, rank and loyalty in groups", ["reputation"]),
-    P("martial_arts", "power", "skills that training raises; a manual doubles it", ["schedule"], cost=2),
+    # named for recipes still to come; they do not compile until they have code (domain packs declare the rest:
+    # world/domains/, e.g. martial arts, reputation, duels and sects in world/domains/martial.py)
     P("cultivation", "power", "realms, spiritual resources, breakthroughs", [], implemented=False, cost=2),
     P("magic", "power", "spells with costs, schools and guilds", [], implemented=False, cost=2),
     P("time_loop", "narrative", "the world forks every N days", ["claims"], implemented=False, cost=2),
 ]}
+_CORE = dict(LIBRARY)
 BASE = ["events", "claims", "attention", "schedule", "volition", "goals"]
+
+
+def reset_library() -> None:
+    """The library is the core's primitives plus every domain pack's (world/domains). Rebuilt when a domain is
+    registered at run time; kept as one dict so it can be patched in tests."""
+    from world import domains
+    LIBRARY.clear()
+    LIBRARY.update(_CORE)
+    for p in domains.primitives():
+        LIBRARY.setdefault(p.id, p)
+    compiled.cache_clear()
 
 PAIRINGS = [
     Pairing("rebirth", "time_loop", "exclusive", "two ways of repeating time: whose memory wins is undefined"),
@@ -109,14 +122,35 @@ def compile_recipe(r: WorldRecipe) -> CompiledRecipe:
     return replace(c, compiled_hash=hash_without(c, "compiled_hash"))
 
 
+_EXTRA_RECIPES: dict[str, WorldRecipe] = {}
+
+
+def register_recipe(r: WorldRecipe) -> None:
+    """A recipe made at run time (tests, experiments). Shipped recipes are world/recipes/*.json, in the ruleset hash."""
+    _EXTRA_RECIPES[r.recipe_id] = r
+    load_recipe.cache_clear()
+    compiled.cache_clear()
+
+
+def unregister_recipe(recipe_id: str) -> None:
+    _EXTRA_RECIPES.pop(recipe_id, None)
+    load_recipe.cache_clear()
+    compiled.cache_clear()
+
+
 @lru_cache(maxsize=None)
 def load_recipe(recipe_id: str = DEFAULT_RECIPE) -> WorldRecipe:
+    if recipe_id in _EXTRA_RECIPES:
+        return _EXTRA_RECIPES[recipe_id]
     return from_dict(WorldRecipe, json.loads((HERE / f"{recipe_id}.json").read_text(encoding="utf-8")))
 
 
 @lru_cache(maxsize=None)
 def compiled(recipe_id: str = DEFAULT_RECIPE) -> CompiledRecipe:
     return compile_recipe(load_recipe(recipe_id))
+
+
+reset_library()
 
 
 def recipe_of(conn: sqlite3.Connection) -> str:

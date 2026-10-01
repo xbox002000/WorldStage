@@ -85,7 +85,8 @@ class DaysAndTimeTests(unittest.TestCase):
     def test_people_do_not_act_on_the_dot_but_never_leave_their_slot(self):
         conn, _ = run(184729, 3)
         offsets = [(r["timestamp"] % 1440) for r in conn.execute("SELECT timestamp FROM events WHERE type='move'")]
-        scripted_slots = {480, 720, 1080, 1260}
+        from world.seed import HOME_DAY, HOME_DAY_ALT, WORKER_DAY
+        scripted_slots = {k for day in (WORKER_DAY, HOME_DAY, HOME_DAY_ALT) for k, v in day.items() if v.startswith("move:")}
         off_the_dot = [o for o in offsets if o not in scripted_slots]
         self.assertGreater(len(off_the_dot), len(offsets) // 2)  # most moves are jittered
         for o in offsets:

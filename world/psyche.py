@@ -28,7 +28,17 @@ SELF_MODEL = {
     "always_blamed": ("我總是被冤枉的那個", "wronged", 2.0),
     "on_my_own": ("只能靠自己", "failure", 3.0),
     "some_are_kind": ("還是有人對我好", "kindness", 3.0),
+    "world_is_hostile": ("大家都對我有敵意", "hostility", 4.0),
 }
+# How each held self-model leans what someone does (self_bias): read by the rule agent, the replies and belief.
+SELF_BIAS = {
+    "cannot_trust": {"belief": -0.15, "accuse": 0.3, "tell": -0.2},
+    "always_blamed": {"defend": 0.3, "apologize": -0.3},
+    "on_my_own": {"withdraw": 0.2, "lend": -0.3},
+    "some_are_kind": {"soothe": 0.2, "warm": 0.15},
+    "world_is_hostile": {"retort": 0.3, "warm": -0.2},
+}
+PROVOKED = 0.3   # hostility one provoked oneself still stings, a little
 DECAY = 0.85  # experiences fade by this factor every night
 REPEAT = 1.5  # an accumulated weight this high means "it keeps happening"
 STEP_DOWN, STEP_UP = 0.06, 0.03  # harm moves a trait twice as fast as healing moves it back
@@ -54,6 +64,26 @@ def trait(conn: sqlite3.Connection, pid: str, key: str) -> float:
     return var(conn, f"psy.{pid}.{key}", default)
 
 
+def self_models(conn: sqlite3.Connection, pid: str) -> dict[str, float]:
+    """The self-models someone holds: key -> strength (1 held, 0.5 softened)."""
+    out = {}
+    for key in SELF_MODEL:
+        v = var(conn, f"psy.{pid}.self.{key}", 0.0)
+        if v >= 0.5:
+            out[key] = v
+    return out
+
+
+def self_bias(conn: sqlite3.Connection, pid: str) -> dict[str, float]:
+    """How who someone has come to think they are leans what they do: summed over held self-models, each by its
+    strength. Keys: belief, accuse, tell, defend, apologize, withdraw, lend, soothe, warm, retort."""
+    out: dict[str, float] = {}
+    for key, strength in self_models(conn, pid).items():
+        for k, v in SELF_BIAS.get(key, {}).items():
+            out[k] = round(out.get(k, 0.0) + v * strength, 3)
+    return out
+
+
 def _home(conn: sqlite3.Connection, pid: str) -> str:
     from world.content import home_of
     return home_of(conn, pid)
@@ -63,8 +93,8 @@ def _home(conn: sqlite3.Connection, pid: str) -> str:
 def appraise(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, float], list[int]]:
     """Experiences of `pid` on `day`, only from events they took part in or noticed."""
     rows = conn.execute(
-        "SELECT e.event_id, e.type, e.truth, p.role FROM events e JOIN event_participants p ON p.event_id = e.event_id "
-        "WHERE p.person_id = ? AND e.timestamp >= ? AND e.timestamp < ? ORDER BY e.event_id",
+        "SELECT e.event_id, e.type, e.truth, e.parent_event_id, e.timestamp, p.role FROM events e JOIN event_participants p "
+        "ON p.event_id = e.event_id WHERE p.person_id = ? AND e.timestamp >= ? AND e.timestamp < ? ORDER BY e.event_id",
         (pid, day * 1440, (day + 1) * 1440)).fetchall()
     exp = {k: 0.0 for k in EXPERIENCES}
     cited: list[int] = []
@@ -81,6 +111,10 @@ def appraise(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, fl
             add("betrayal", 1.0, r["event_id"])  # I found out I had been lied to
         elif kind == "confront" and me_target and outcome in ("lie_exposed", "distortion_exposed"):
             add("shame", 1.0, r["event_id"])
+        elif kind == "confront" and me_target and outcome == "unfounded":
+            add("wronged", 0.8, r["event_id"])  # I told the truth and was called a liar to my face
+        elif kind == "confront" and me_target and outcome == "misinformed":
+            add("wronged", 0.3, r["event_id"])  # doubted for what someone else got wrong
         elif kind == "accuse" and me_target and outcome == "false":
             add("wronged", 1.0, r["event_id"])
         elif kind == "accuse" and me_target and outcome == "caught":
@@ -98,12 +132,32 @@ def appraise(conn: sqlite3.Connection, pid: str, day: int) -> tuple[dict[str, fl
         elif kind == "talk" and me_target and t.get("tone") == "warm" and _unexpected(conn, pid, t.get("actor")):
             add("kindness", 0.5, r["event_id"])  # warmth counts when I was hurting, or from someone I distrust
         elif kind == "talk" and me_target and t.get("tone") == "hostile":
-            add("hostility", 1.0, r["event_id"])
+            add("hostility", PROVOKED if _provoked(conn, pid, r) else 1.0, r["event_id"])
         elif kind == "goal_change" and me_actor and t.get("to") in ("abandoned", "blocked"):
             add("failure", 1.0, r["event_id"])
         elif kind == "goal_change" and me_actor and t.get("to") == "completed":
             add("success", 1.0, r["event_id"])
+        else:
+            from world.domains import style
+            if style(kind) is not None:  # a domain pack's event: the pack says what it meant
+                from world.domains import active
+                for dom in active(conn):
+                    for exp_kind, w in dom.appraise(conn, pid, kind, t):
+                        if exp_kind in exp:
+                            add(exp_kind, w, r["event_id"])
     return exp, cited
+
+
+def _provoked(conn: sqlite3.Connection, pid: str, row: sqlite3.Row) -> bool:
+    """Was this hostile word an answer to my own cold or hostile word, accusation or confrontation, just before?"""
+    if row["parent_event_id"] is None:
+        return False
+    p = conn.execute("SELECT type, timestamp, truth FROM events WHERE event_id = ?", (row["parent_event_id"],)).fetchone()
+    if p is None or row["timestamp"] - p["timestamp"] > 5:
+        return False
+    t = json.loads(p["truth"])
+    return t.get("actor") == pid and (p["type"] in ("accuse", "confront") or
+                                      (p["type"] == "talk" and t.get("tone") in ("cold", "hostile")))
 
 
 def _unexpected(conn: sqlite3.Connection, pid: str, other: str | None) -> bool:
@@ -143,8 +197,12 @@ def reflect(conn: sqlite3.Connection, pid: str, day: int, now: int) -> EventSpec
         move("vigilance", STEP_DOWN * min(2.0, hurt / REPEAT))
         move("trust_default", -STEP_DOWN)
         move("cynicism", STEP_DOWN * 0.7)
-    if today["hostility"] and acc["hostility"] >= REPEAT:
-        move("aggression", STEP_DOWN)
+    if today["hostility"] >= 1.0 and acc["hostility"] >= REPEAT:
+        # the harder someone already is, the less more hostility hardens them (linear steps took a quarrelsome world
+        # to aggression 0.99 in a month, and with it 38 hostile words a day)
+        move("aggression", STEP_DOWN * (1.0 - var(conn, f"psy.{pid}.aggression", 0.2)))
+    elif today["hostility"] < 1.0:  # a day without much attack: the edge wears off, slowly (never past the scar)
+        move("aggression", -STEP_UP * 0.5)
     if today["failure"] and acc["failure"] + acc["hostility"] >= 2 * REPEAT:
         move("withdrawal", STEP_DOWN)
     if today["kindness"]:  # healing: half the speed of harm
@@ -165,6 +223,8 @@ def reflect(conn: sqlite3.Connection, pid: str, day: int, now: int) -> EventSpec
         move("value.belonging", VALUE_STEP)
     formed = []
     for key, (text, source, threshold) in SELF_MODEL.items():
+        if var(conn, f"psy.{pid}.self.{key}", None) is None:
+            continue  # a world made before this self-model existed has no place for it
         if acc[source] >= threshold and var(conn, f"psy.{pid}.self.{key}", 0.0) < 0.5:
             new[f"self.{key}"] = 1.0
             formed.append(text)

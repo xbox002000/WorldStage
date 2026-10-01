@@ -13,6 +13,7 @@ every milestone, paragraph and timeline node carries the event_id it comes from.
 from __future__ import annotations
 
 import json
+from collections import Counter
 import sqlite3
 
 from narrative.threads import derive_threads
@@ -33,7 +34,12 @@ KIND_NAMES = {"betrayal": "背叛", "wronged": "被冤枉", "shame": "羞愧", "
               "identity_shift": "自我認知改變", "value_shift": "價值轉變", "goal_formed": "立下目標",
               "goal_transformed": "目標轉變", "goal_abandoned": "放棄目標", "goal_completed": "完成目標",
               "first_time": "第一次"}
-FIRSTS = ("take", "find", "accuse", "confront", "tell", "lend", "give", "duel", "steal")
+FIRSTS = ("take", "find", "accuse", "confront", "tell", "lend", "give", "steal")  # plus domains' (first_time)
+
+
+def first_time_kinds() -> tuple[str, ...]:
+    from world.domains import styles
+    return FIRSTS + tuple(k for k, s in styles().items() if s.first_time)
 
 
 def _names(conn) -> dict:
@@ -111,8 +117,8 @@ def thread_views(conn: sqlite3.Connection, names: dict | None = None) -> list[di
                     "SELECT slot, kind, target, object, status FROM goals WHERE person_id = ? AND status IN "
                     "('formed', 'active', 'blocked')", (p,)):
                 if target in primary or obj in [x["thing"] for e in events for x in e["hands"]]:
-                    from world.goals import TEXT
-                    what = TEXT.get(kind, kind).format(t=names.get(target, target), o=names.get(obj, obj))
+                    from world.goals import text_of
+                    what = text_of(kind).format(t=names.get(target, target), o=names.get(obj, obj))
                     pressure.append(f"{names.get(p, p)}想{what}")
         out.append({
             "id": t.thread_id, "kind": t.kind, "question": t.central_question, "status": status,
@@ -135,6 +141,132 @@ def _series(conn, entity_type: str, entity_id: str, fld: str, start) -> list:
     return rows
 
 
+VALUE_WORDS = {"truth": "真相", "loyalty": "忠誠", "security": "安穩", "belonging": "歸屬", "ambition": "野心",
+               "freedom": "自由", "family": "家人", "fairness": "公平", "revenge": "報復"}
+CONFLICT_WORDS = {"avoid": "迴避", "bottle_up": "先忍，忍到爆發", "confront": "正面衝突", "sulk": "生悶氣", "appease": "先讓步"}
+
+
+def _profile(conn: sqlite3.Connection, pid: str) -> dict | None:
+    """Who someone is (their CharacterProfile, stored in the world), and their life in each active domain pack."""
+    from world.domains import active
+    from world.profiles import profile, topics
+    p = profile(conn, pid)
+    if p is None:
+        return None
+    label = topics(conn)
+    by_weight = lambda d: [label.get(k, k) for k, _ in sorted(d.items(), key=lambda x: (-x[1], x[0]))]  # noqa: E731
+    life = {}
+    for dom in active(conn):
+        d = dom.describe(conn, pid)
+        if d:
+            life[dom.title or dom.id] = d
+    occ = p.occupation
+    return {"age": p.age, "gender": p.gender, "background": p.background,
+            "occupation": {"role": occ.role, "place": occ.place, "superior": occ.superior} if occ else None,
+            "interests": by_weight(p.interests), "dislikes": by_weight(p.dislikes),
+            "values": {VALUE_WORDS.get(k, k): v for k, v in sorted(p.values.items(), key=lambda x: -x[1])},
+            "habits": [h.label for h in p.habits],
+            "social": {"陌生人": p.social.strangers, "朋友": p.social.friends, "親近的人": p.social.intimate,
+                       "衝突時": CONFLICT_WORDS.get(p.social.conflict, p.social.conflict)},
+            "core": {"想要": p.core.want, "害怕": p.core.fear, "傷口": p.core.wound, "錯誤的信念": p.core.false_belief,
+                     "真正需要": p.core.need, "人生的問題": p.core.life_question},
+            "life_goal": p.life_goal, "season_goal": p.season_goal, "life": life}
+
+
+ARC_WINDOW = 5  # days per stretch of a life arc
+STANCE_WORDS = {"close": "親近", "fight": "對抗", "withdraw": "退縮", "mend": "修補", "quiet": "平淡"}
+
+
+def _stance(counts: Counter) -> str:
+    """How someone dealt with people over a stretch of days, from what they did."""
+    total = sum(counts.values())
+    if total < 3:
+        return "quiet"
+    fight = counts["hostile"] + counts["retort"] + counts["clash"]
+    withdraw = counts["cold"] + counts["storm_off"]
+    mend = counts["conciliate"]
+    if fight / total >= 0.3:
+        return "fight"
+    if mend >= 2 and mend >= fight:
+        return "mend"
+    if withdraw / total >= 0.3:
+        return "withdraw"
+    if counts["warm"] / total >= 0.5:
+        return "close"
+    return "quiet"
+
+
+def character_overview(conn: sqlite3.Connection, pid: str, names: dict | None = None) -> dict:
+    """A life at a glance: now, what they are after, what they care about and fear, what changed lately, what they
+    remember most, who they grew closer to or apart from, and the arc of how they have dealt with people."""
+    names = names or _names(conn)
+    end = (conn.execute("SELECT MAX(timestamp) FROM events").fetchone()[0] or 0) // 1440
+    me = conn.execute("SELECT emotion FROM people WHERE id = ?", (pid,)).fetchone()
+    from world.domains import active
+    from world.goals import describe, goals_of
+    from world.profiles import profile
+    p = profile(conn, pid)
+    life = {}
+    for dom in active(conn):
+        d = dom.describe(conn, pid)
+        if d:
+            life[dom.title or dom.id] = d
+    # relationships now against the start, and over the last days
+    start: dict[tuple, float] = {}
+    recent: Counter = Counter()
+    for ent, fld, old, new, ts in conn.execute(
+            "SELECT d.entity_id, d.field, d.old_value, d.new_value, e.timestamp FROM event_deltas d JOIN events e USING (event_id) "
+            "WHERE d.entity_type = 'relationship' AND d.entity_id LIKE ? AND d.field IN ('trust', 'affection') ORDER BY d.delta_id",
+            (f"{pid}:%",)):
+        other = ent.split(":", 1)[1]
+        start.setdefault((other, fld), float(old))
+        if ts // 1440 > end - ARC_WINDOW:
+            recent[(other, fld)] += float(new) - float(old)
+    rel = []
+    for other, trust, aff in conn.execute("SELECT target_id, trust, affection FROM relationships WHERE actor_id = ? ORDER BY target_id", (pid,)):
+        if other not in names or other == pid:
+            continue
+        d = trust - start.get((other, "trust"), trust)
+        rel.append({"to": other, "name": names.get(other, other), "trust": round(trust, 2), "affection": round(aff, 2),
+                    "since_start": round(d, 2)})
+    closer = sorted([r for r in rel if r["since_start"] > 0.1], key=lambda r: -r["since_start"])[:3]
+    apart = sorted([r for r in rel if r["since_start"] < -0.1], key=lambda r: r["since_start"])[:3]
+    changes = sorted(((o, f, round(v, 2)) for (o, f), v in recent.items() if abs(v) >= 0.1), key=lambda x: -abs(x[2]))[:4]
+    memories = [{"day": ts // 1440, "belief": b, "event": e} for b, ts, e in conn.execute(
+        "SELECT m.belief, ev.timestamp, ev.event_id FROM memories m JOIN events ev ON ev.event_id = m.event_id "
+        "WHERE m.observer_id = ? AND ev.type NOT IN ('goal_change', 'reflection') ORDER BY ev.importance DESC, ev.event_id LIMIT 3", (pid,))]
+    # the arc: per stretch of days, how they dealt with people
+    windows: dict[int, Counter] = {}
+    for ts, etype, truth in conn.execute("SELECT timestamp, type, truth FROM events WHERE json_extract(truth, '$.actor') = ?", (pid,)):
+        t = json.loads(truth)
+        c = windows.setdefault(ts // 1440 // ARC_WINDOW, Counter())
+        reason = t.get("reason") or ""
+        if etype == "talk":
+            c[t.get("tone") or "neutral"] += 1
+        if reason in ("reply:retort",):
+            c["retort"] += 1
+        elif reason in ("reply:apologize", "reply:soothe", "intervene:comfort"):
+            c["conciliate"] += 1
+        elif reason == "reply:storm_off":
+            c["storm_off"] += 1
+        if etype in ("confront", "accuse", "duel"):
+            c["clash"] += 1
+    stretches = []
+    for w in range(0, end // ARC_WINDOW + 1):
+        s = _stance(windows.get(w, Counter()))
+        if not stretches or stretches[-1]["stance"] != s:
+            stretches.append({"from_day": w * ARC_WINDOW, "stance": s, "word": STANCE_WORDS[s]})
+    return {
+        "emotion": me[0] if me else "", "life": life,
+        "thinking": [describe(conn, g) for g in goals_of(conn, pid) if g["status"] in ("active", "formed", "blocked")],
+        "cares": [k for k, _ in sorted((p.values if p else {}).items(), key=lambda kv: -kv[1])],
+        "fears": [x for x in ((p.core.fear, p.core.wound) if p else ()) if x],
+        "recent": [{"name": names.get(o, o), "field": f, "delta": v} for o, f, v in changes],
+        "memories": memories, "closer": closer, "apart": apart,
+        "arc": stretches, "arc_text": " → ".join(s["word"] for s in stretches),
+    }
+
+
 def character_life(conn: sqlite3.Connection, pid: str, names: dict | None = None) -> dict:
     names = names or _names(conn)
     p = conn.execute("SELECT * FROM people WHERE id = ?", (pid,)).fetchone()
@@ -147,6 +279,8 @@ def character_life(conn: sqlite3.Connection, pid: str, names: dict | None = None
                 "backstory": [_event(conn, e, names) for e, in conn.execute(
                     "SELECT e.event_id FROM events e JOIN event_participants p USING (event_id) WHERE p.person_id = ? "
                     "AND e.type = 'backstory' ORDER BY e.event_id", (pid,))]}
+    identity["profile"] = _profile(conn, pid)
+    overview = character_overview(conn, pid, names)
     var = lambda k, d: (conn.execute("SELECT value FROM world_vars WHERE key = ?", (k,)).fetchone() or [d])[0]  # noqa: E731
     traits, scars = {}, []
     for k, rest in ADAPTIVE.items():
@@ -185,7 +319,7 @@ def character_life(conn: sqlite3.Connection, pid: str, names: dict | None = None
         knowledge.append({"memory": mid, "event": eid, "believes": belief, "confidence": round(conf, 2),
                           "source": src, "source_id": names.get(sid or "", sid or ""), "truth": truth,
                           "subject": subj or "", "object": obj or ""})
-    return {"id": pid, "identity": identity, "traits": traits, "values": values, "self_model": self_model,
+    return {"id": pid, "overview": overview, "identity": identity, "traits": traits, "values": values, "self_model": self_model,
             "scars": scars, "relationships": rels[:8], "knowledge": knowledge,
             "milestones": milestones(conn, pid, names)}
 
@@ -238,10 +372,11 @@ def milestones(conn: sqlite3.Connection, pid: str, names: dict) -> list[dict]:
                 add(eid, "value_shift", "、".join(VALUE_NAMES.get(k.split(".", 1)[1], k) for k in t["shifted"]
                                                   if k.startswith("value.")))
     firsts: set = set()
+    first_kinds = first_time_kinds()
     for eid, etype in conn.execute(
             "SELECT e.event_id, e.type FROM events e WHERE json_extract(e.truth, '$.actor') = ? ORDER BY e.event_id",
             (pid,)):
-        if etype in FIRSTS and etype not in firsts:
+        if etype in first_kinds and etype not in firsts:
             firsts.add(etype)
             add(eid, "first_time", "")
     for eid, ent, old, new in conn.execute(

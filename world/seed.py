@@ -19,7 +19,7 @@ LOCATIONS = [
 EDGES = [
     ("apartment", "cafe", 10), ("apartment", "park", 8), ("apartment", "office", 15),
     ("apartment", "station", 12), ("cafe", "office", 12), ("cafe", "station", 6),
-    ("cafe", "park", 9), ("park", "station", 7), ("office", "station", 9),
+    ("cafe", "park", 9), ("park", "station", 7), ("office", "station", 9), ("office", "park", 11),
 ]
 # id, name, goal, works
 PEOPLE = [
@@ -74,10 +74,14 @@ TRAITS = {
 DEBTS = [("jun", "tao", 6000), ("ming", "kai", 3000)]  # (debtor, lender, cents): old debts the town starts with
 WORLD_VARS = {"price_food": 800.0, "visibility": 1.0, "job_security": 1.0}
 
-# slot (minute of day) -> action, for people who work / people who do not
-WORKER_DAY = {480: "move:office", 540: "work", 720: "move:cafe", 750: "eat", 1080: "move:park", 1260: "move:apartment"}
-HOME_DAY = {480: "move:cafe", 720: "eat", 1080: "move:park", 1260: "move:apartment"}
-HOME_DAY_ALT = {480: "move:park", 720: "move:cafe", 750: "eat", 1080: "move:cafe", 1260: "move:apartment"}
+# slot (minute of day) -> action, for people who work / people who do not. "decide" is a moment to choose what to
+# do with whoever is there (besides the town-wide DECISION_SLOTS). Workers go back to the office after lunch, so
+# colleagues spend an afternoon together; people at home spread out instead of all sitting in the cafe from noon on.
+WORKER_DAY = {480: "move:office", 540: "work", 720: "move:cafe", 750: "eat", 800: "move:office", 900: "decide",
+              1080: "move:park", 1260: "move:apartment"}
+HOME_DAY = {480: "move:cafe", 720: "eat", 800: "move:park", 900: "decide", 1080: "move:cafe", 1260: "move:apartment"}
+HOME_DAY_ALT = {480: "move:park", 720: "move:cafe", 750: "eat", 840: "move:apartment", 900: "decide", 1080: "move:park",
+                1260: "move:apartment"}
 
 
 # Animals: perceivers without language (world/animals.py). They wait offstage (inactive) until a seed brings them.
@@ -150,6 +154,7 @@ def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v
     from world.psyche import keys_for
     for p in PEOPLE:
         variables.update(keys_for(p[0]))
+    variables.update(_profiles_and_domains(conn, "town_v1", [p[0] for p in PEOPLE]))
     for key, value in sorted(variables.items()):
         conn.execute("INSERT INTO world_vars(key, value) VALUES (?,?)", (key, value))
     from world.goals import initial_rows
@@ -157,6 +162,19 @@ def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v
         conn.execute("INSERT INTO goals(person_id, slot, kind, target, object, status, priority, since_day, setbacks, parent) "
                      "VALUES (?,?,?,?,?,?,?,?,?,?)", row)
     backstory(conn)
+
+
+def _profiles_and_domains(conn: sqlite3.Connection, content: str, people: list[str]) -> dict[str, float]:
+    """Store who everyone is (their CharacterProfile) and return the life state each active domain gives them."""
+    from world.domains import active
+    from world.profiles import load_roster, profile, store
+    store(conn, load_roster(content), people)
+    out: dict[str, float] = {}
+    for dom in active(conn):
+        for pid in people:
+            p = profile(conn, pid)
+            out.update(dom.initial_vars(pid, p))
+    return out
 
 
 def backstory(conn: sqlite3.Connection) -> None:

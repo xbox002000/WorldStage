@@ -72,17 +72,23 @@ def _table_with_seats(prefix: str, x: float, y: float, kind: str = "table") -> t
 
 def _build() -> dict[str, dict]:
     out = {}
-    # cafe: 10 x 8, big street window, three tables, a counter and a perch
-    objs = _room("cafe", 10, 8, window=(3.0, 7.0), door=8.5)
-    anchors = {"cafe.door_in": (8.5, 1.0, 0.0), "cafe.counter_front": (2.0, 5.8, 180.0),
-               "cafe.street": (5.0, -1.5, 0.0), "cafe.perch": (1.0, 6.5, 90.0), "cafe.corner": (9.0, 7.0, 225.0)}
-    for name, (x, y) in {"cafe.t1": (3.0, 3.0), "cafe.t2": (7.0, 3.0), "cafe.t3": (5.0, 5.5)}.items():
+    # cafe: 14 x 10, big street window, five tables, a bar with stools and a perch. The whole town has lunch here at
+    # once: 0.2 had 9 seats for 10 people, so they stood in a clump
+    objs = _room("cafe", 14, 10, window=(3.0, 11.0), door=12.5)
+    anchors = {"cafe.door_in": (12.5, 1.0, 0.0), "cafe.counter_front": (5.3, 9.0, 180.0),
+               "cafe.street": (7.0, -1.5, 0.0), "cafe.perch": (1.0, 8.5, 90.0), "cafe.corner": (13.0, 9.0, 225.0),
+               "cafe.window_spot": (1.2, 1.0, 45.0)}
+    tables = {"cafe.t1": (3.0, 3.0), "cafe.t2": (7.0, 3.0), "cafe.t3": (11.0, 3.0), "cafe.t4": (4.5, 6.0), "cafe.t5": (9.5, 6.0)}
+    for name, (x, y) in tables.items():
         o, a = _table_with_seats(name, x, y)
         objs += o
         anchors.update(a)
-    objs += [_o("cafe.counter", "counter", 2.0, 7.0, 3.0, 0.8, 1.1), _o("cafe.perch_stand", "perch", 1.0, 6.5, 0.3, 0.3, 1.6, False)]
-    out["cafe"] = {"objects": objs, "anchors": anchors, "tables": ["cafe.t1", "cafe.t2", "cafe.t3"],
-                   "stand": ["cafe.counter_front", "cafe.door_in", "cafe.corner"], "outside": ["cafe.street"]}
+    objs += [_o("cafe.counter", "counter", 3.0, 9.3, 3.6, 0.8, 1.1), _o("cafe.perch_stand", "perch", 1.0, 8.5, 0.3, 0.3, 1.6, False)]
+    for k, x in enumerate((1.9, 3.0, 4.1)):  # stools at the bar: sitting there faces the counter
+        objs.append(_o(f"cafe.stool{k + 1}", "chair", x, 8.35, 0.4, 0.4, 0.7, blocks=False))
+        anchors[f"cafe.counter.seat_{k + 1}"] = (x, 8.35, 90.0)
+    out["cafe"] = {"objects": objs, "anchors": anchors, "tables": list(tables),
+                   "stand": ["cafe.counter_front", "cafe.door_in", "cafe.corner", "cafe.window_spot"], "outside": ["cafe.street"]}
     # park: open lawn with two benches and three trees (trees block the view)
     objs = [_o("park.bench1", "bench", 5, 5, 2.0, 0.6, 0.5), _o("park.bench2", "bench", 13, 9, 2.0, 0.6, 0.5),
             _o("park.tree1", "tree", 8, 7, 1.0, 1.0, 5.0), _o("park.tree2", "tree", 10, 3.5, 1.0, 1.0, 5.0),
@@ -92,9 +98,10 @@ def _build() -> dict[str, dict]:
                "park.lawn1": (6.0, 7.0, 90.0), "park.lawn2": (11.0, 6.0, 270.0), "park.behind_tree": (8.0, 8.2, 180.0),
                "park.path": (9.0, 1.0, 0.0), "park.door_gate": (9.0, -0.3, 90.0), "park.bench1.surface": (5.0, 5.0, 0.0),
                "park.lawn3": (3.0, 3.0, 45.0), "park.lawn4": (7.0, 2.5, 90.0), "park.lawn5": (12.0, 4.5, 135.0),
-               "park.lawn6": (14.5, 6.5, 180.0), "park.lawn7": (6.5, 9.5, 270.0), "park.lawn8": (10.5, 10.5, 225.0)}
+               "park.lawn6": (14.5, 6.5, 180.0), "park.lawn7": (6.5, 9.5, 270.0), "park.lawn8": (10.5, 10.5, 225.0),
+               "park.lawn4b": (8.4, 2.5, 270.0)}
     out["park"] = {"objects": objs, "anchors": anchors, "tables": [], "pairs": [("park.bench1.seat_a", "park.bench1.seat_b"),
-                   ("park.lawn1", "park.lawn2")], "stand": ["park.lawn1", "park.lawn2", "park.lawn3", "park.lawn4", "park.lawn5", "park.lawn6",
+                   ("park.lawn4", "park.lawn4b")], "stand": ["park.lawn1", "park.lawn2", "park.lawn3", "park.lawn4", "park.lawn5", "park.lawn6",
                              "park.lawn7", "park.lawn8", "park.path", "park.behind_tree"],
                    "outside": []}
     # office: 12 x 8, four desks, a window

@@ -30,6 +30,10 @@
     "psyche",
     "items.accusation",
     "money.debt",
-    "space.perception"
+    "space.perception",
+    "social.exchange",
+    "social.topics",
+    "life.work",
+    "character.values", "body.arousal"
   ]
 }

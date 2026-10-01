@@ -26,7 +26,7 @@ VERBS = {"talk": "和{t}聊天", "tell": "告訴{t}一件事", "confront": "質�
          "repay": "還錢給{t}", "take": "拿走了{o}", "find": "找回了{o}", "misplace": "弄丟了{o}", "give": "把{o}交給{t}",
          "notice_missing": "發現{o}不見了", "steal": "偷走{t}的{o}", "bark": "對{t}吠", "move": "走到{p}", "eat": "吃東西",
          "work": "工作", "sleep": "睡覺", "upkeep": "回家過夜", "goal_change": "改變了目標", "reflection": "想了想自己",
-         "parrot_speaks": "鸚鵡學舌", "feed_pet": "餵了寵物", "duel": "和{t}比武"}
+         "parrot_speaks": "鸚鵡學舌", "feed_pet": "餵了寵物"}  # domain packs caption their own events
 
 
 def _names(conn) -> dict:
@@ -40,7 +40,10 @@ def caption(etype: str, truth: dict, place: str, names: dict) -> str:
     who = names.get(truth.get("actor", ""), truth.get("actor", ""))
     t = names.get(truth.get("target") or truth.get("victim") or truth.get("suspect") or "", "")
     o = names.get(truth.get("object", ""), truth.get("object", ""))
-    verb = VERBS.get(etype, etype).format(t=t or "某人", o=o or "東西", p=names.get(place, place))
+    from world.domains import style
+    st = style(etype)
+    verb = (st.caption if st is not None and st.caption else VERBS.get(etype, etype)).format(
+        t=t or "某人", o=o or "東西", p=names.get(place, place), text=truth.get("text", ""))
     return f"{who}{verb}" if who else verb
 
 
@@ -84,7 +87,14 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
     handoffs = [{"t": i.contact, "start": i.start, "complete": i.complete, "actor": i.actor, "action": i.action,
                  "thing": i.target, "hand": i.hand, "event": i.event_id} for i in rt.interactions if t0 <= i.contact <= t1]
     actions = [{"t": a.start, "end": a.end, "actor": a.actor, "kind": a.kind, "target": a.target, "event": a.event_id}
-               for a in rt.actions if t0 <= a.start <= t1 and a.kind in ("walk_to", "reach", "sniff", "face", "enter", "exit")]
+               for a in rt.actions if t0 <= a.start <= t1 and a.kind in ("walk_to", "reach", "sniff", "face", "enter", "exit", "say")]
+    from narrative.lines import line
+    said = {}  # event -> when it is said on the runtime's clock (the speaker's voice booking)
+    for a in rt.actions:
+        if a.kind == "say" and t0 <= a.start <= t1:
+            said[a.event_id] = [a.start, a.end]
+        elif a.kind == "exit" and t0 <= a.start <= t1:
+            said.setdefault(a.event_id, [a.start, a.start + 2.5])
     events = []
     for eid, ts, etype, place, truth, imp in conn.execute(
             "SELECT event_id, timestamp, type, location_id, truth, importance FROM events WHERE timestamp >= ? AND "
@@ -93,9 +103,21 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
         if etype in ("day_end",):
             continue
         who = [r[0] for r in conn.execute("SELECT person_id FROM event_participants WHERE event_id = ? ORDER BY person_id", (eid,))]
-        events.append({"id": eid, "t": ts * 60.0, "type": etype, "place": place or "", "who": who,
-                       "importance": imp, "caption": caption(etype, d, place or "", names),
-                       "why": d.get("reason") or ""})
+        ev = {"id": eid, "t": ts * 60.0, "type": etype, "place": place or "", "who": who,
+              "importance": imp, "caption": caption(etype, d, place or "", names), "why": d.get("reason") or ""}
+        spoken = line(eid, etype, d, names)
+        if spoken:  # a line to show over the speaker (a read model: narrative/lines.py), when the runtime says it
+            ev.update(line=spoken, actor=d.get("actor"), target=d.get("target") or d.get("victim") or "",
+                      say=said.get(eid, [ts * 60.0, ts * 60.0 + 2.5]))
+        events.append(ev)
+    from narrative.scenes import scenes as find_scenes
+    by_event = {e["id"]: e for e in events}
+    scenes = []
+    for sc in find_scenes(conn, first_day, last_day, names):
+        spans = [by_event[i]["say"] for i in sc["events"] if i in by_event and "say" in by_event[i]]
+        if spans:
+            sc.update(start=min(a for a, _ in spans), end=max(b for _, b in spans))
+        scenes.append(sc)
     people = {}
     for pid in cast:
         row = conn.execute("SELECT p.name, p.goal, s.traits FROM people p LEFT JOIN personas s ON s.person_id = p.id "
@@ -152,7 +174,7 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
     from narrative.observatory import observatory  # read models: stories and lives, each item traceable to events
     doc = {"kind": "world", "version": rt.VERSION, "observatory": observatory(conn), "first_day": first_day, "last_day": last_day, "t0": t0, "t1": t1,
            "places": [{"id": p, "name": names.get(p, p), "offset": offset[p]} for p in places], "geometry": geometry,
-           "entities": entities, "tracks": tracks, "handoffs": handoffs, "actions": actions, "events": events,
+           "entities": entities, "tracks": tracks, "handoffs": handoffs, "actions": actions, "events": events, "scenes": scenes,
            "people": people, "set_mask": SET_MASK, "cuts": {}, "duration": t1}
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")

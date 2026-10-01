@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib
 import json
 import sqlite3
+from pathlib import Path
 
 from world.rng import rng as make_rng
 
@@ -26,9 +27,15 @@ def home_of(conn: sqlite3.Connection, pid: str) -> str:
     return row[0] if row else conn.execute("SELECT id FROM locations ORDER BY id LIMIT 1").fetchone()[0]
 
 
+def content_names() -> list[str]:
+    """Every content module here (world/content/<name>.py), in a fixed order."""
+    import pkgutil
+    return sorted(m.name for m in pkgutil.iter_modules([str(Path(__file__).parent)]) if not m.name.startswith("_"))
+
+
 def layout_alias(location_id: str) -> str | None:
     """Which white-box layout template stages a place of any content (narrative/layouts.py)."""
-    for name in ("jianghu_v1",):
+    for name in content_names():
         alias = getattr(content_module(name), "LAYOUTS", {}).get(location_id)
         if alias:
             return alias
@@ -69,6 +76,9 @@ def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, 
         variables[f"arrears.{pid}"] = 0.0
     variables.update({f"missing.{o[0]}": 0.0 for o in c.OBJECTS})
     variables.update({f"revert.{k}": -1.0 for k in ("price_food", "visibility", "job_security")})
+    from world.seed import _profiles_and_domains
+    content = c.__name__.rsplit(".", 1)[1]
+    variables.update(_profiles_and_domains(conn, content, ids))
     for key, value in sorted(variables.items()):
         conn.execute("INSERT INTO world_vars(key, value) VALUES (?,?)", (key, value))
     for row in initial_rows(ids, c.INITIAL_GOALS):

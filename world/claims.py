@@ -84,12 +84,19 @@ def labels(conn: sqlite3.Connection) -> dict[str, str]:
     """Display names for every person and item id (the two id spaces never overlap)."""
     out = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM objects ORDER BY id")}
     out.update({r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM people ORDER BY id")})
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'content_topics'").fetchone():
+        out.update({r[0]: r[1] for r in conn.execute("SELECT topic, label FROM content_topics ORDER BY topic")
+                    if r[0] not in out})  # what people like and hate (world/profiles.py)
     return out
+
+
+def register_phrase(act: str, affirm: str, deny: str) -> None:
+    PHRASE.setdefault(act, (affirm, deny))
 
 
 def describe_claim(claim: Claim, names: dict[str, str]) -> str:
     """A claim in plain Traditional Chinese, e.g. 阿明偷了手機 / 阿明沒有偷手機."""
-    affirm, deny = PHRASE[claim.act]
+    affirm, deny = PHRASE.get(claim.act) or (f"{claim.act} {{o}}", f"沒有 {claim.act} {{o}}")
     phrase = affirm if claim.polarity == AFFIRM else deny
     return names.get(claim.subject, claim.subject) + phrase.format(o=names.get(claim.object, claim.object))
 

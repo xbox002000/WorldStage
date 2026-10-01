@@ -163,6 +163,12 @@ def _forced_focal(spec: SceneSpec, knowledge: AudienceKnowledgePlan, who: str, a
                             "forced by the benchmark", there, audience_only, transitions)
 
 
+def _style_functions(event_type: str) -> list[str]:
+    from world.domains import style
+    st = style(event_type)
+    return list(st.functions) if st is not None else []
+
+
 def beat_functions(i: int, b: Beat, spec: SceneSpec, knowledge: AudienceKnowledgePlan) -> list[str]:
     f = ["orient"] if i == 0 else []
     t, v = b.event_type, b.variant
@@ -185,8 +191,8 @@ def beat_functions(i: int, b: Beat, spec: SceneSpec, knowledge: AudienceKnowledg
         f += ["payoff"]
     elif t in ("lend", "repay"):
         f += ["connect"]
-    elif t == "duel":
-        f += ["escalate", "payoff"]
+    elif _style_functions(t):
+        f += _style_functions(t)
     elif t == "parrot_speaks":
         f += ["contrast", "reveal"]
     elif t == "seed":

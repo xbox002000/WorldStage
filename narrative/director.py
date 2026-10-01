@@ -12,6 +12,9 @@ payoff     somebody holds grounds to accuse or confront, so the question may be 
 change     what the thread did to people: goals it formed, turned or broke, reflections that shifted a trait or a
            self-image, trust that reversed, beliefs that flipped. A lost duel is an event; the loser deciding to train
            in secret is a story.
+inner      the internal conflict of what was chosen (world/values.py): someone doing what serves one value they
+           hold dear while it betrays another. A person making a choice they do not want to make is worth more than
+           two people shouting again.
 
 A thread qualifies only if its new material contains at least one event a character chose. A thread made only of
 rules, props and seeds is weather, not story (this is what `seed_direct_plot_rate` measures).
@@ -26,7 +29,7 @@ from narrative.selector import Candidate
 from narrative.threads import derive_threads
 
 WEIGHTS = {"momentum": 0.20, "tension": 0.20, "stakes": 0.10, "asymmetry": 0.15, "crossing": 0.10,
-           "novelty": 0.10, "payoff": 0.05, "change": 0.10}
+           "novelty": 0.10, "payoff": 0.05, "change": 0.10, "inner": 0.15}
 TURN = {"formed": 1.0, "transformed": 1.5, "abandoned": 1.5, "completed": 1.0, "blocked": 0.8, "revised": 0.8}
 LIVE = ("forming", "active", "escalating", "climax")
 MAX_EVENTS = 6
@@ -63,6 +66,16 @@ def _change(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> float:
     return min(1.0, total / 3)
 
 
+def _inner(conn: sqlite3.Connection, events: list[int]) -> float:
+    """The highest internal conflict among these events (0 when nobody chose against themselves)."""
+    if not events:
+        return 0.0
+    marks = ",".join("?" * len(events))
+    row = conn.execute(f"SELECT MAX(json_extract(truth, '$.dilemma.tension')) FROM events WHERE event_id IN ({marks})",
+                       events).fetchone()
+    return float(row[0] or 0.0)
+
+
 def score_thread(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> ThreadScore:
     from narrative.knowledge import knowledge_of
     new = [e for e in t.event_ids if e not in shown]
@@ -76,6 +89,7 @@ def score_thread(conn: sqlite3.Connection, t: StoryThread, shown: set[int]) -> T
         "novelty": len(new) / len(t.event_ids) if t.event_ids else 0.0,
         "payoff": _payoff(conn, t),
         "change": _change(conn, t, shown),
+        "inner": _inner(conn, new),
     }
     from world.recipes import load_recipe, recipe_of
     bonus = load_recipe(recipe_of(conn)).director_prefers.get(t.kind, 0.0)

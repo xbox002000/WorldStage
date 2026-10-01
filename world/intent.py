@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from world.state import WorldError
 
 ACTIONS = ("move", "eat", "work", "rest", "talk", "steal", "tell", "confront",
-           "take", "give", "lend", "repay", "accuse", "drop", "bark", "train", "challenge")
+           "take", "give", "lend", "repay", "accuse", "drop", "bark")  # the core's; domain packs add theirs
 ANIMAL_ACTIONS = ("move", "rest", "take", "drop", "bark")  # no words, no money, no accusations
 TONES = ("warm", "neutral", "cold", "hostile")
 
@@ -39,12 +39,15 @@ class Intent:
     mode: str | None = None  # tell: truth | omission | lie | distortion
     withheld: tuple[int, ...] = ()  # tell (omission): other held claims to keep quiet about
     memory_id: int | None = None  # confront: the told memory being challenged
+    topic: str = ""  # talk: what it is about (a content topic, or "@person" for someone both resent); see world/domains
 
 
 def intent_hash(it: Intent) -> str:
     """Identity of a proposed action, independent of who wrote the reason text."""
-    payload = json.dumps([it.actor, it.action, it.target, it.tone, it.claim_id, it.mode, list(it.withheld), it.memory_id],
-                         separators=(",", ":"), ensure_ascii=False)
+    fields = [it.actor, it.action, it.target, it.tone, it.claim_id, it.mode, list(it.withheld), it.memory_id]
+    if it.topic:  # only when there is one, so every intent from before topics keeps its identity
+        fields.append(it.topic)
+    payload = json.dumps(fields, separators=(",", ":"), ensure_ascii=False)
     return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -85,6 +88,7 @@ def parse_intent(actor: str, raw: dict) -> Intent:
         mode=raw.get("mode") or None,
         withheld=(withheld,) if withheld else (),
         memory_id=integer("memory_id"),
+        topic=str(raw.get("topic") or "")[:40],
     )
 
 
@@ -100,7 +104,9 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
         raise WorldError(f"actor {it.actor!r} does not exist")
     if actor["status"] == "inactive":
         raise WorldError(f"{it.actor} is inactive")
-    if it.action not in ACTIONS:
+    from world.domains import action_spec, active
+    extra = action_spec(it.action) if it.action not in ACTIONS else None
+    if it.action not in ACTIONS and extra is None:
         raise WorldError(f"action {it.action!r} is not allowed")
     from world.animals import is_animal
     animal = is_animal(conn, it.actor)
@@ -203,14 +209,11 @@ def validate(conn: sqlite3.Connection, it: Intent) -> None:
             raise WorldError("the actor does not hold that")
     elif it.action == "bark":
         _present_person(conn, it.actor, it.target, here)
-    elif it.action == "train":
-        from world.jianghu import validate_train
-        validate_train(conn, actor, tags_of(conn, here))
-    elif it.action == "challenge":
-        from world.jianghu import validate_challenge
-        if is_animal(conn, it.target or ""):
-            raise WorldError("nobody duels an animal")
-        validate_challenge(conn, it, actor)
+    elif extra is not None:
+        dom, spec = extra
+        if dom not in active(conn):
+            raise WorldError(f"this world has no {it.action}")
+        spec.validate(conn, it, actor)
 
 
 def _present_person(conn: sqlite3.Connection, actor: str, target: str | None, here: str) -> None:

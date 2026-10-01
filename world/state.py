@@ -21,7 +21,7 @@ NUMERIC_INT = {
 }
 NUMERIC_REAL = {"relationship": {"trust", "affection", "fear", "rivalry"}, "var": {"value"}, "goal": {"priority"}}
 SET_FIELDS = {
-    "person": {"location_id", "goal", "emotion", "status"},
+    "person": {"location_id", "goal", "emotion", "status", "schedule"},
     "object": {"owner_person_id", "location_id", "status", "rightful_owner_id"},
     "goal": {"kind", "target", "object", "status", "parent"},
 }

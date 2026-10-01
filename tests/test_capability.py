@@ -309,7 +309,11 @@ class ShotsRouteTests(unittest.TestCase):
         shutil.copyfile(world_path(), cls.world)
         cls.prod_db = str(cls.tmp / "p.db")
         conn = prod.open_production_db(cls.prod_db)
-        reg = default_registry(lambda h: prod.load_packet(conn, h), workdir=cls.tmp / "work")
+        # 10% frozen takes: repairs still happen, but the route does not hinge on luck. At 25% and 4 attempts one
+        # shot in 256 stays frozen, and the seeds follow the packet hash, which follows the compiler's source: an
+        # unrelated edit of narrative/compiler.py once left two of seven shots frozen four times over. Repair itself
+        # is tested at a 100% defect rate above.
+        reg = default_registry(lambda h: prod.load_packet(conn, h), workdir=cls.tmp / "work", mock_defect_rate=0.1)
         cls.results = produce(cls.world, cls.prod_db, cls.tmp / "out", top=1, orientation="landscape",
                               quality="draft", route="shots", registry=reg, prod_conn=conn)
         cls.conn = conn

@@ -23,6 +23,7 @@ from world.attention import var
 from world.intent import LEND_CENTS, TONES, Intent
 from world.rng import rng as make_rng
 from world.social import belief_effect
+from world.domains.base import Domain
 
 TEMPERATURE = 0.35
 IDLE = 0.35
@@ -31,7 +32,12 @@ IDLE = 0.35
 STRAIN_FROM = 0.7  # event weight that counts as a clash
 STRAIN_WEIGHT = 0.8
 STRAIN_DAYS = 2
-CONFLICT = ("accuse", "confront", "challenge")
+CORE_CONFLICT = ("accuse", "confront")
+
+
+def conflict_actions() -> tuple[str, ...]:
+    from world.domains import conflict_actions as extra
+    return CORE_CONFLICT + extra()
 
 
 def traits(conn: sqlite3.Connection, pid: str) -> dict:
@@ -63,20 +69,46 @@ def value_factor(cents: int) -> float:
     return min(1.0, cents / 20000)
 
 
+def seizure(conn: sqlite3.Connection, actor: str, now: int, targets: list[str] | None = None) -> Intent | None:
+    """What takes the choice away before anyone decides (a domain pack's seize: losing control)."""
+    from world.domains import active
+    doms = active(conn)
+    if not any(type(d).seize is not Domain.seize for d in doms):
+        return None
+    if targets is None:
+        from agent.perception import observe
+        targets = [o["id"] for o in observe(conn, actor)["others_here"]]
+    for d in doms:
+        it = d.seize(conn, actor, targets, now)
+        if it is not None:
+            return it
+    return None
+
+
+def irritability(conn: sqlite3.Connection, pid: str, now: int | None = None) -> float:
+    """How short-fused someone is now, from the domain packs (tired, hungry, worked up)."""
+    from world.domains import active
+    if now is None:
+        now = conn.execute("SELECT COALESCE(MAX(timestamp), 0) FROM events").fetchone()[0]
+    return sum(d.irritability(conn, pid, now) for d in active(conn))
+
+
 def _tone(conn: sqlite3.Connection, me: str, other: str, t: dict, emotion: str, rng) -> tuple[str, float]:
     """How someone would speak to another, and how much they want to. History shows here: cynicism cools every
     word, aggression heats it, withdrawal makes talking less wanted."""
-    from world.psyche import trait
+    from world.psyche import self_bias, trait
+    b = self_bias(conn, me)
     r = rel(conn, me, other)
     owed_to_me = rel(conn, other, me)["debt_cents"]
     warmth = (r["trust"] + r["affection"] - r["rivalry"] - 0.3 * (owed_to_me > 0) * (1 - t["generosity"])
               - 0.6 * (trait(conn, me, "cynicism") - 0.2))
     heat = t["temper"] * (1.2 if emotion in ("angry", "hurt", "embarrassed") else 0.6) + (trait(conn, me, "aggression") - 0.2)
+    heat += irritability(conn, me)
     weights = {
-        "warm": max(0.02, 0.4 + warmth),
+        "warm": max(0.02, 0.4 + warmth + b.get("warm", 0.0)),
         "neutral": 0.5,
         "cold": max(0.02, 0.2 - warmth + 0.3 * (emotion in ("hurt", "uneasy", "scared"))),
-        "hostile": max(0.0, heat * (0.1 - warmth) + 0.3 * (owed_to_me > 0 and r["trust"] < 0)),
+        "hostile": max(0.0, heat * (0.1 - warmth) + 0.3 * (owed_to_me > 0 and r["trust"] < 0) + 0.5 * b.get("retort", 0.0)),
     }
     tone = rng.choices(TONES, [weights[k] for k in TONES])[0]
     want = (0.45 + 0.25 * t["curiosity"] + 0.25 * abs(r["affection"]) + 0.2 * max(0.0, r["rivalry"])
@@ -120,7 +152,7 @@ def strain(conn: sqlite3.Connection, actor: str, now: int) -> float:
 
 
 def _conflict(it: Intent | None) -> bool:
-    return it is not None and (it.action in CONFLICT or (it.action == "talk" and it.tone == "hostile"))
+    return it is not None and (it.action in conflict_actions() or (it.action == "talk" and it.tone == "hostile"))
 
 
 def recovery_bias(conn: sqlite3.Connection, actor: str, now: int, scored: list) -> list:
@@ -134,6 +166,7 @@ def recovery_bias(conn: sqlite3.Connection, actor: str, now: int, scored: list) 
 
 def goal_bias(conn: sqlite3.Connection, actor: str, scored: list) -> list:
     """Open goals lean the actor's own options. They never add an option the world does not offer."""
+    from world.domains import active
     from world.goals import goals_of, has_goals
     if not has_goals(conn):
         return scored
@@ -171,10 +204,12 @@ def goal_bias(conn: sqlite3.Connection, actor: str, scored: list) -> list:
                     score += w * 0.6
                 elif k == "save" and a == "lend":
                     score -= w * 0.5
-                elif k == "surpass" and a == "train":
-                    score += w * 0.8
-                elif k in ("surpass", "revenge", "outshine") and a == "challenge" and it.target == tgt:
-                    score += w * 0.6
+                else:
+                    for dom in active(conn):  # goals of a domain's kinds lean that domain's actions
+                        lean = dom.lean(conn, g, it)
+                        if lean:
+                            score += w * lean
+                            break
         out.append((score, it))
     # an option a goal pushed up carries that goal in its reason, so the event it becomes can be traced to the goal
     return [(sc, it if it is None or sc == base or it.reason.startswith("goal:") else replace(it, reason=f"goal:{_lead(conn, actor, it)}"))
@@ -209,8 +244,9 @@ class VolitionDecider:
         opts = social_options(conn, actor)
         here = [o["id"] for o in opts["here"]]
         crowd = len(here)
-        from world.psyche import trait
-        out: list[tuple[float, Intent]] = [(IDLE + 0.8 * (trait(conn, actor, "withdrawal") - 0.1), None)]
+        from world.psyche import self_bias, trait
+        sb = self_bias(conn, actor)
+        out: list[tuple[float, Intent]] = [(IDLE + 0.8 * (trait(conn, actor, "withdrawal") - 0.1) + sb.get("withdraw", 0.0), None)]
 
         for other in here:
             tone, want = _tone(conn, actor, other, t, me["emotion"], rng)
@@ -245,12 +281,15 @@ class VolitionDecider:
                         mode = "truth"
                     else:
                         withheld = (others[0],)
-                out.append((score, Intent(actor, "tell", target, mode=mode, claim_id=tl["claim_id"], withheld=withheld,
-                                          reason="volition")))
+                # disposition over opportunity: a gossip passes on what a discreet person keeps (cross_domain.py
+                # found passing-on ranked people differently in two worlds when it followed only what they knew)
+                score *= 0.4 + 1.2 * t["gossip"]
+                out.append((score + sb.get("tell", 0.0), Intent(actor, "tell", target, mode=mode, claim_id=tl["claim_id"],
+                                                                 withheld=withheld, reason="volition")))
 
-        for c in opts["confront"]:
-            out.append((0.6 + 0.5 * t["temper"], Intent(actor, "confront", c["target"], memory_id=c["memory_id"],
-                                                        reason="volition")))
+        for c in opts["confront"]:  # the hot-tempered and the watchful say it to one's face
+            out.append((0.3 + 0.8 * t["temper"] + 0.6 * (trait(conn, actor, "vigilance") - 0.2), Intent(
+                actor, "confront", c["target"], memory_id=c["memory_id"], reason="volition")))
 
         for s in opts["steal"]:
             v = conn.execute("SELECT value_cents FROM objects WHERE id = ?", (s["target"],)).fetchone()[0]
@@ -299,38 +338,42 @@ class VolitionDecider:
             emo = conn.execute("SELECT emotion FROM people WHERE id = ?", (other,)).fetchone()[0]
             distress = 1.0 if emo in ("uneasy", "scared", "hurt") else 0.2
             if r["affection"] > 0.1:
-                out.append((t["generosity"] * r["affection"] * distress * 1.2 - 0.3 * n - 0.4 * (trait(conn, actor, "cynicism") - 0.2),
+                out.append((t["generosity"] * r["affection"] * distress * 1.2 - 0.3 * n - 0.4 * (trait(conn, actor, "cynicism") - 0.2)
+                            + sb.get("lend", 0.0),
                             Intent(actor, "lend", other, reason="volition")))
 
         for a in opts["accuse"]:
             r = rel(conn, actor, a["target"])
             angry = 0.3 if me["emotion"] in ("angry", "hurt", "uneasy") else 0.0
             out.append((a["confidence"] * (0.6 + t["temper"]) + angry - 0.4 * max(0.0, r["fear"]) - 0.2 * r["affection"]
-                        + 0.4 * (trait(conn, actor, "vigilance") - 0.2),
+                        + 0.4 * (trait(conn, actor, "vigilance") - 0.2) + sb.get("accuse", 0.0),
                         Intent(actor, "accuse", a["target"], memory_id=a["memory_id"], reason="volition")))
-        for ch in opts.get("challenge", []):
-            from world.jianghu import rep, sect, skill
-            r = rel(conn, actor, ch["target"])
-            if skill(conn, actor) < 0.2 or skill(conn, ch["target"]) < 0.2:
-                continue  # not fighters
-            gap = skill(conn, actor) - skill(conn, ch["target"])
-            rival_sect = sect(conn, actor) and sect(conn, ch["target"]) and sect(conn, actor) != sect(conn, ch["target"])
-            glory = max(0.0, rep(conn, ch["target"]) - rep(conn, actor) + 0.2)
-            risk, bully = max(0.0, -gap - 0.1), max(0.0, gap - 0.2)
-            # a duel is for a grudge or for a name: never to bully the weak, rarely against a master
-            score = (0.7 * t["temper"] * max(0.0, r["rivalry"]) + 0.5 * glory * t["temper"] + 0.2 * bool(rival_sect)
-                     - 1.5 * bully - 1.2 * risk - 0.5 * max(0.0, r["fear"]) - 0.3 * max(0.0, r["affection"]) - 0.45)
-            out.append((score, Intent(actor, "challenge", ch["target"], reason="volition")))
-        for _ in opts.get("train", []):
-            out.append((0.1, Intent(actor, "train", reason="volition")))
+        from world.domains import active
+        ctx = {"me": me, "traits": t, "need": n, "here": here, "location": me["location_id"], "options": opts}
+        for dom in active(conn):  # what each domain of this world offers (duels, training, work, ...)
+            out += dom.options(conn, actor, now, ctx)
         return out
 
-    def decide(self, conn: sqlite3.Connection, actor: str, now: int) -> Intent | None:
+    def scored(self, conn: sqlite3.Connection, actor: str, now: int) -> list[tuple[float, Intent | None]]:
+        """Everything this person could do now, with how much they want to: options, then mechanics, goals,
+        recovery and the domains' last word. A character agent (agent/cognition.py) chooses among the same list."""
         scored = self.options(conn, actor, now)
         for m in self.mechanics:
             scored = m.bias(conn, actor, now, scored + m.options(conn, actor, now))
         scored = goal_bias(conn, actor, scored)
         scored = recovery_bias(conn, actor, now, scored)
+        from world.domains import active
+        for dom in active(conn):  # the domains' last word (a talk gets its topic, ...)
+            scored = dom.shape(conn, actor, now, scored)
+        return scored
+
+    def decide(self, conn: sqlite3.Connection, actor: str, now: int) -> Intent | None:
+        seized = seizure(conn, actor, now)
+        if seized is not None:
+            return seized
+        return self.pick(self.scored(conn, actor, now), actor, now)
+
+    def pick(self, scored: list, actor: str, now: int) -> Intent | None:
         if len(scored) == 1:
             return None
         weights = [math.exp(s / self.temperature) for s, _ in scored]

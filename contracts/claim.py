@@ -36,6 +36,30 @@ DISTORTION: dict[str, str] = {
 }
 
 
+# Domain packs (world/domains) add their own acts ("like" a topic, "curse" someone, ...). The contract knows only
+# where extensions come from: an unknown act loads them once, then it is either known or refused.
+EXTENSIONS = "world.domains"
+_loaded = False
+
+
+def register_act(act: str, family: str, object_kind: str, distortion: str | None = None) -> None:
+    ACT_FAMILY.setdefault(act, family)
+    ACT_OBJECT_KIND.setdefault(act, object_kind)
+    if distortion:
+        DISTORTION.setdefault(act, distortion)
+
+
+def _known(act: str) -> bool:
+    global _loaded
+    if act in ACT_FAMILY:
+        return True
+    if not _loaded:
+        _loaded = True
+        import importlib
+        importlib.import_module(EXTENSIONS).load_acts()
+    return act in ACT_FAMILY
+
+
 @dataclass(frozen=True)
 class Claim:
     subject: str
@@ -44,7 +68,7 @@ class Claim:
     polarity: str = AFFIRM
 
     def __post_init__(self) -> None:
-        if self.act not in ACT_FAMILY:
+        if not _known(self.act):
             raise ValueError(f"unknown act {self.act!r}")
         if self.polarity not in (AFFIRM, DENY):
             raise ValueError(f"unknown polarity {self.polarity!r}")

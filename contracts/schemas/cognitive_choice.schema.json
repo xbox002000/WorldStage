@@ -1,0 +1,24 @@
+{
+  "$defs": {
+    "CognitiveChoice": {
+      "additionalProperties": false,
+      "properties": {
+        "inner": {
+          "type": "string"
+        },
+        "option": {
+          "type": "integer"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "option"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/CognitiveChoice",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

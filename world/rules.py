@@ -35,7 +35,7 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
     if it.action == "move":
         return EventSpec(
             **{**base, "location_id": it.target}, type="move", importance=0.05,
-            truth={"actor": it.actor, "from": here, "to": it.target},
+            truth={"actor": it.actor, "from": here, "to": it.target, **({"reason": it.reason} if it.reason else {})},
             participants=[(it.actor, "actor")],
             changes=[
                 Change("person", it.actor, "location_id", value=it.target),
@@ -81,9 +81,10 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
                        truth={**misplace(conn, it.actor, it.target, now).truth, "reason": it.reason, "dropped": True})
     if it.action == "bark":
         return _bark(conn, it, base)
-    if it.action in ("train", "challenge"):
-        from world import jianghu
-        return (jianghu.resolve_train if it.action == "train" else jianghu.resolve_challenge)(conn, it, now, trigger)
+    from world.domains import action_spec
+    extra = action_spec(it.action)
+    if extra is not None:
+        return extra[1].resolve(conn, it, now, trigger)
     if it.action in ("take", "give", "accuse"):
         from world import items
         return {"take": items.resolve_take, "give": items.resolve_give, "accuse": items.resolve_accuse}[it.action](
@@ -97,23 +98,27 @@ def resolve(conn: sqlite3.Connection, it: Intent, now: int, trigger: str) -> Eve
 def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
     a, b, tone = it.actor, it.target, it.tone
     d_trust, d_aff, d_aff_self = TONE_EFFECT[tone]
+    from world.helpers import rel_delta
     old_trust = rel(conn, b, a, "trust")
-    trust_delta = clamp_delta(old_trust, d_trust, -1.0, 1.0)
+    trust_delta = rel_delta(conn, old_trust, d_trust)
     flipped = trust_reversed(conn, b, a, trust_delta)
 
     changes: list[Change] = []
     if trust_delta:
         changes.append(Change("relationship", f"{b}:{a}", "trust", delta=trust_delta))
     for who, other, delta in ((b, a, d_aff), (a, b, d_aff_self)):
-        d = clamp_delta(rel(conn, who, other, "affection"), delta, -1.0, 1.0)
+        d = rel_delta(conn, rel(conn, who, other, "affection"), delta, "affection")
         if d:
             changes.append(Change("relationship", f"{who}:{other}", "affection", delta=d))
     owed = conn.execute("SELECT debt_cents FROM relationships WHERE actor_id = ? AND target_id = ?", (b, a)).fetchone()
     if owed and owed[0] > 0 and tone in ("cold", "hostile"):
-        d = clamp_delta(rel(conn, b, a, "fear"), 0.1 if tone == "cold" else 0.2, -1.0, 1.0)
+        d = rel_delta(conn, rel(conn, b, a, "fear"), 0.1 if tone == "cold" else 0.2, "fear")
         if d:
             changes.append(Change("relationship", f"{b}:{a}", "fear", delta=d))
-    if tone in TONE_EMOTION and person(conn, b)["emotion"] != TONE_EMOTION[tone]:
+    from world.recipes import enabled
+    if enabled(conn, "social.exchange"):
+        changes += _felt(conn, a, b, tone)
+    elif tone in TONE_EMOTION and person(conn, b)["emotion"] != TONE_EMOTION[tone]:
         changes.append(Change("person", b, "emotion", value=TONE_EMOTION[tone]))
 
     claim = Claim(a, f"speak_{tone}", b)
@@ -128,10 +133,37 @@ def _talk(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:
     return EventSpec(
         **base, type="talk", parent_event_id=last_event_between(conn, a, b),
         importance=0.85 if flipped else TONE_IMPORTANCE[tone],
-        truth={"actor": a, "target": b, "tone": tone, "reason": it.reason, "source": it.source, "trust_flipped": flipped},
+        truth={"actor": a, "target": b, "tone": tone, "reason": it.reason, "source": it.source, "trust_flipped": flipped,
+               **({"topic": it.topic} if it.topic else {})},
         participants=[(a, "actor"), (b, "target")], changes=changes, memories=memories,
         claims=[ClaimSpec(claim)],
     )
+
+
+NEGATIVE = ("angry", "hurt", "ashamed", "uneasy", "scared", "embarrassed")
+
+
+def _felt(conn: sqlite3.Connection, a: str, b: str, tone: str) -> list[Change]:
+    """How words land (social.exchange). Hostility angers the hot-tempered, hurts the rest and frightens those who
+    already fear the speaker; coldness hurts; kind words cheer someone who is fine, and calm someone who is upset
+    only if they are fond of the speaker. Speaking with hostility leaves the speaker angry too."""
+    import json as _json
+    from world.psyche import trait
+    row = conn.execute("SELECT traits FROM personas WHERE person_id = ?", (b,)).fetchone()
+    temper = _json.loads(row[0]).get("temper", 0.4) if row else 0.4
+    now_b, now_a = person(conn, b)["emotion"], person(conn, a)["emotion"]
+    feel_b = None
+    if tone == "hostile":
+        feel_b = ("scared" if rel(conn, b, a, "fear") > 0.3 else
+                  "angry" if temper + trait(conn, b, "aggression") >= 0.65 else "hurt")
+    elif tone == "cold":
+        feel_b = None if now_b == "angry" else "hurt"
+    elif tone == "warm":
+        feel_b = ("calm" if rel(conn, b, a, "affection") >= 0.2 else None) if now_b in NEGATIVE else "happy"
+    out = [Change("person", b, "emotion", value=feel_b)] if feel_b and feel_b != now_b else []
+    if tone == "hostile" and now_a != "angry":
+        out.append(Change("person", a, "emotion", value="angry"))
+    return out
 
 
 def _bark(conn: sqlite3.Connection, it: Intent, base: dict) -> EventSpec:

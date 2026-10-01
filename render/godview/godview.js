@@ -92,6 +92,43 @@ function ring(color) {
   m.rotation.x = -Math.PI / 2; scene.add(m); return m;
 }
 const pulses = [];
+// how people feel, next to their names (people.emotion on the world's clock)
+const FEEL = { angry: "😠", hurt: "😢", ashamed: "😞", uneasy: "😟", scared: "😨", embarrassed: "😳", happy: "😊", relieved: "😌" };
+// what is being said now: a bubble over the speaker (lines are a read model, narrative/lines.py), the other's answer after
+const TONE_CLASS = { hostile: "hot", retort: "hot", side: "hot", accuse: "hot", confront: "hot", storm_off: "hot",
+                     cold: "cool", rebuff: "cool", deny: "cool", warm: "warm", chat: "warm", soothe: "warm",
+                     apologize: "warm", comfort: "warm" };
+const spoken = doc.events.filter(e => e.line && e.say).sort((a, b) => a.say[0] - b.say[0]);
+const bubbles = [];
+function bubble() { const d = document.createElement("div"); d.className = "bubble"; $("#labels").appendChild(d); bubbles.push(d); return d; }
+function headAt(id, lift) {
+  const f = figs[id];
+  if (!f || !f.root.visible) return null;
+  const v = f.root.position.clone().add(new THREE.Vector3(0, (f.kind === "animal" ? 0.8 : 2.05) + lift, 0)).project(camera);
+  return v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1 ? null : [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H];
+}
+function speech(t) {
+  const now = [];
+  for (const e of spoken) {
+    if (e.say[0] > t) break;
+    const hold = Math.max(e.say[1], e.say[0] + 2.2) + 0.8;  // linger a little so a line can be read at 1x
+    if (t > hold) continue;
+    now.push([e.actor, e.line.say, e.line.stance]);
+    if (e.line.answer && t > (e.say[0] + e.say[1]) / 2) now.push([e.target, e.line.answer, "answer"]);
+  }
+  const last = {};
+  for (const n of now) last[n[0]] = n;  // one bubble a head: the latest line
+  let k = 0;
+  for (const [who, text, stance] of Object.values(last)) {
+    const xy = headAt(who, 0.55);
+    if (!xy) continue;
+    const d = bubbles[k] || bubble(); k++;
+    d.style.display = "block"; d.style.left = `${xy[0]}px`; d.style.top = `${xy[1]}px`;
+    d.className = "bubble " + (TONE_CLASS[stance] || "");
+    d.textContent = text;
+  }
+  for (; k < bubbles.length; k++) bubbles[k].style.display = "none";
+}
 function overlays(t) {
   const pos = new THREE.Vector3();
   for (const [id, d] of Object.entries(labels)) {
@@ -103,7 +140,9 @@ function overlays(t) {
     d.style.display = "block";
     d.style.left = `${(v.x + 1) / 2 * W}px`; d.style.top = `${(1 - v.y) / 2 * H}px`;
     const e = byId[id];
-    d.textContent = dist > 30 ? (e.name || id).slice(0, 1) : (e.kind === "animal" ? "🐕 " : "") + (e.name || id);  // semantic level of detail
+    const mood = at(((people[id] || {}).timeline || {}).emotion, t) || "", feel = FEEL[mood] || "";
+    d.dataset.feel = mood;
+    d.textContent = dist > 30 ? (e.name || id).slice(0, 1) + feel : (e.kind === "animal" ? "🐕 " : "") + (e.name || id) + (feel ? " " + feel : "");  // semantic level of detail
     d.classList.toggle("sel", id === state.who);
     d.classList.toggle("story", storyPeople().includes(id));
   }
@@ -136,6 +175,7 @@ function overlays(t) {
     m.position.copy(figs[who].root.position).setY(0.04);
     pulses.push(m);
   }
+  speech(t);
 }
 
 // -- cameras ----------------------------------------------------------------------------------------------------------
@@ -155,8 +195,10 @@ function aimCamera() {
     camera.fov = who.kind === "animal" ? 75 : 62;
     who.root.visible = false;
   } else {
-    const o = state.orbit, c = toThree(place.offset + 8, 5, 0);
-    const pitch = state.top ? 1.52 : o.pitch, dist = state.top ? o.dist * 3.2 : o.dist;  // top: nearly orthographic
+    const o = state.orbit, fc = state.follow && state.follow.centre && state.follow.centre.length ? state.follow.centre : null;
+    let c = toThree(place.offset + 8, 5, 0);
+    if (fc) { c = new THREE.Vector3(); fc.forEach(x => c.add(x.root.position)); c.multiplyScalar(1 / fc.length); c.y = 0.8; }
+    const pitch = state.top ? 1.52 : o.pitch, dist = state.top ? o.dist * 3.2 : fc ? Math.min(o.dist, 9) : o.dist;  // top: nearly orthographic
     camera.position.set(c.x + dist * Math.cos(pitch) * Math.cos(o.yaw), dist * Math.sin(pitch), c.z + dist * Math.cos(pitch) * Math.sin(o.yaw));
     camera.lookAt(c);
     camera.fov = state.top ? 16 : 45;
@@ -166,6 +208,28 @@ function aimCamera() {
 function setWalls(on) {
   scene.traverse(o => { if (o.userData && o.userData.geometry && ["wall", "window"].includes(o.userData.kind)) o.visible = on; });
 }
+
+// -- scenes: moments worth watching (narrative/scenes.py), best first or in order; each one plays at 1x -----------------
+const scenes = (doc.scenes || []).filter(s => s.start != null);
+const HEAT = ["💬", "💬", "❄️", "🔥"];
+function hhmm(m) { return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; }
+function sceneList() {
+  const best = $("#bestOnly").checked;
+  const list = best ? [...scenes].sort((a, b) => b.score - a.score).slice(0, 30) : scenes;
+  $("#scenes").innerHTML = list.map(s => `<li data-id="${s.id}"><span>${HEAT[s.heat] || "💬"}</span> <b>${esc(s.title)}</b><br>
+    <span class="dim">第 ${s.day} 天 ${hhmm(s.minute)} · ${esc(placeName[s.place] || "")} · ${s.turns} 句 · 戲分 ${s.score}</span></li>`).join("")
+    || `<li class="dim">這份存檔裡沒有值得看的場面。</li>`;
+}
+function playScenes(list) { state.follow = { scenes: list, i: 0, until: 0 }; }
+$("#scenes").onclick = e => { const li = e.target.closest("li[data-id]"); if (li) playScenes([scenes.find(s => s.id === +li.dataset.id)]); };
+$("#bestOnly").onchange = sceneList;
+$("#bestRun").onclick = () => playScenes([...scenes].sort((a, b) => b.score - a.score).slice(0, 12).sort((a, b) => a.start - b.start));
+$("#ltabs").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#ltabs button").forEach(x => x.classList.toggle("on", x === b));
+  $("#scenePane").style.display = b.dataset.l === "scenes" ? "" : "none";
+  $("#threadPane").style.display = b.dataset.l === "threads" ? "" : "none";
+};
 
 // -- the Story Observatory ---------------------------------------------------------------------------------------------
 const STATUS = { seeded: ["🌱", "萌芽"], forming: ["🟢", "成形中"], active: ["🟢", "進行中"], escalating: ["🟠", "升溫"],
@@ -233,7 +297,34 @@ function renderCharacter() {
   if (!life || !p) { $("#who").innerHTML = `<p class="dim">點一個人（或狗）：他是誰，為什麼變成現在這樣。點地上的東西：誰知道它的真相。</p>`; return; }
   const tl = p.timeline, name = esc(life.identity.name);
   let html = `<h2>${name}${life.identity.species !== "human" ? "（" + esc(life.identity.species) + "）" : ""}</h2>`;
-  if (state.tab === "now") {
+  if (state.tab === "overview") {
+    const o = life.overview || {};
+    const VW = { truth: "真相", loyalty: "忠誠", security: "安穩", belonging: "歸屬", ambition: "野心", freedom: "自由", family: "家人", fairness: "公平", revenge: "報復" };
+    const FW = { trust: "信任", affection: "好感" };
+    const relLine = r => `${esc(r.name)} <span class="${r.since_start < 0 ? "neg" : "pos"}">${r.since_start > 0 ? "↑" : "↓"}${Math.abs(r.since_start)}</span>`;
+    html += `<table><tr><td>現在</td><td>${esc(FEEL[o.emotion] || "")} ${esc(o.emotion || "—")}${Object.entries(o.life || {}).map(([d, v]) => ` · ${esc(d)}：${Object.entries(v).filter(([k]) => k !== "喜歡" && k !== "討厭").map(([k, x]) => `${esc(k)} ${esc(x)}`).join(" ")}`).join("")}</td></tr>
+      <tr><td>正在想</td><td>${(o.thinking || []).map(esc).join("<br>") || "—"}</td></tr>
+      <tr><td>在乎</td><td>${(o.cares || []).map(k => esc(VW[k] || k)).join(" ＞ ") || "—"}</td></tr>
+      <tr><td>害怕</td><td>${(o.fears || []).map(esc).join("；") || "—"}</td></tr>
+      <tr><td>最近改變</td><td>${(o.recent || []).map(r => `對${esc(r.name)}的${FW[r.field] || r.field} <span class="${r.delta < 0 ? "neg" : "pos"}">${r.delta > 0 ? "↑" : "↓"}${Math.abs(r.delta)}</span>`).join("<br>") || "—"}</td></tr>
+      <tr><td>重要記憶</td><td>${(o.memories || []).map(m => `<span class="dim">第 ${m.day} 天</span> ${esc(m.belief)}`).join("<br>") || "—"}</td></tr>
+      <tr><td>關係</td><td>${(o.closer || []).map(relLine).join("、") || ""}${o.apart && o.apart.length ? "<br>" + o.apart.map(relLine).join("、") : ""}</td></tr>
+      <tr><td>人生弧</td><td><b>${esc(o.arc_text || "—")}</b><br><span class="dim">${(o.arc || []).map(s => `第 ${s.from_day} 天起 ${esc(s.word)}`).join(" · ")}</span></td></tr></table>`;
+  } else if (state.tab === "who") {
+    const pf = life.identity.profile;
+    if (!pf) html += `<p class="dim">這個世界沒有他的角色設定。</p>`;
+    else {
+      const kv = o => Object.entries(o || {}).filter(([, v]) => v !== "" && v != null).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(typeof v === "number" ? v : v)}</td></tr>`).join("");
+      html += `<p>${pf.age} 歲${pf.occupation ? " · " + esc(pf.occupation.role) : ""} · ${esc(Object.values(pf.background || {}).join("，"))}</p>
+        <h3>人生的問題</h3><p><b>${esc(pf.core["人生的問題"] || "—")}</b></p><table>${kv(pf.core)}</table>
+        <h3>喜歡 / 討厭</h3><p>${esc(pf.interests.join("、") || "—")}<br><span class="neg">${esc(pf.dislikes.join("、") || "—")}</span></p>
+        <h3>看重</h3><p>${Object.entries(pf.values).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}</p>
+        <h3>習慣</h3><ul>${pf.habits.map(h => `<li>${esc(h)}</li>`).join("")}</ul>
+        <h3>待人</h3><table>${kv(pf.social)}</table>
+        <h3>目標</h3><p>一生：${esc(pf.life_goal)}<br>這一陣子：${esc(pf.season_goal)}</p>
+        ${Object.entries(pf.life || {}).map(([d, o]) => `<h3>${esc(d)}</h3><table>${kv(o)}</table>`).join("")}`;
+    }
+  } else if (state.tab === "now") {
     const holds = Object.keys(things).filter(o => holder(doc, o, t) === id).map(o => names[o] || o).join("、") || "—";
     const seen = doc.entities.filter(e => e.id !== id && e.kind !== "thing" && pose(doc, e.id, t) !== "offstage" && sees(id, e.id, t)).map(e => e.name).join("、") || "—";
     const goals = {};
@@ -326,7 +417,14 @@ let last = performance.now(), lastPanel = 0;
 function loop(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   const f = state.follow;
-  if (f && f.list.length) {  // FOLLOW STORY: to each of the story's events in turn, a few seconds each, at 1x
+  if (f && f.scenes) {  // a scene, or the best scenes one after another: each from its first line to its last, at 1x
+    const s = f.scenes[f.i];
+    if (!f.until) {
+      state.t = s.start - 2; state.place = s.place || state.place; state.speed = 1; state.playing = true;
+      state.mode = "god"; $("#mode").value = "god"; f.until = 1; flash(`第 ${s.day} 天 ${hhmm(s.minute)} ${s.title}`);
+      f.centre = s.people.map(p => figs[p]).filter(Boolean);  // the orbit looks at the people in the scene
+    } else if (state.t > s.end + 2.5) { f.i++; f.until = 0; if (f.i >= f.scenes.length) state.follow = null; }
+  } else if (f && f.list.length) {  // FOLLOW STORY: to each of the story's events in turn, a few seconds each, at 1x
     const e = f.list[f.i];
     if (!f.until) { state.t = e.t - 3; state.place = e.place || state.place; state.speed = 1; state.playing = true; f.until = now + 6000; flash(`${clock(e.t)} ${e.caption}`); }
     else if (now > f.until) { f.i++; f.until = 0; if (f.i >= f.list.length) state.follow = null; }
@@ -341,10 +439,10 @@ function loop(now) {
   aimCamera();
   overlays(state.t);
   renderer.render(scene, camera);
-  $("#clock").textContent = `${clock(state.t)}   ${state.playing ? "▶" : "⏸"} ×${state.speed}${state.follow ? "  跟隨故事中" : ""}`;
+  $("#clock").textContent = `${clock(state.t)}   ${state.playing ? "▶" : "⏸"} ×${state.speed}${state.follow ? (state.follow.scenes ? "  播放好戲中" : "  跟隨故事中") : ""}`;
   if (now - lastPanel > 400 && state.tab === "now") { lastPanel = now; try { renderCharacter(); } catch (err) { console.error(err); } }
   requestAnimationFrame(loop);
 }
 window.__god = { state, rt, doc, obs, select, renderCharacter, threadDetail };  // for inspection; no way to change the world
-threadList(); threadDetail(); renderCharacter();
+sceneList(); threadList(); threadDetail(); renderCharacter();
 requestAnimationFrame(loop);

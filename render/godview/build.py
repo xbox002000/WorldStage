@@ -24,6 +24,8 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1
 #view{position:relative;overflow:hidden}
 #labels{position:absolute;inset:0;pointer-events:none}
 .label{position:absolute;transform:translate(-50%,-100%);font-size:12px;padding:1px 6px;border-radius:8px;background:rgba(255,255,255,.82);color:#222;white-space:nowrap;pointer-events:auto;cursor:pointer;border:1px solid transparent}
+.label[data-feel=angry]{background:#ffc9bf}.label[data-feel=hurt],.label[data-feel=scared]{background:#cfe0f5}
+.label[data-feel=uneasy],.label[data-feel=ashamed],.label[data-feel=embarrassed]{background:#fbe7b0}.label[data-feel=happy],.label[data-feel=relieved]{background:#d6f0d9}
 .label.sel{background:#ff5a36;color:#fff}.label.story{border-color:var(--hl);box-shadow:0 0 0 2px var(--hl)}
 #flash{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:rgba(20,20,28,.85);color:#fff;padding:6px 14px;border-radius:10px;opacity:0;transition:opacity .4s;pointer-events:none}
 #bar{display:flex;gap:6px;align-items:center;padding:0 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;overflow:hidden}
@@ -47,6 +49,10 @@ h2{margin:2px 0 6px;font-size:17px}h3{margin:10px 0 4px;font-size:13px;color:var
 .k-identity_shift,.k-value_shift,.k-turning_point{background:#6c4bd8!important}
 .ms li,.bio{cursor:pointer}.ms li:hover,.bio:hover{background:rgba(0,0,0,.04)}
 .spark{color:#e0892d;vertical-align:middle}
+#ltabs{display:flex;gap:4px;margin-bottom:6px}#ltabs button.on{background:var(--ink);color:var(--panel)}
+#scenes{list-style:none;padding:0}#scenes li{padding:5px 4px;border-bottom:1px dashed var(--line);cursor:pointer}#scenes li:hover{background:rgba(255,194,51,.18)}
+.bubble{position:absolute;transform:translate(-50%,-100%);max-width:220px;font-size:13px;line-height:1.35;padding:4px 9px;border-radius:12px;background:#fff;color:#1d1d24;border:1px solid #bbb;box-shadow:0 2px 6px rgba(0,0,0,.18);pointer-events:none;white-space:normal;text-align:center}
+.bubble.hot{background:#ffe3df;border-color:#e0533d;color:#8a1c0e;font-weight:600}.bubble.cool{background:#e6edf5;border-color:#8aa3bf;color:#2d4660}.bubble.warm{background:#e7f6e9;border-color:#6fb67b;color:#1f5a2b}
 table td{padding:1px 8px 1px 0;vertical-align:top}
 </style></head><body><div id="app">
 <div id="view"><div id="labels"></div><div id="flash"></div></div>
@@ -56,9 +62,11 @@ table td{padding:1px 8px 1px 0;vertical-align:top}
 <select id="place"></select><label><input id="walls" type="checkbox" checked> 牆</label><label><input id="top" type="checkbox"> 俯視</label>
 <button id="live">▶ LIVE：再走一天</button><span class="dim">唯讀：這一頁不能改變世界</span></div>
 <div id="panels">
-<section><h3>故事線</h3><ul id="threads"></ul></section>
+<section><div id="ltabs"><button data-l="scenes" class="on">好戲</button><button data-l="threads">故事線</button></div>
+<div id="scenePane"><div class="row"><button id="bestRun">▶ 只看好戲</button> <label><input id="bestOnly" type="checkbox" checked> 只列最好看的</label></div><ul id="scenes"></ul></div>
+<div id="threadPane" style="display:none"><ul id="threads"></ul></div></section>
 <section id="thread"></section>
-<section><div id="tabs"><button data-tab="now">現在</button><button data-tab="life">人生</button><button data-tab="psyche">心理</button>
+<section><div id="tabs"><button data-tab="overview">總覽</button><button data-tab="who">他是誰</button><button data-tab="now">現在</button><button data-tab="life">人生</button><button data-tab="psyche">心理</button>
 <button data-tab="rel">關係</button><button data-tab="know">知道什麼</button><button data-tab="bio">傳記</button></div><div id="who"></div></section>
 </div></div>
 <script type="module" src="godview.js"></script></body></html>

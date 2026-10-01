@@ -1,0 +1,163 @@
+{
+  "$defs": {
+    "CognitiveState": {
+      "additionalProperties": false,
+      "properties": {
+        "core": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "feeling": {
+          "type": "string"
+        },
+        "goals": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "habits": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "life": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "memories": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/OptionView"
+          },
+          "type": "array"
+        },
+        "people": {
+          "items": {
+            "$ref": "#/$defs/PersonHere"
+          },
+          "type": "array"
+        },
+        "person": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "integer"
+        },
+        "wake": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "who": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "person",
+        "name",
+        "who",
+        "core",
+        "values",
+        "habits",
+        "feeling",
+        "life",
+        "goals",
+        "place",
+        "people",
+        "memories",
+        "options",
+        "wake"
+      ],
+      "type": "object"
+    },
+    "OptionView": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "n": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "n",
+        "action"
+      ],
+      "type": "object"
+    },
+    "PersonHere": {
+      "additionalProperties": false,
+      "properties": {
+        "affection": {
+          "type": "number"
+        },
+        "dislikes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "fear": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "likes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "trust": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "trust",
+        "affection",
+        "fear"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/CognitiveState",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

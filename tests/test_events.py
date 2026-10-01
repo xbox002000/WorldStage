@@ -63,7 +63,7 @@ class ApplyEventTests(unittest.TestCase):
         bad = {
             "unknown person": Change("person", "sarah", "energy", delta=-1),
             "unknown relationship": Change("relationship", "john:tom", "trust", delta=0.1),
-            "unknown field": Change("person", "john", "schedule", value="{}"),
+            "unknown field": Change("person", "john", "name", value="Johnny"),  # a name is who one is, never an event
             "unknown entity type": Change("planet", "mars", "energy", delta=1),
             "value on numeric": Change("person", "john", "energy", value=5),
             "delta on set": Change("person", "john", "goal", delta=1),
