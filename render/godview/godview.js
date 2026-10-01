@@ -23,7 +23,7 @@ const busy = doc.actions.map(a => [a.t, Math.max(a.end, a.t + 0.5)]).concat(doc.
 const sight = doc.geometry.filter(g => g.collision.blocks_sight && g.h >= 1.2 && (g.z || 0) < 1.0);
 
 const state = { t: +(params.get("t") || 0) || doc.t0 + 8 * 3600, speed: 60, playing: true, skip: true, mode: "god",
-                who: params.get("who") || "", thing: "", place: doc.places[0].id, thread: params.get("thread") || "",
+                who: params.get("who") || "", thing: "", place: params.get("place") || doc.places[0].id, thread: params.get("thread") || "",
                 tab: "now", walls: true, top: false, follow: null,
                 orbit: { yaw: -0.8, pitch: 0.9, dist: 22 } };
 
@@ -443,6 +443,20 @@ function loop(now) {
   if (now - lastPanel > 400 && state.tab === "now") { lastPanel = now; try { renderCharacter(); } catch (err) { console.error(err); } }
   requestAnimationFrame(loop);
 }
+// -- inside the control room (channel/studio.py): one page, one world. The room asks to be shown a moment; this asks to go back.
+if (params.get("embed") === "1") {
+  $("#live").style.display = "none"; $("#readonly").style.display = "none"; $("#toStory").style.display = "";
+  $("#bar").prepend($("#toStory"));   // first, so that a narrow frame cannot push it out of the bar
+  $("#toStory").onclick = () => parent.postMessage({ type: "story", t: state.t, who: state.who }, location.origin);
+}
+addEventListener("message", e => {
+  if (e.origin !== location.origin || !e.data || e.data.type !== "seek") return;
+  const m = e.data;
+  if (m.who && figs[m.who]) { state.who = m.who; state.mode = "follow"; $("#mode").value = "follow"; renderCharacter(); }
+  else { state.mode = "god"; $("#mode").value = "god"; }
+  jump(m.t, m.place); state.speed = 1; state.playing = true; state.skip = true; $("#skip").checked = true;
+});
+if (params.get("embed") === "1") parent.postMessage({ type: "ready" }, location.origin);   // the room may now send "seek"
 window.__god = { state, rt, doc, obs, select, renderCharacter, threadDetail };  // for inspection; no way to change the world
 sceneList(); threadList(); threadDetail(); renderCharacter();
 requestAnimationFrame(loop);

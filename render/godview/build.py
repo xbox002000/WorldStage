@@ -60,7 +60,7 @@ table td{padding:1px 8px 1px 0;vertical-align:top}
 <label><input id="skip" type="checkbox" checked> 跳過沒事的時間</label>
 <select id="mode"><option value="god">上帝視角</option><option value="follow">跟著他</option><option value="eyes">他的眼睛</option></select>
 <select id="place"></select><label><input id="walls" type="checkbox" checked> 牆</label><label><input id="top" type="checkbox"> 俯視</label>
-<button id="live">▶ LIVE：再走一天</button><span class="dim">唯讀：這一頁不能改變世界</span></div>
+<button id="toStory" style="display:none">↩ 回導播室</button><button id="live">▶ LIVE：再走一天</button><span class="dim" id="readonly">唯讀：這一頁不能改變世界</span></div>
 <div id="panels">
 <section><div id="ltabs"><button data-l="scenes" class="on">好戲</button><button data-l="threads">故事線</button></div>
 <div id="scenePane"><div class="row"><button id="bestRun">▶ 只看好戲</button> <label><input id="bestOnly" type="checkbox" checked> 只列最好看的</label></div><ul id="scenes"></ul></div>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>導播室</title>
+<link rel="stylesheet" href="studio.css">
+</head>
+<body>
+<header id="top">
+  <div class="brand">
+    <h1>導播室</h1>
+    <p class="sub">世界自己在過日子，製作人只負責給機會。這裡看它今天說了什麼故事。</p>
+  </div>
+  <div id="worldPick" class="worldpick" hidden>
+    <label for="worldSel" class="dim">世界</label>
+    <select id="worldSel" aria-label="換一個世界"></select>
+  </div>
+  <nav id="views" class="seg views" role="tablist" aria-label="看哪一邊">
+    <button data-v="story" role="tab" aria-selected="true">導播室</button>
+    <button data-v="world" role="tab" aria-selected="false" title="同一個世界，3D 的現場">世界現場（3D）</button>
+  </nav>
+  <div id="chips" class="chips" aria-label="這個世界"></div>
+  <div class="actions">
+    <button id="go1" class="primary" title="讓世界再過一天，然後重新整理這一頁">再走一天</button>
+    <button id="go7" title="再走七天（需要幾分鐘）">再走 7 天</button>
+    <button id="helpBtn" aria-expanded="false" aria-controls="help">怎麼看這一頁</button>
+    <button id="theme" aria-label="切換明暗" title="切換明暗">◐</button>
+  </div>
+</header>
+
+<section id="help" hidden>
+  <div class="helpgrid">
+    <div><h3>三種集</h3>
+      <p><span class="dot k-payoff"></span><b>爽點集</b>：觀眾等了一陣子的釋放，例如被看輕的人當眾證明自己。</p>
+      <p><span class="dot k-inner"></span><b>內在衝突集</b>：有人做了違背自己最在乎的事的選擇。</p>
+      <p><span class="dot k-thread"></span><b>故事線集</b>：一條還在進行的故事。</p></div>
+    <div><h3>季節條</h3>
+      <p>每一欄是一天。柱子越高，這集的張力越高。柱子下面的圓點：<b>實心</b>是製作人那天出了手，<b>空心</b>是它刻意不動；星號是那天有爽點。</p></div>
+    <div><h3>這一集</h3>
+      <p>曲線是張力的起伏，每個點是一場戲。<b>不拍</b>的是什麼都沒改變、或沒人在場的場景。爽文六步亮起來的，是世界真的產生了的；虛線的，是世界沒有產生，這裡不會替它編。</p></div>
+    <div><h3>製作人</h3>
+      <p>它只能改變「會發生什麼機會」：公告一場比武、送來一件東西、讓位子空出來、指派一個配角。誰贏、誰愛誰，永遠是角色和規則決定的。</p></div>
+  </div>
+</section>
+
+<main id="storyView">
+  <section id="stripWrap" aria-label="季節條">
+    <div class="striphead">
+      <h2>這一季</h2>
+      <div id="filters" class="seg" role="group" aria-label="篩選">
+        <button data-f="all" aria-pressed="true">全部</button>
+        <button data-f="payoff" aria-pressed="false"><span class="dot k-payoff"></span>爽點集</button>
+        <button data-f="inner" aria-pressed="false"><span class="dot k-inner"></span>內在衝突集</button>
+        <button data-f="thread" aria-pressed="false"><span class="dot k-thread"></span>故事線集</button>
+      </div>
+      <span class="hint">← → 換天</span>
+    </div>
+    <div id="strip" class="strip" role="listbox" aria-label="每一天"></div>
+  </section>
+
+  <div id="cols">
+    <section id="episode" aria-live="polite"></section>
+    <aside id="side">
+      <div id="tabs" class="seg tabs" role="tablist">
+        <button data-t="producer" role="tab" aria-selected="true">製作人</button>
+        <button data-t="payoffs" role="tab" aria-selected="false">爽點</button>
+        <button data-t="people" role="tab" aria-selected="false">人物</button>
+      </div>
+      <div id="pane"></div>
+    </aside>
+  </div>
+</main>
+
+<section id="worldView" hidden aria-label="世界現場">
+  <iframe id="worldFrame" title="世界現場（3D）" loading="lazy"></iframe>
+  <p class="hint">這裡是同一個世界。在導播室點「在現場看」，會停在那一幕發生的時間和地點；按「回導播室」回到那一天的集。</p>
+</section>
+
+<footer>這一頁只讀：它不能改變世界。「再走一天」是請這個程式替世界多過一天（世界的唯一寫入者），然後重新產生這一頁。</footer>
+
+<dialog id="newWorld" aria-labelledby="nwTitle">
+  <form method="dialog" id="nwForm">
+    <h3 id="nwTitle">新增一個世界</h3>
+    <label>哪一種<select id="nwPreset"></select></label>
+    <label>種子（同一個種子，同一個世界）<input id="nwSeed" type="number" min="1" placeholder="留空用預設"></label>
+    <label>先過幾天<select id="nwDays"><option>7</option><option selected>14</option><option>21</option></select></label>
+    <p class="dim" id="nwNote">建造要 1～3 分鐘（要先把這些天一天一天過完）。期間這個頁面會暫時沒有反應，請等它。</p>
+    <div class="row"><button type="button" id="nwCancel">取消</button><button type="submit" class="primary" id="nwGo">建造</button></div>
+  </form>
+</dialog>
+
+<script src="studio-data.js" onerror="void 0"></script>
+<script src="studio.js"></script>
+</body>
+</html>

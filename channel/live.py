@@ -87,10 +87,11 @@ def main() -> None:
     ap.add_argument("--out", default="out/live")
     ap.add_argument("--new", type=int, default=None, help="world seed: make a new spatial world")
     ap.add_argument("--days", type=int, default=0)
+    ap.add_argument("--recipe", default="town_spatial_v1", help="e.g. jianghu_story_spatial_v1 (the martial-arts story world, in space)")
     ap.add_argument("--port", type=int, default=8793)
     ap.add_argument("--no-serve", action="store_true")
     a = ap.parse_args()
-    world = World(Path(a.out), a.new, a.days)
+    world = World(Path(a.out), a.new, a.days, a.recipe)
     print("world", world.db, "save", world.out / "world.json")
     if a.no_serve:
         return
