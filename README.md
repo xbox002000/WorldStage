@@ -9,7 +9,7 @@
 *Emergent narrative engine · multi-agent simulation · LLM characters · AI storytelling · AI video pipeline*
 
 ![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-900%2B%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-1069%20passing-2ea44f)
 ![Budget](https://img.shields.io/badge/budget-%240%20(free%20tier)-f5a623)
 ![LLM](https://img.shields.io/badge/LLM-optional%20%C2%B7%20cached%20%C2%B7%20replayable-8a63d2)
 ![Deterministic](https://img.shields.io/badge/worlds-deterministic%20%26%20event--sourced-0b7285)
