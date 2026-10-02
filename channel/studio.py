@@ -652,8 +652,10 @@ class Hub:
     def make_mind(self, root: Path) -> str:
         """Open a soul_lab world (out/soul/<name>) to be looked at: replayed from its recorded answers, never asked anything, never run on."""
         info = mind_info(root)
-        key = f"soul-{info['seed']}"
-        Studio(self.root / key, mind=root, title="江湖（角色有 LLM）")
+        # soul_lab's own naming (soul503) keeps its short key; any other folder (drama701v3) is named after itself, so two worlds of one seed never collide
+        key = f"soul-{info['seed']}" if root.name == f"soul{info['seed']}" else f"soul-{root.name}"
+        title = "江湖（角色有 LLM）" + (f"・提示 v{info['prompt_version']}" if info.get("prompt_version", 1) > 1 else "")
+        Studio(self.root / key, mind=root, title=title)
         self.readonly.add(key)
         self.catalog()
         return key

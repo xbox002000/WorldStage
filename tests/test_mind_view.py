@@ -247,7 +247,7 @@ class Catalog(unittest.TestCase):
         hub = Hub(tmp / "hub")
         with mock.patch.object(Studio, "_world3d", lambda self: None):
             key = hub.make_mind(root)
-        self.assertEqual(key, "soul-504")
+        self.assertEqual(key, "soul-mini")   # a folder not named soul<seed> is named after itself (two worlds of one seed never collide)
         row = next(r for r in json.loads((tmp / "hub" / "worlds.json").read_text(encoding="utf-8"))["worlds"] if r["key"] == key)
         self.assertEqual((row["live"], row.get("mind"), row["seed"], row["days"], row["title"]), (False, True, 504, 2, "江湖（角色有 LLM）"))
         self.assertNotIn(key, hub.worlds)
