@@ -52,6 +52,7 @@ h2{margin:2px 0 6px;font-size:17px}h3{margin:10px 0 4px;font-size:13px;color:var
 #ltabs{display:flex;gap:4px;margin-bottom:6px}#ltabs button.on{background:var(--ink);color:var(--panel)}
 #scenes{list-style:none;padding:0}#scenes li{padding:5px 4px;border-bottom:1px dashed var(--line);cursor:pointer}#scenes li:hover{background:rgba(255,194,51,.18)}
 .bubble{position:absolute;transform:translate(-50%,-100%);max-width:220px;font-size:13px;line-height:1.35;padding:4px 9px;border-radius:12px;background:#fff;color:#1d1d24;border:1px solid #bbb;box-shadow:0 2px 6px rgba(0,0,0,.18);pointer-events:none;white-space:normal;text-align:center}
+.bubble .inner{margin-top:3px;padding-top:3px;border-top:1px dashed #b9a5e0;font-size:11px;font-weight:400;font-style:italic;color:#6a3fb5}.bubble .inner b{font-style:normal;color:#5a2fa5}
 .bubble.hot{background:#ffe3df;border-color:#e0533d;color:#8a1c0e;font-weight:600}.bubble.cool{background:#e6edf5;border-color:#8aa3bf;color:#2d4660}.bubble.warm{background:#e7f6e9;border-color:#6fb67b;color:#1f5a2b}
 table td{padding:1px 8px 1px 0;vertical-align:top}
 </style></head><body><div id="app">

@@ -97,8 +97,20 @@ function renderHeader() {
     ["世界", `${m.title || ""} 種子 ${m.seed}`.trim()], ["製作人", STRATEGY[m.strategy] || m.strategy], ["已走", `${m.days} 天`],
     ["爽點", `${t.count ?? 0} 個`], ["自己掙來", t.earned_share != null ? `${pct(t.earned_share)}%` : "—"],
   ];
+  if (m.mind) chips.splice(2, 0, ["心智", `LLM ・ ${m.mind.model}`]);
   $("#chips").innerHTML = chips.map(([k, v]) => `<span class="chip"><span class="dim">${k}</span><b>${esc(v)}</b></span>`).join("");
+  mindNote();
 }
+/* a world whose people have a mind (soul_lab.py): say what is being looked at. Nothing is added to any other world. */
+function mindNote() {
+  const m = D.meta.mind; let el = $("#mindNote");
+  if (!m) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("p"); el.id = "mindNote"; el.className = "mindnote"; $("#top").insertAdjacentElement("afterend", el); }
+  for (const id of ["#go1", "#go7"]) { const b = $(id); b.classList.add("ro"); b.title = "這個世界只能看，不能再走（點一下看原因）"; }
+  el.innerHTML = `<span class="llm">LLM</span> 這個世界的人有 LLM 當心智。這一頁是把當初已經付費的答案（${m.answers} 筆）重播一遍：不連網、不花額度，重播出的 ${m.replay_events} 件事和當初留下的世界逐筆相同。標「LLM」的行動是他的心智決定的；<b>心聲</b>是他沒有說出口的想法。只能看，不能再走。`;
+}
+const minds = () => (D.minds && D.minds.items) || [];
+const mindsOf = (day) => minds().filter((x) => x.day === day);
 
 /* ---------- the season strip ---------- */
 function renderStrip() {
@@ -120,7 +132,7 @@ function renderStrip() {
 function renderEpisode() {
   const d = dayOf(S.day); const ep = d.episode; const root = $("#episode");
   if (!ep) {
-    root.innerHTML = `<div class="card ephead"><div class="kicker"><span class="badge">安靜的一天</span>第 ${d.day + 1} 天</div><div class="question">這天沒有值得說成一集的事</div><p class="dim" style="margin-top:8px">世界照常過日子，只是沒有哪件事夠格。看右邊「製作人」，它這天做了什麼。</p></div>`;
+    root.innerHTML = `<div class="card ephead"><div class="kicker"><span class="badge">安靜的一天</span>第 ${d.day + 1} 天</div><div class="question">這天沒有值得說成一集的事</div><p class="dim" style="margin-top:8px">世界照常過日子，只是沒有哪件事夠格。看右邊「製作人」，它這天做了什麼。</p></div>${dayMinds(d)}`;
     return;
   }
   const filmed = ep.beats.filter((b) => b.shoot); const dropped = ep.beats.filter((b) => !b.shoot);
@@ -141,6 +153,7 @@ function renderEpisode() {
     ${ep.ending_question ? `<div class="ending"><b>結尾留下</b>${esc(ep.ending_question)}</div>` : `<div class="ending"><b>結尾</b><span class="dim">這集把事情都收掉了，沒有留下問題</span></div>`}
     <div class="facts">${facts.filter(([t]) => t).map(([t, c, tip]) => `<span class="fact ${c}" title="${esc(tip)}">${esc(t)}</span>`).join("")}</div>
   </div>
+  ${dayMinds(d)}
   ${ep.grammar.length ? `<div class="card block"><h3>爽文六步</h3><p class="note">亮起來的，是世界真的產生了的；虛線的，是世界沒有產生，這裡不會替它編。</p>
     <div class="steps">${ep.grammar.map((g, i) => `<button class="step${g.present ? "" : " miss"}" data-s="${i}" aria-expanded="${S.step === i}">
       <span class="no">第 ${i + 1} 步</span><div class="t">${STEP[g.step][0]}</div><div class="s">${g.present ? (g.event_ids.length ? `${g.event_ids.length} 件事` : "有") : "世界沒有產生"}</div></button>`).join("")}</div>
@@ -170,6 +183,33 @@ function chart(beats) {
     <div class="legend">${[...used].map((s) => `<span><i style="background:${STAGE[s][1]}"></i>${STAGE[s][0]}</span>`).join("")}<span class="dim">（顏色是這場戲在故事階梯上的位置）</span></div>`;
 }
 
+/* the mind behind an action: what he said, what he thought and did not say, why he woke, where his choice stood among the rule agent's options */
+function mindBlock(m, cap, id) {
+  const idle = m.chose === "什麼都不做";
+  const top = m.rank === 0 ? `規則最想做的，正是他選的${idle ? "（什麼都不做）" : ""}。`
+    : `規則最想做的是「${esc(m.rule_top)}」，他選了「${esc(m.chose)}」（規則排第 ${m.rank + 1}，共 ${m.of} 個選項）。`;
+  return `<details class="mind"${id != null ? ` id="mind${id}"` : ""}><summary><span class="llm" title="這個行動是角色的心智（LLM）決定的，不是規則">LLM</span>${cap ? `<span class="mcap">${esc(cap)}</span>` : ""}<span class="msay">他說：${esc(m.reason)}</span></summary>
+    <div class="mbody">${m.inner ? `<div class="minner"><b>心裡想：</b>${esc(m.inner)}</div>` : `<div class="minner none">（沒有說不出口的想法）</div>`}
+      ${m.wake && m.wake.length ? `<div class="mwhy"><b>為什麼醒來：</b>${m.wake.map(esc).join("；")}</div>` : ""}
+      <div class="mtop">${top}</div></div></details>`;
+}
+function sceneMinds(b) {
+  const ms = b.events.filter((e) => e.mind);
+  return ms.map((e) => mindBlock(e.mind, b.events.length > 1 ? e.caption : "")).join("");
+}
+function dayMinds(d) {
+  const list = mindsOf(d.day); if (!list.length) return "";
+  return `<div class="card block minds"><h3><span class="llm">LLM</span> 這天誰動了心思（${list.length} 次）</h3><p class="note">他們每次「醒來」想了一下，才做了這件事。點開看他怎麼說、心裡怎麼想。沒有拍進場景的，也在這裡。</p>
+    <div class="mlist">${list.map((m) => `<div class="mrow" id="mrow${m.n}"><div class="mhead">${avatar(m.name)}<b>${esc(m.name)}</b><span class="dim">${esc(m.clock)}</span>${m.beat != null ? `<button class="cg" data-scene="${m.beat}" title="這件事被拍進了這一集的一場戲">到那場戲</button>` : ""}${m.event != null ? seekBtn({ t: m.t, place_id: m.place_id }, m.person, "在現場看") : ""}</div>${mindBlock(m, "")}</div>`).join("")}</div></div>`;
+}
+function focusMind(n) {   // a mind from the people page: the scene that shows it, else its row in the day's list
+  const m = minds().find((x) => x.n === n); if (!m) return;
+  setView("story"); select(Math.max(0, Math.min(D.days.length - 1, m.day)), false);
+  const el = m.beat != null && $(`#sc${m.beat}`) ? $(`#sc${m.beat}`) : $(`#mrow${m.n}`);
+  if (m.beat != null && el) focusScene(m.beat); else if (el) { el.classList.add("on"); el.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(() => el.classList.remove("on"), 2600); }
+  const d = el && el.querySelector("details.mind"); if (d) d.open = true;
+}
+
 function sceneCard(b, n) {
   const [name, tip] = INTENT[b.intent] || [b.intent, ""]; const [stageName] = STAGE[b.stage];
   const c = b.checklist; const ev = b.events[0] || {};
@@ -185,6 +225,7 @@ function sceneCard(b, n) {
   if (b.story === "B") tags.push(`<span class="tag" title="同一時期另一條在動的故事">副線</span>`);
   if (b.story === "texture") tags.push(`<span class="tag" title="一個平常的時刻，讓高潮有東西可以對比">平常時刻</span>`);
   if (c.expectation) tags.push(`<span class="tag ao" title="${esc(c.expectation)}">觀眾領先</span>`);
+  if (b.events.some((e) => e.mind)) tags.push(`<span class="llm" title="這場戲裡有行動是角色的心智（LLM）決定的">LLM</span>`);
   return `<article class="scene${b.derived ? " derived" : ""}${S.scene === b.index ? " on" : ""}" id="sc${b.index}" data-b="${b.index}">
     <div class="row1"><span class="no">${n}</span><span class="intent" title="${esc(tip)}">${esc(name)}</span>${tags.join("")}</div>
     <div class="tbar" title="張力 ${pct(b.tension)}%"><i style="width:${pct(b.tension)}%"></i></div>
@@ -194,6 +235,7 @@ function sceneCard(b, n) {
     ${changes ? `<div class="changes">${changes}</div>` : `<div class="wants">這場沒有留下改變</div>`}
     ${c.leaves_question ? `<div class="wants">留下的問題：${esc(c.leaves_question)}</div>` : ""}
     ${speechHtml(b)}
+    ${sceneMinds(b)}
     ${seekBtn(ev, b.who_ids && b.who_ids[0], "在現場看這一幕")}
   </article>`;
 }
@@ -321,8 +363,16 @@ function renderPeople() {
       return `<button class="card pcard" data-p="${p.id}"><div class="t">${avatar(p.name)}<span>${esc(p.name)}</span>${under ? '<span class="tag ao">被低估</span>' : ""}<span class="dim" style="margin-left:auto;font-weight:400">${emo(p.emotion)}</span></div>
       <div class="bars"><div class="bl"><span>真實武功</span><span class="track"><i style="width:${pct(p.ability)}%"></i></span><span>${pct(p.ability)}</span></div>
       <div class="bl"><span>眾人以為</span><span class="track"><i class="${under ? "under" : ""}" style="width:${pct(p.crowd)}%"></i></span><span>${pct(p.crowd)}</span></div></div>
-      <div class="mini">爽點 ${p.payoffs.length} 個 ・ 積累 ${p.debt.toFixed(1)}</div></button>`;
+      <div class="mini">爽點 ${p.payoffs.length} 個 ・ 積累 ${p.debt.toFixed(1)}${minds().length ? ` ・ 心聲 ${minds().filter((x) => x.person === p.id).length} 則` : ""}</div></button>`;
     }).join("");
+}
+/* 心聲: what this person thought and did not say, latest first (only a world with minds has any) */
+function innerCard(p) {
+  const all = minds().filter((x) => x.person === p.id).slice().reverse(); if (!all.length) return "";
+  const item = (m) => `<button class="mj" data-mj="${m.n}" title="跳到那一刻（第 ${m.day + 1} 天 ${esc(m.clock)}）"><span class="when">第 ${m.day + 1} 天 ${esc(m.clock)}</span>
+    <span class="minner${m.inner ? "" : " none"}">${m.inner ? esc(m.inner) : "（沒有說不出口的想法）"}</span><span class="dim sm">${m.event == null ? "他選了什麼都不做" : `選了：${esc(m.chose)}`}</span></button>`;
+  return `<div class="card sec"><h3><span class="llm">LLM</span> 心聲（${all.length} 則）</h3><p class="dim" style="font-size:12.5px;margin-bottom:6px">他心裡想、沒有說出口的。最新的在上面；點一則，跳到那一刻。</p>
+    ${all.slice(0, 6).map(item).join("")}${all.length > 6 ? `<details class="more"><summary>更早的 ${all.length - 6} 則</summary>${all.slice(6).map(item).join("")}</details>` : ""}</div>`;
 }
 function personDetail(p) {
   const parts = Object.entries(p.debt_parts).filter(([, v]) => v > 0);
@@ -332,6 +382,7 @@ function personDetail(p) {
     <div class="bars"><div class="bl"><span>真實武功</span><span class="track"><i style="width:${pct(p.ability)}%"></i></span><span>${pct(p.ability)}</span></div>
     <div class="bl"><span>眾人以為</span><span class="track"><i class="${p.ability - p.crowd >= 0.12 ? "under" : ""}" style="width:${pct(p.crowd)}%"></i></span><span>${pct(p.crowd)}</span></div>
     <div class="bl"><span>魅力</span><span class="track"><i style="width:${pct(p.charm)}%"></i></span><span>${pct(p.charm)}</span></div></div></div>
+  ${innerCard(p)}
   <div class="card sec"><h3>積累了什麼（${p.debt.toFixed(1)}）</h3>${parts.length ? `<div class="changes">${parts.map(([k, v]) => `<span class="cg">${DEBT[k] || k} ${v.toFixed(1)}</span>`).join("")}</div>` : `<div class="dim">沒有</div>`}</div>
   <div class="card sec"><h3>最有關係的人</h3>${p.ties.map((t) => `<div style="margin:5px 0"><b>${esc(t.other_name)}</b> ${t.bond === "dating" ? '<span class="tag ao">交往中</span>' : ""}
     <div class="changes">${["trust", "affection", "respect", "resentment", "attraction"].filter((k) => Math.abs(t[k]) >= 0.05).map((k) => `<span class="cg ${t[k] * REL[k][1] >= 0 ? "up" : "down"}">${REL[k][0]} ${sgn(t[k])}</span>`).join("")}</div></div>`).join("") || '<div class="dim">還沒有</div>'}</div>
@@ -568,6 +619,7 @@ function focusScene(b) {
   const el = $(`#sc${b}`); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 async function go(n) {
+  if (D.meta.mind) { toast("這個世界只能看，不能再走：它的每個決定都是 LLM 當初回答的，已經付費的答案只到第 " + D.days.length + " 天；再走下去要問新的問題，會用掉額度。要多走幾天，請用 soul_lab.py（在有額度的那一天）再跑，然後重開這一頁。"); return; }
   const btns = [$("#go1"), $("#go7")]; btns.forEach((b) => { b.disabled = true; });
   try {
     const r = await fetch(`advance?n=${n}`, { method: "POST" });
@@ -589,6 +641,7 @@ function bind() {
   });
   $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.tab = b.dataset.t; S.person = null; renderSide(); });
   $("#pane").addEventListener("click", (e) => {
+    const mj = e.target.closest("[data-mj]"); if (mj) { focusMind(+mj.dataset.mj); return; }
     const tl = e.target.closest("[data-tl]"); if (tl) { S.tlPerson = tl.dataset.tl; setView("timeline"); return; }
     const p = e.target.closest("[data-p]"); if (p) { S.person = p.dataset.p || null; renderSide(); return; }
     const d = e.target.closest(".pitem"); if (d) select(+d.dataset.d);
@@ -617,6 +670,7 @@ function bind() {
     setView(b.dataset.v);
   });
   $("#episode").addEventListener("click", (e) => {
+    const sc0 = e.target.closest("[data-scene]"); if (sc0) { focusScene(+sc0.dataset.scene); return; }
     const s = e.target.closest(".step"); if (s) { S.step = S.step === +s.dataset.s ? null : +s.dataset.s; showStep(S.step); return; }
     const pt = e.target.closest(".pt"); if (pt) { focusScene(+pt.dataset.b); return; }
     const sc = e.target.closest(".scene"); if (sc) focusScene(+sc.dataset.b);

@@ -85,3 +85,44 @@ is "go on".
 
 `studio.json` and `studio-data.js` carry the same data (a world left by an earlier run can be opened from the file system, without the 3D frame's "go on"), so the built page also opens straight from the file system.
 Tests: tests/test_studio.py.
+
+## 看有 LLM 的世界（`--mind`）
+
+`soul_lab.py` 讓角色的心智（LLM）做決定，結果是一個普通的 `world.db`，旁邊有 `decisions.jsonl`（每個醒來的心智：他說什麼、心裡想什麼）和 `<name>.llm_cache.db`（每一筆已付費的答案）。
+導播室可以「看」這種世界，而且不花任何額度：
+
+    python -m channel.studio --mind out/soul/soul503 --out out/studio_mind --port 8821     # 開 http://127.0.0.1:8821/
+    python -m channel.studio --mind out/soul/soul503 --mind out/soul/soul504 ...           # 可以重複，都出現在世界選單
+
+**做法：把同一個世界只用快取重播一遍。** `Studio(out, mind=<資料夾>)` 用和 soul_lab 完全相同的設定重跑：同一個 recipe 和種子（讀 world.db 的 meta）、沒有製作人、
+沒有 feed（`Simulation(c, agent, agent, set())`）、`CharacterAgent(tier="A", budget=20, per_person_day=2, shuffle=soul_lab.recorded_order)`，
+心智換成 `ReplayMind`：`LLMClient(mode="replay")` 配一個以唯讀打開的 `llm_cache.db`。replay 模式遇到快取沒有的請求會丟 `CacheMiss`，沒有後端、不會連網，快取也寫不進去
+（`agent/cognition.py` 會把任何錯誤吞掉改用規則，所以 `ReplayMind` 另外記下每一次 miss，一天跑完就停下來，不讓規則默默代替心智）。
+**重播必須和原來的世界逐筆相同**：跑完後比對 `world.db` 的每一個事件（id、type、timestamp、location、truth），再比對重播出的決定和 `decisions.jsonl`；任何一處不同，
+`MindReplayError`，什麼都不寫（不顯示一個「差不多」的世界）。世界不能續走：快取只有已付費的答案，再走一天要問新的問題。
+
+**心聲是怎麼掛上去的。** 心智決定的行動，事件的 truth 裡 `reason` 是 `agent:<他說的話>`、`source` 是模型名；決定本身在 agent 自己的 log（`agent.log`）。`pair_minds()` 把兩邊配起來：
+同一個人、同樣的話、時間在決定那一刻或之後、最近的、還沒被別的決定用掉的事件。選了「什麼都不做」的心智沒有事件（`event: null`），只在那天的列表和人物頁。配對是讀模型，世界從不讀它。
+
+`studio.json` 多出的東西（只有這種世界才有；沒有心智的世界一個欄位都沒有）：
+- `meta.mind`：模型、心智次數、有事件的／什麼都不做的次數、快取答案數、重播了幾件事、重播設定。
+- 每個由心智決定的事件（導播室場景、爽文六步的事件、3D 存檔的事件）有 `mind: {reason, inner, wake: [...], chose, rank, of, rule_top, model}`
+  （`rank` 是他選的那個在規則的排名裡第幾位，0 是規則最想做的；`of` 是選項數；`rule_top` 是規則最想做的那一項）。3D 存檔裡只帶 `{reason, inner}`。
+- `minds.items`：每一次醒來一筆（`n`、`person`、`name`、`day`、`t`、`clock`、`event`、`place_id`、`beat`（拍進了那天哪一場戲，才有）、以及上面那些）。
+
+**頁面上看到什麼**（都在 `studio.js` 裡，只有資料有 `minds` 才會出現；沒有心智的世界頁面完全沒變）：
+- 頁首多一條說明，晶片多一個「心智」；「再走一天」「再走 7 天」變淡，按下去說明原因（額度與快取的限制）而不是真的送出請求；選單上這個世界標「只能看」。
+- 每天的集裡，「這天誰動了心思」一張卡：每個醒來的人一列，小標「LLM」，展開看「他說：…」「心裡想：…」（淡色斜體）「為什麼醒來：…」和「規則最想做的是…，他選了…」；沒拍進場景的也在這裡；
+  拍進場景的，那張場景卡也有「LLM」小標和同樣的展開，並有「到那場戲」。
+- 人物頁多一個「心聲」區：這個人最近幾次的心聲，點一則跳到那一刻（有場景就跳到場景，沒有就跳到那天列表的那一列）。人物列表的小字多「心聲 N 則」。
+- 3D 觀測台：由心智決定的說話事件，氣泡下面（潛台詞的小字下面）多一行紫色斜體「心聲 …」，和語言層的潛台詞（淡灰括號）分開；沒有心智的事件沒有這一行。有心聲的氣泡多停留 3 秒。
+
+限制與選擇：
+- **三種東西不是由心智決定的，就不會有心聲**：規則決定的日常、被失控接管的行動、以及心智選了但世界沒有照做的（沒有配對到事件，只在列表裡）。大部分場景卡因此沒有「LLM」小標：
+  導播室的集挑的是整段故事的高潮，而心智在 tier A 下每天只醒來 3 到 5 次，多半在平常的聊天。所以「這天誰動了心思」那張卡才是主要入口。
+- **這個世界沒有空間配方**（`jianghu_story_v1`）。3D 用 `WorldRuntime(conn)` 從事件重新排出位置，和 `python -m runtime.godview` 對任何 world.db 做的一樣；它不是 `jianghu_story_spatial_v1` 的世界。
+- **要有 `world.db` 和 `<資料夾名>.llm_cache.db` 兩個檔案**（soul_lab 的資料夾約定）；資料夾名就是 key 的來源（`soul-<種子>`）。若當初不是用 soul_lab 預設的 tier / 每人每天次數 / 預算跑的，重播的事件會不同，這個模式會直接報錯而不是硬做。
+- 啟動要把世界重播一遍再排 3D：seed 503（7 天、1102 件事）約 35 秒（重播約 6 秒，3D 存檔約 25 秒）。頁面本身載入約 70 毫秒。
+- 大小：seed 503 的 `studio-data.js` 是 125,763 B，其中心聲相關的資料約 16,300 B（+14.9%）；3D 存檔多約 5,800 B。
+
+測試：`tests/test_mind_view.py`（用小世界和 stub 答案：重播與原世界逐筆相同、配對不錯位、沒有心智的事件沒有 `mind`、快取沒有的請求丟錯而不是連網、少一筆答案就停下來；有 `out/soul/soul503` 時再用真的跑一次）。

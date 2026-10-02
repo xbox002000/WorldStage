@@ -111,16 +111,16 @@ function speech(t) {
   const now = [];
   for (const e of spoken) {
     if (e.say[0] > t) break;
-    const hold = Math.max(e.say[1], e.say[0] + 2.2) + 0.8;  // linger a little so a line can be read at 1x
+    const hold = Math.max(e.say[1], e.say[0] + 2.2) + 0.8 + (e.mind && e.mind.inner ? 3 : 0);  // linger a little so a line can be read at 1x (longer when there is an unspoken thought to read too)
     if (t > hold) continue;
-    now.push([e.actor, e.line.say, e.line.stance, e.line.subtext]);
+    now.push([e.actor, e.line.say, e.line.stance, e.line.subtext, e.mind && e.mind.inner]);   // e.mind: the speaker's mind decided this (channel/studio.py, a world with minds)
     if (e.line.answer && t > (e.say[0] + e.say[1]) / 2) now.push([e.target, e.line.answer, "answer"]);
     for (const r of e.line.reactions || []) if (t > e.say[0] + (e.say[1] - e.say[0]) * 0.75) now.push([r.who, r.say, "react"]);   // the ones who watched
   }
   const last = {};
   for (const n of now) last[n[0]] = n;  // one bubble a head: the latest line
   let k = 0;
-  for (const [who, text, stance, subtext] of Object.values(last)) {
+  for (const [who, text, stance, subtext, inner] of Object.values(last)) {
     const xy = headAt(who, 0.55);
     if (!xy) continue;
     const d = bubbles[k] || bubble(); k++;
@@ -128,6 +128,11 @@ function speech(t) {
     d.className = "bubble " + (TONE_CLASS[stance] || "");
     d.textContent = text;
     if (subtext) { const sm = document.createElement("div"); sm.textContent = `（${subtext}）`; sm.style.cssText = "font-size:11px;font-weight:400;opacity:.7;margin-top:2px"; d.appendChild(sm); }
+    if (inner) {   // what the speaker's mind thought and did not say: its own place and colour, apart from the speech layer's subtext above
+      const im = document.createElement("div"); im.className = "inner";
+      const lab = document.createElement("b"); lab.textContent = "心聲 ";
+      im.append(lab, inner.length > 80 ? inner.slice(0, 80) + "…" : inner); d.appendChild(im);
+    }
   }
   for (; k < bubbles.length; k++) bubbles[k].style.display = "none";
 }

@@ -74,6 +74,21 @@ class Exporting(unittest.TestCase):
                     self.assertIn("place_id", e)
                     self.assertEqual(e["t"] // 86400, e["day"])
 
+    def test_a_world_without_minds_has_no_trace_of_them(self):
+        """tests/test_mind_view.py is about a world whose people have an LLM; this one has none, and nothing of that shows."""
+        self.assertNotIn("minds", self.doc)
+        self.assertNotIn("mind", self.doc["meta"])
+        for d in self.doc["days"]:
+            for b in (d["episode"] or {"beats": []})["beats"]:
+                self.assertFalse(any("mind" in e for e in b["events"]))
+            for g in (d["episode"] or {"grammar": []})["grammar"]:
+                self.assertFalse(any("mind" in e for e in g["events"]))
+        world = json.loads((self.tmp / "site" / "world" / "world.json").read_text(encoding="utf-8")) if (self.tmp / "site" / "world" / "world.json").exists() \
+            else json.loads((self.tmp / "world.json").read_text(encoding="utf-8"))
+        self.assertFalse(any("mind" in e for e in world["events"]))
+        self.assertIsNone(self.studio.mind)
+        self.assertEqual((self.studio.minds, self.studio.mind_by_event), ([], {}))
+
     def test_going_on_adds_a_day_and_leaves_the_earlier_ones(self):
         before = json.dumps(self.studio.days[:6], sort_keys=True)
         tl_before = json.loads(json.dumps(self.doc["timeline"]))
@@ -246,6 +261,16 @@ class Page(unittest.TestCase):
             self.assertIn(code, js, code)
         for need in ("renderTimeline", "tlJump", "超出範圍", "沒有時間軸的資料"):    # jump to day and scene; a hint outside the 3D replay; an older world without the data
             self.assertIn(need, js, need)
+
+    def test_the_page_shows_a_mind_only_where_the_data_has_one(self):
+        js = (HERE / "studio.js").read_text(encoding="utf-8")
+        for need in ("mindNote", "mindBlock", "dayMinds", "innerCard", "focusMind", "D.meta.mind", "(D.minds && D.minds.items) || []", "只能看，不能再走"):
+            self.assertIn(need, js, need)
+        self.assertIn("if (!m) { if (el) el.remove(); return; }", js)         # no mind in the data: no note
+        self.assertIn("if (!list.length) return \"\"", js)                      # no mind that day: no card
+        self.assertIn("if (!all.length) return \"\"", js)                       # no mind for this person: no heart-voice card
+        html = (HERE / "index.html").read_text(encoding="utf-8")
+        self.assertNotIn("LLM", html)                                          # the page itself has nothing of it: only the script, from the data
 
     def test_a_blank_3d_frame_always_says_why(self):
         from render.studio import build as B

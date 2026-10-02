@@ -48,7 +48,9 @@ def caption(etype: str, truth: dict, place: str, names: dict) -> str:
 
 
 def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = None, last_day: int | None = None,
-                 rt: WorldRuntime | None = None) -> dict:
+                 rt: WorldRuntime | None = None, minds: dict | None = None) -> dict:
+    """`minds`: event id -> what the mind that decided that event said and thought (channel/studio.py, a world whose people have a mind). An
+    event in it carries `mind: {reason, inner}`, shown under its speech bubble as the thing that was not said. Without it, nothing changes."""
     rt = rt or WorldRuntime(conn)
     last = conn.execute("SELECT MAX(timestamp) FROM events").fetchone()[0] or 0
     last_day = last // DAY if last_day is None else last_day
@@ -105,6 +107,8 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
         who = [r[0] for r in conn.execute("SELECT person_id FROM event_participants WHERE event_id = ? ORDER BY person_id", (eid,))]
         ev = {"id": eid, "t": ts * 60.0, "type": etype, "place": place or "", "who": who,
               "importance": imp, "caption": caption(etype, d, place or "", names), "why": d.get("reason") or ""}
+        if minds and eid in minds:
+            ev["mind"] = {"reason": minds[eid].get("reason", ""), "inner": minds[eid].get("inner", "")}
         spoken = speak(conn, eid, etype, d, names, ts, place or "")
         if spoken:  # a line to show over the speaker (a read model: narrative/lines.py), when the runtime says it
             ev.update(line=spoken, actor=d.get("actor"), target=d.get("target") or d.get("victim") or "",

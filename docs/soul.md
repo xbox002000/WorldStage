@@ -94,3 +94,13 @@ for an interval; a second model for the most dramatic decisions.
 Seeds 504-511 were added with the same setting; the paired bootstrap, 90% intervals, and what holds are in `docs/soul_scale.md` (`python soul_stats.py`).
 In short: more hostile talk with a mind in it (+22 a world, [+10, +36]), more cold talk and outbursts (small), fewer confront and accuse (-2.0, [-3.4, -0.7]); no
 difference in warm talk, goals formed, or tension (v1: -0.02, [-1.9, +1.8]). The second round's "no pull toward the first line" is corrected above.
+
+## 看角色心裡想什麼（2026-10-02）
+
+上面說「這些想法沒有進導播室」，現在可以了，而且不花額度：
+
+    python -m channel.studio --mind out/soul/soul503 --out out/studio_mind --port 8821
+
+它把這個世界用 `llm_cache.db` 裡已付費的答案重播一遍（`LLMClient(mode="replay")`：快取沒有的請求丟 `CacheMiss`，不會連網），並且要求重播出的事件和 `world.db` 逐筆相同、
+決定和 `decisions.jsonl` 相同，不同就不顯示。導播室裡，由心智決定的行動有小標「LLM」，展開看他說的話、心裡想的（`inner`）、為什麼醒來、規則最想做的是什麼；人物頁有「心聲」；
+3D 觀測台的氣泡下面有一行紫色的「心聲」。細節在 `docs/studio.md`「看有 LLM 的世界」。這一節沒有改前面的任何數字或結論。
