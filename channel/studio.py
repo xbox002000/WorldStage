@@ -36,7 +36,7 @@ from contracts.base import canonical_json, to_dict
 from narrative import debt, episode_planner, pacing, payoff
 from narrative import lint as LINT
 from narrative.dramaturgy import analyse
-from narrative.speech import speak
+from narrative.speech import in_own_words, speak
 from narrative.state import compile_state
 from producer.director import Director
 from runtime.godview import _names, caption
@@ -463,6 +463,11 @@ class Studio:
                         ev[eid]["mind"] = self.mind_by_event[eid]
                     if not b["derived"] and not (montage and n):       # a montage beat shows the first round's words; a reaction beat shows only the reactions
                         speech = self._speak(eid, r, truth, names, said)
+                        if eid in self.mind_by_event:   # a mind decided it: heard in its own words (narrative/speech.in_own_words)
+                            speech = in_own_words(speech, self.mind_by_event[eid], LINT.MODERN_WORDS if "jianghu" in str(self.recipe) else (), r["type"])
+                            if speech is not None:
+                                speech.setdefault("speaker", names.get(truth.get("actor", ""), ""))
+                                speech.setdefault("listener", names.get(truth.get("target") or "", ""))
                         if speech:
                             ev[eid]["speech"] = speech
             events = [ev[i] for i in b["event_ids"]]

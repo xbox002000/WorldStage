@@ -127,6 +127,11 @@ def export_world(conn: sqlite3.Connection, out: Path, first_day: int | None = No
         if minds and eid in minds:
             ev["mind"] = {"reason": minds[eid].get("reason", ""), "inner": minds[eid].get("inner", "")}
         spoken = speak(conn, eid, etype, d, names, ts, place or "")
+        if minds and eid in minds:   # a mind decided it: its own words over the speaker, its explanation as a thought (narrative/speech.in_own_words)
+            from narrative.lint import MODERN_WORDS
+            from narrative.speech import in_own_words
+            spoken = in_own_words(spoken, minds[eid], MODERN_WORDS if conn.execute(
+                "SELECT 1 FROM meta WHERE key = 'recipe' AND value LIKE '%jianghu%'").fetchone() else (), etype)
         if spoken:  # a line to show over the speaker (a read model: narrative/lines.py), when the runtime says it
             ev.update(line=spoken, actor=d.get("actor"), target=d.get("target") or d.get("victim") or "",
                       say=said.get(eid, [ts * 60.0, ts * 60.0 + 2.5]))

@@ -334,3 +334,36 @@ class AfterTheDuel(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OwnWords(unittest.TestCase):
+    """A mind's reason is heard: said aloud when it is said to somebody, as a thought when it is the person explaining themselves."""
+
+    def test_an_addressed_reason_is_what_they_say_and_the_template_is_kept(self):
+        got = S.in_own_words({"say": "你再這樣，我不會客氣。", "subtext": "x", "reactions": []}, {"reason": "agent:阿豪，你少在那邊假好心打聽我的事。"})
+        self.assertEqual(got["say"], "阿豪，你少在那邊假好心打聽我的事。")
+        self.assertEqual(got["template"], "你再這樣，我不會客氣。")
+        self.assertTrue(got["own"])
+        self.assertEqual(got["subtext"], "")
+
+    def test_a_reason_to_oneself_is_a_thought_never_said_to_the_other(self):
+        got = S.in_own_words({"say": "最近好嗎？"}, {"reason": "小美懂音樂，和她聊這個比較不會踩到地雷。"})
+        self.assertEqual(got["say"], "最近好嗎？")
+        self.assertEqual(got["monologue"], "小美懂音樂，和她聊這個比較不會踩到地雷。")
+        self.assertNotIn("own", got)
+
+    def test_a_word_out_of_its_era_keeps_the_template(self):
+        line = {"say": "最近好嗎？"}
+        self.assertIs(S.in_own_words(line, {"reason": "小美，聽說你最近在聽那張新專輯？"}, ("專輯",)), line)
+
+    def test_no_mind_no_change(self):
+        line = {"say": "最近好嗎？"}
+        self.assertIs(S.in_own_words(line, None), line)
+        self.assertIs(S.in_own_words(line, {"reason": "  "}), line)
+        self.assertIsNone(S.in_own_words(None, None))
+
+    def test_in_a_duel_their_words_come_first_and_the_line_that_reads_the_result_stays(self):
+        got = S.in_own_words({"say": "技不如人，我認了。"}, {"reason": "阿凱，今天一定要分出個高下，你別想贏！"}, (), "duel")
+        self.assertEqual(got["say"], "技不如人，我認了。")
+        self.assertEqual(got["opening"], "阿凱，今天一定要分出個高下，你別想贏！")
+        self.assertNotIn("own", got)

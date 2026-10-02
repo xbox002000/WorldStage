@@ -136,3 +136,16 @@ v2（`CharacterAgent(prompt_version=2)`；`soul_lab.py --prompt-version 2`，預
 - v2 世界在 `world.db` 的 `meta` 寫 `prompt_version=2`；接續時版本不同會拒絕（它的答案是以那個提示快取的）。v1 世界什麼都不寫，與以前一樣。
 - 導播室重播 v2 世界時，`channel/studio.py` 的 `mind_info`／`_init_mind` 要讀 `meta.prompt_version` 並傳給 `CharacterAgent`（那個檔案不在這一輪的範圍；沒傳會用 v1 提示、對不上快取）。
 - 這一輪**沒有呼叫任何真的 LLM**：v2 的提示用假心智（`--dry`）驗過內容與管線，答案的品質（現代詞是否真的消失、被擋掉的比例）要等有額度時才量得到。
+
+## Heard in their own words (2026-10-02)
+
+A mind's `reason` used to be visible only in the control room's notes; on screen the person said a template line. Now (`narrative/speech.in_own_words`):
+- **Said to somebody** (the reason contains 你): it is what they say; the template is kept as `template`. In an event whose line reads the result
+  (duel, challenge, confront, accuse) the reason was written before the result, so it is said first (`opening`) and the result line stays.
+- **Said to oneself** (everything else): shown as a thought (`monologue`), never said to the other.
+- **Out of its era** (a modern word in a wuxia world): not used; the template stays.
+
+Measured first: of 230 recorded decisions only 21 (9%) are addressed to somebody, so using every reason as speech would have put the person's
+explanation of themselves into their mouth. Over the 11 recorded worlds (replayed from the cache, no quota): 221 minds have an event, 26 of those
+reach an episode's scenes: 1 says its own line, 4 open with their own words, 12 are heard as a thought, 9 keep the template (a modern word, or no
+reason). In 3D, 15 bubbles carry the person's own words.

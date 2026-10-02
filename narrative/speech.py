@@ -534,3 +534,33 @@ def _succession(c: Ctx, t: dict, a: str) -> dict:
     if reactions:
         out["reactions"] = reactions
     return out
+
+
+OUTCOME_EVENTS = ("duel", "challenge", "confront", "accuse")   # their line reads the result; a mind's reason was written before it
+
+
+def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, ...] = (), etype: str = "") -> dict | None:
+    """When a character's mind decided the event, let them be heard in their own words (a read model, like everything here).
+
+    A mind's `reason` is either a line said to somebody ("阿豪，你少在那邊假好心打聽我的事。") or the person explaining to themselves
+    ("小美懂音樂，和她聊這個比較不會踩到地雷。"). Measured on 230 recorded decisions, only 21 (9%) are addressed. So: an addressed reason
+    is what they say (the template line is kept as `template`); anything else is a `monologue`, heard as a thought, never said to the other.
+    A reason with a word out of its era (`era_words`) is not used at all: the template stays. In an event whose line reads its result (a duel
+    won or lost), the reason was written before the result: it is said first (`opening`), and the line that reads the result stays.
+    """
+    if not mind or not str(mind.get("reason", "")).strip():
+        return spoken
+    reason = str(mind["reason"]).strip()
+    if reason.startswith("agent:"):
+        reason = reason[len("agent:"):].strip()
+    if any(w in reason for w in era_words):
+        return spoken
+    out = dict(spoken or {"say": "", "answer": "", "subtext": "", "reactions": []})
+    if "你" in reason and etype in OUTCOME_EVENTS:
+        out["opening"] = reason
+    elif "你" in reason:
+        out["template"], out["say"], out["own"] = out.get("say", ""), reason, True
+        out["subtext"] = ""       # what they think underneath is the mind's own `inner`, shown beside it
+    else:
+        out["monologue"] = reason
+    return out

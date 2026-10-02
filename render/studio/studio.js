@@ -282,7 +282,7 @@ function speechHtml(b) {
   if (!said.length) return "";
   return `<div class="said">${said.slice(0, 3).map((e) => {
     const s = e.speech;
-    return `<div class="line">${s.say ? `<span class="sp">${esc(s.speaker || "")}</span>「${esc(s.say)}」` : ""}${s.say && s.subtext ? `<span class="sub">（${esc(s.subtext)}）</span>` : ""}
+    return `${s.opening ? `<div class="line"><span class="sp">${esc(s.speaker || "")}</span>「${esc(s.opening)}」<span class="own" title="這句是角色自己（LLM）說的，不是模板">親口</span></div>` : ""}${s.monologue ? `<div class="line mono"><span class="sp">${esc(s.speaker || "")}</span><span class="sub">心想：${esc(s.monologue)}</span></div>` : ""}<div class="line">${s.say ? `<span class="sp">${esc(s.speaker || "")}</span>「${esc(s.say)}」${s.own ? `<span class="own" title="這句是角色自己（LLM）說的，不是模板">親口</span>` : ""}` : ""}${s.say && s.subtext ? `<span class="sub">（${esc(s.subtext)}）</span>` : ""}
       ${s.answer ? `<div class="line ans"><span class="sp">${esc(s.listener || "")}</span>「${esc(s.answer)}」</div>` : ""}
       ${(s.reactions || []).map((r) => `<div class="line ans"><span class="sp">${esc(r.who)}</span>「${esc(r.say)}」</div>`).join("")}</div>`;
   }).join("")}</div>`;
