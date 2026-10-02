@@ -3,6 +3,8 @@
 A simulated world runs on its own; the system picks the stories worth telling, compiles them into a shooting
 plan and renders episodes. Plan and rationale: `C:\Users\xbox0\.claude\plans\concordia-fuzzy-creek.md`.
 
+New to this project? Start with [docs/HANDOFF.md](docs/HANDOFF.md): the rules, the map, the commands and what comes next.
+
 ```text
 world.db (SQLite, the only truth) ── events / deltas / claims / memories
    │  read-only (world/reader.py)
