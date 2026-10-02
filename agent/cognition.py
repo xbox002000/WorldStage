@@ -77,8 +77,17 @@ PROMPT_V2 = """你是一個持續運轉的虛擬世界裡的一個人。{era}下
 
 {pronouns}用 JSON 回答：option（編號）、reason（一句話，用你自己的口吻，繁體中文。它說的必須是你選的那一項：選了誰、做什麼，就講那個人和那件事，不要提到別的選項裡的人或事）、inner（你心裡真正的想法，不會說出口，可以留空）。
 """
-PROMPT_VERSIONS = (1, 2)
-PROMPT_V2_VERSION = "cognition_prompt_v2"   # contracts/versions.py
+# v3 = v2 and one more answer: `say`, the words said out loud to the other (or nothing). v2's reason came back as first-person narration
+# ("我走近柳含霜身旁…") in 59 of 59 answers, so nobody on screen ever said anything of their own. v1 and v2 are unchanged (their caches stay valid).
+PROMPT_V3 = PROMPT_V2.replace("、inner（你心裡真正的想法，不會說出口，可以留空）。",
+                              "、say（你此刻開口說出的那一句話，直接對著對方說，用你自己的口吻；你選的是不說話或不對人的事，就留空）、"
+                              "inner（你心裡真正的想法，不會說出口，可以留空）。")
+CHOICE_SCHEMA_V3 = {"type": "object",
+                    "properties": {"option": {"type": "integer"}, "reason": {"type": "string"}, "say": {"type": "string"}, "inner": {"type": "string"}},
+                    "required": ["option", "reason"]}
+PROMPT_VERSIONS = (1, 2, 3)
+PROMPT_V2_VERSION = "cognition_prompt_v2"
+PROMPT_V3_VERSION = "cognition_prompt_v3"   # contracts/versions.py: the newest prompt
 # the era a world is in, from its recipe's core (what the world is about): said once in a v2 prompt, and the modern words below are refused in it
 ERA_LINES = {
     "martial_arts": "這裡是古代的江湖：沒有手機、咖啡、辦公室、電影，也沒有大學或公司；人們說的是師門、鏢局、客棧、銀兩，用的是劍、茶與酒。你想的和說的，都要像這個時代的人。",
@@ -368,16 +377,17 @@ class CharacterAgent:
         state_text = json.dumps(to_dict(state), ensure_ascii=False, sort_keys=True)
         if version >= 2:
             era = ERA_LINES.get(world_era(conn), "")
-            prompt = PROMPT_V2.format(state=state_text, era=era, pronouns=pronoun_line(conn, state_text))
+            prompt = (PROMPT_V3 if version >= 3 else PROMPT_V2).format(state=state_text, era=era, pronouns=pronoun_line(conn, state_text))
         else:
             prompt = PROMPT.format(state=state_text)
         try:
-            raw = self.client.generate_json(prompt, CHOICE_SCHEMA, temperature=0.7)
+            raw = self.client.generate_json(prompt, CHOICE_SCHEMA_V3 if version >= 3 else CHOICE_SCHEMA, temperature=0.7)
             choice = CognitiveChoice(int(raw["option"]), str(raw.get("reason", ""))[:120], str(raw.get("inner", ""))[:200])
+            say = str(raw.get("say", "") or "").strip()[:120] if version >= 3 else ""
             if not 0 <= choice.option < len(shown):   # a negative number would silently count from the end
                 raise ValueError(f"option {choice.option} is not on the list")
             if version >= 2:
-                check_answer(conn, actor, shown, [o.text for o in state.options], choice.option, choice.reason, choice.inner)
+                check_answer(conn, actor, shown, [o.text for o in state.options], choice.option, choice.reason, choice.inner + say)
             it = shown[choice.option][1]
             rank = order[choice.option]
         except Exception as e:  # unusable or unavailable: live by habit this time
@@ -404,7 +414,7 @@ class CharacterAgent:
         self.stats["agent"] += 1
         self.log.append({"person": actor, "t": now, "wake": wake, "chose": state.options[choice.option].text,
                          "reason": choice.reason, "inner": choice.inner, "option": rank, "shown_at": choice.option,
-                         "rule_top": state.options[order.index(0)].text, "differs": rank != 0, "of": len(state.options)})
+                         "rule_top": state.options[order.index(0)].text, "differs": rank != 0, "of": len(state.options), **({"say": say} if say else {})})
         if it is None:
             return None
         source = getattr(self.client, "model", "") or "agent"

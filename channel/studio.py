@@ -515,7 +515,7 @@ class Studio:
         model = str(self.client.model)
         for log, eid in pair_minds(self.agent.log, rows):
             what = {"reason": log["reason"], "inner": log["inner"], "wake": log["wake"], "chose": log["chose"], "rank": log["option"], "of": log["of"],
-                    "rule_top": log["rule_top"]}
+                    "rule_top": log["rule_top"], **({"say": log["say"]} if log.get("say") else {})}
             ts, loc = when[eid] if eid is not None else (log["t"], "")
             rec = {"n": len(self.minds), "person": log["person"], "name": names.get(log["person"], log["person"]), "day": day, "t": ts * 60,
                    "clock": f"{(ts % 1440) // 60:02d}:{(ts % 1440) % 60:02d}", "event": eid, "place_id": loc or "", "model": model, **what}

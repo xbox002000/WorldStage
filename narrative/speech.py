@@ -550,6 +550,17 @@ def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, .
     """
     if not mind or not str(mind.get("reason", "")).strip():
         return spoken
+    said = str(mind.get("say", "") or "").strip()
+    if said and not any(w in said for w in era_words):   # prompt v3: the words said out loud, given as such
+        out = dict(spoken or {"say": "", "answer": "", "subtext": "", "reactions": []})
+        if etype in OUTCOME_EVENTS:
+            out["opening"] = said
+        else:
+            out["template"], out["say"], out["own"], out["subtext"] = out.get("say", ""), said, True, ""
+        out["monologue"] = str(mind.get("reason", "")).strip()
+        if out["monologue"].startswith("agent:"):
+            out["monologue"] = out["monologue"][len("agent:"):].strip()
+        return out
     reason = str(mind["reason"]).strip()
     if reason.startswith("agent:"):
         reason = reason[len("agent:"):].strip()

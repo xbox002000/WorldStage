@@ -173,7 +173,7 @@ def main() -> None:
     ap.add_argument("--max-calls", type=int, default=None, help="a hard cap on the calls of this run")
     ap.add_argument("--min-interval", type=float, default=4.0)
     ap.add_argument("--dry", action="store_true", help="a stub mind: no network, no quota")
-    ap.add_argument("--prompt-version", type=int, default=1, choices=(1, 2),
+    ap.add_argument("--prompt-version", type=int, default=1, choices=(1, 2, 3),
                     help="1: the prompt the recorded worlds were asked (the default, so they can be gone on with); 2: era, who is he or she, a reason "
                          "about the option chosen, and a checked answer (agent/cognition.py): for a new world, e.g. jianghu_drama_v1")
     ap.add_argument("--baseline", action="store_true", help="also run the same world with rules only, for a comparison of what is chosen")

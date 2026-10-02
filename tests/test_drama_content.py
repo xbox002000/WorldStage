@@ -245,7 +245,7 @@ class PromptVersions(unittest.TestCase):
         self.assertEqual(CharacterAgent(VolitionDecider(1)).prompt_version, 1)  # the default
         self.assertEqual(CharacterAgent(VolitionDecider(1), prompt_version=2).prompt_version, 2)
         with self.assertRaises(ValueError):
-            CharacterAgent(VolitionDecider(1), prompt_version=3)
+            CharacterAgent(VolitionDecider(1), prompt_version=4)
 
     def test_a_v1_agent_asks_exactly_the_v1_prompt(self):
         class Spy:
@@ -363,3 +363,13 @@ class PromptVersions(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PromptV3(unittest.TestCase):
+    def test_v3_is_v2_asking_also_for_the_words_said_and_v1_v2_are_unchanged(self):
+        from agent import cognition as C
+        self.assertIn("say（你此刻開口說出的那一句話", C.PROMPT_V3)
+        self.assertEqual(C.PROMPT_V3.replace("say（你此刻開口說出的那一句話，直接對著對方說，用你自己的口吻；你選的是不說話或不對人的事，就留空）、", ""), C.PROMPT_V2)
+        self.assertIn("say", C.CHOICE_SCHEMA_V3["properties"])
+        self.assertNotIn("say", C.CHOICE_SCHEMA["properties"])
+        self.assertEqual(C.PROMPT_VERSIONS, (1, 2, 3))

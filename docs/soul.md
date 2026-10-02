@@ -149,3 +149,13 @@ Measured first: of 230 recorded decisions only 21 (9%) are addressed to somebody
 explanation of themselves into their mouth. Over the 11 recorded worlds (replayed from the cache, no quota): 221 minds have an event, 26 of those
 reach an episode's scenes: 1 says its own line, 4 open with their own words, 12 are heard as a thought, 9 keep the template (a modern word, or no
 reason). In 3D, 15 bubbles carry the person's own words.
+
+## Prompt v3: the words said out loud (2026-10-02)
+
+v2's reasons came back as first-person narration in 59 of 59 answers ("我走近柳含霜身旁，與她聊起近日收集的藥草。"), so nobody said anything of
+their own. v3 is v2 plus one answer, `say`: the words said out loud to the other, or nothing. v1 and v2 are unchanged (their caches stay valid);
+`soul_lab.py --prompt-version 3`. With `say`, the person is heard in it (`in_own_words`), and the reason becomes the thought shown beside it.
+
+jianghu_drama_v1, seed 701, 7 days, gemini-3.5-flash-lite: 27 requests, 27 answers, 0 rejected, **27 of 27 with words said**, 0 modern words. E.g.
+秦硯舟 to 謝臨川: 「謝師兄，近日門派發的月俸不知可還夠用？我手頭正有些銀兩的帳目想跟你討教討教。」 thinking 「哼，裝什麼風雅，還不是靠家裡接濟。」
+Not measured yet: more seeds, and whether the said words and the chosen tone always agree (a cold choice said warmly is not checked).

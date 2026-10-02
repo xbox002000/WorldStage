@@ -367,3 +367,10 @@ class OwnWords(unittest.TestCase):
         self.assertEqual(got["say"], "技不如人，我認了。")
         self.assertEqual(got["opening"], "阿凱，今天一定要分出個高下，你別想贏！")
         self.assertNotIn("own", got)
+
+    def test_words_given_as_spoken_are_said_and_the_reason_becomes_the_thought(self):
+        got = S.in_own_words({"say": "最近好嗎？"}, {"reason": "agent:我走近她身旁。", "say": "師姐，今日的藥草可曬好了？"})
+        self.assertEqual((got["say"], got["template"], got["monologue"]), ("師姐，今日的藥草可曬好了？", "最近好嗎？", "我走近她身旁。"))
+        self.assertTrue(got["own"])
+        duel = S.in_own_words({"say": "技不如人，我認了。"}, {"reason": "x", "say": "今日分個高下！"}, (), "duel")
+        self.assertEqual((duel["opening"], duel["say"]), ("今日分個高下！", "技不如人，我認了。"))

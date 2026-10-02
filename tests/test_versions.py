@@ -49,10 +49,10 @@ class Versions(unittest.TestCase):
         self.assertEqual(BIBLE_VERSION, VERSIONS["bible_contract"])
         from narrative.lint import LINT_VERSION
         self.assertEqual(LINT_VERSION, VERSIONS["script_lint"])
-        from agent.cognition import PROMPT_V2_VERSION
+        from agent.cognition import PROMPT_V3_VERSION
         from world.content.jianghu_drama import DRAMA_VERSION
         self.assertEqual(DRAMA_VERSION, VERSIONS["jianghu_drama_content"])
-        self.assertEqual(PROMPT_V2_VERSION, VERSIONS["cognition_prompt"])
+        self.assertEqual(PROMPT_V3_VERSION, VERSIONS["cognition_prompt"])
         from world.domains.impression import IMPRESSION_VERSION
         self.assertEqual(IMPRESSION_VERSION, VERSIONS["impression_model"])
 
