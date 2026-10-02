@@ -13,6 +13,7 @@
 ![Budget](https://img.shields.io/badge/budget-%240%20(free%20tier)-f5a623)
 ![LLM](https://img.shields.io/badge/LLM-optional%20%C2%B7%20cached%20%C2%B7%20replayable-8a63d2)
 ![Deterministic](https://img.shields.io/badge/worlds-deterministic%20%26%20event--sourced-0b7285)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
 [繁體中文簡介](#繁體中文簡介) · [Why it's different](#why-its-different) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Roadmap](#roadmap)
 
@@ -174,6 +175,12 @@ flowchart LR
 - [ ] Publishing pipeline
 
 New contributor or AI agent? Start with **[docs/HANDOFF.md](docs/HANDOFF.md)**.
+
+---
+
+## License
+
+[MIT](LICENSE) — free to use, modify and build on, including commercially. Keep the copyright notice.
 
 ---
 
