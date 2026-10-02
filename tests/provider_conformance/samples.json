@@ -1,0 +1,3885 @@
+{
+ "bible_hash": "sha256:e1c084df6ad2eef18fa2579721c990e2da77b13c20221190c491341bbb9dafb5",
+ "days": 8,
+ "fixture_version": 1,
+ "recipe": "jianghu_story_v1",
+ "samples": [
+  {
+   "bible": {
+    "characters": [
+     "char:d8e1d1801bb290b2:84e0b1ce",
+     "char:8c38dd23c33a47bd:de9f3fa9"
+    ],
+    "scene": "scene:inn"
+   },
+   "id": "two_person_dialogue",
+   "intent": "connect",
+   "meaning": "two people talking, as one shot",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "chat_warmly",
+    "camera": "two_shot/static",
+    "controls": {},
+    "duration_seconds": 4.0,
+    "environment": "悅來客棧, rain, day",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "jun",
+      "after": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->kai=0.41",
+          "weight": 0.408605
+         }
+        ],
+        "name": "attachment",
+        "value": 0.405
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 2.75,
+       "target": "kai"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.405,
+      "intent": "reach_out",
+      "micro": [],
+      "movement": "approach",
+      "posture": {
+       "lean": 0.5,
+       "openness": 0.97,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.2
+      }
+     },
+     {
+      "actor": "kai",
+      "after": {
+       "emotion": "relieved",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "relieved",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:kai=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->jun=0.16",
+          "weight": 0.16464
+         }
+        ],
+        "name": "attachment",
+        "value": 0.231
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 2.75,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.35,
+      "intent": "listen",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.97,
+       "tension": 0.1
+      },
+      "primary": "relieved",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.2
+      }
+     }
+    ],
+    "prompt": "two_shot shot, static. 悅來客棧, day, rain. 阿俊 (chat_warmly, warm), 阿凱 (listen_happily, happy). chat_warmly. jun: warm (reach out); gaze follow at kai; brows neutral, jaw loose, mouth neutral. kai: relieved (listen); gaze follow at jun; brows neutral, jaw loose, mouth neutral.",
+    "reference_asset_ids": [
+     "char_jun",
+     "char_kai"
+    ],
+    "seed": 1138168235,
+    "shot_id": "s01",
+    "subject": "阿俊, 阿凱",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 24,
+    "event_type": "talk",
+    "function": "connect",
+    "packet_hash": "sha256:643f0f5014fc5883593b92926d6d00f6f7fbd573b3490f93f76a5d921e1026b2",
+    "recipe": "jianghu_story_v1",
+    "scale": "MS",
+    "seed": 17,
+    "shot_id": "s01"
+   }
+  },
+  {
+   "bible": {
+    "characters": [
+     "char:7024b5561af22fa3:e82ed7ad",
+     "char:d8e1d1801bb290b2:84e0b1ce",
+     "char:8c38dd23c33a47bd:de9f3fa9",
+     "char:ed9d2644ad009c3a:a6e1237f",
+     "char:17d2209a294c4b1f:fe567e2c"
+    ],
+    "scene": "scene:manor"
+   },
+   "id": "duel",
+   "intent": "escalate",
+   "meaning": "a bout between two, with others watching",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "strike",
+    "camera": "close_up/slow_push_in",
+    "controls": {},
+    "duration_seconds": 2.0,
+    "environment": "鐵劍山莊, cloudy, day",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "kai",
+      "after": {
+       "emotion": "warm",
+       "gaze": "ming",
+       "gesture": "fidget",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "ming",
+       "gesture": "fidget",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->hao=0.37",
+          "weight": 0.367633
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->jun=0.39",
+          "weight": 0.389158
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->ming=0.27",
+          "weight": 0.273335
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->tao=0.42",
+          "weight": 0.420085
+         }
+        ],
+        "name": "attachment",
+        "value": 0.436
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:kai=ashamed",
+          "weight": 0.35
+         }
+        ],
+        "name": "guilt",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->ming=-0.02",
+          "weight": 0.020814
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->ming=0.30",
+          "weight": 0.3
+         }
+        ],
+        "name": "resentment",
+        "value": 0.165
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "ming"
+      },
+      "hands": {
+       "action": "fidget",
+       "holding": "",
+       "tension": 0.35
+      },
+      "intensity": 0.436,
+      "intent": "be_there",
+      "micro": [
+       {
+        "at": 0.3,
+        "name": "glance_away"
+       },
+       {
+        "at": 0.6,
+        "name": "touch_object"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": -0.175,
+       "openness": 0.62,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "short",
+       "pace": "normal",
+       "pause_before": 0.48
+      }
+     },
+     {
+      "actor": "ming",
+      "after": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->hao=0.04",
+          "weight": 0.0412
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->jun=0.40",
+          "weight": 0.404958
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->kai=0.39",
+          "weight": 0.391291
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->tao=0.37",
+          "weight": 0.368182
+         }
+        ],
+        "name": "attachment",
+        "value": 0.357
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:ming=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "kai"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.357,
+      "intent": "listen",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.97,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.2
+      }
+     },
+     {
+      "actor": "hao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->jun=0.24",
+          "weight": 0.242827
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->kai=0.41",
+          "weight": 0.40848
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->ming=0.28",
+          "weight": 0.276915
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->tao=0.22",
+          "weight": 0.222805
+         }
+        ],
+        "name": "attachment",
+        "value": 0.389
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:hao=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:hao->ming=0.09",
+          "weight": -0.086436
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:hao->ming=0.15",
+          "weight": 0.15
+         }
+        ],
+        "name": "resentment",
+        "value": 0.075
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "kai"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.389,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.895,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.24
+      }
+     },
+     {
+      "actor": "jun",
+      "after": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->hao=0.32",
+          "weight": 0.31901
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->kai=0.55",
+          "weight": 0.548156
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->ming=0.42",
+          "weight": 0.421035
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->tao=0.43",
+          "weight": 0.431925
+         }
+        ],
+        "name": "attachment",
+        "value": 0.545
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:jun=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->ming=-0.05",
+          "weight": 0.046
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->ming=0.15",
+          "weight": 0.15
+         }
+        ],
+        "name": "resentment",
+        "value": 0.107
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "kai"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.545,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.863,
+       "tension": 0.107
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.25
+      }
+     },
+     {
+      "actor": "tao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "kai",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->jun=0.60",
+          "weight": 0.598769
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->kai=0.44",
+          "weight": 0.439126
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->ming=0.44",
+          "weight": 0.435357
+         }
+        ],
+        "name": "attachment",
+        "value": 0.592
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:tao->ming=0.46",
+          "weight": -0.462674
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:tao->ming=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "emotion",
+          "ref": "emotion:tao=angry",
+          "weight": 0.35
+         }
+        ],
+        "name": "resentment",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "kai"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.592,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.62,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.37
+      }
+     }
+    ],
+    "prompt": "close_up shot, slow_push_in. 鐵劍山莊, day, cloudy. 阿凱 (strike, fierce), 阿明 (parry, fierce), 阿豪 (watch, uneasy), 阿俊 (watch, uneasy), 阿濤 (watch, uneasy). strike. kai: warm (be there); gaze follow at ming; hands fidget; brows neutral, jaw loose, mouth neutral; then glance away, touch object. ming: warm (listen); gaze follow at kai; brows neutral, jaw loose, mouth neutral. hao: warm (watch); gaze follow at kai; brows neutral, jaw loose, mouth neutral. jun: warm (watch); gaze follow at kai; brows neutral, jaw loose, mouth neutral. tao: warm (watch); gaze follow at kai; brows neutral, jaw loose, mouth neutral.",
+    "reference_asset_ids": [
+     "char_hao",
+     "char_jun",
+     "char_kai",
+     "char_ming",
+     "char_tao"
+    ],
+    "seed": 678553499,
+    "shot_id": "s01",
+    "subject": "阿凱, 阿明",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 497,
+    "event_type": "duel",
+    "function": "escalate",
+    "packet_hash": "sha256:27e1ecd593c3bb60311c714642470353e22f2d1faf4faeb7131b1f4a957a06c4",
+    "recipe": "jianghu_story_v1",
+    "scale": "MCU",
+    "seed": 17,
+    "shot_id": "s01"
+   }
+  },
+  {
+   "bible": {
+    "characters": [
+     "char:d8e1d1801bb290b2:84e0b1ce",
+     "char:1d06934c023552f0:19a4ff08",
+     "char:ed9d2644ad009c3a:a6e1237f"
+    ],
+    "scene": "scene:inn"
+   },
+   "id": "hand_over",
+   "intent": "payoff",
+   "meaning": "a thing passes from one hand to another",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "hand_over",
+    "camera": "close_up/pull_out",
+    "controls": {},
+    "duration_seconds": 5.0,
+    "environment": "悅來客棧, rain, night",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "jun",
+      "after": {
+       "emotion": "guilty",
+       "gaze": "ming",
+       "gesture": "grip",
+       "hand": "right",
+       "holding": "wallet_ming"
+      },
+      "animal": null,
+      "before": {
+       "emotion": "guilty",
+       "gaze": "ming",
+       "gesture": "grip",
+       "hand": "right",
+       "holding": "wallet_ming"
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "holding",
+          "ref": "jun holds wallet_ming, which is not theirs",
+          "weight": 0.6
+         }
+        ],
+        "name": "guilt",
+        "value": 0.6
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->ming=0.57",
+          "weight": 0.571829
+         }
+        ],
+        "name": "attachment",
+        "value": 0.526
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->ming=0.34",
+          "weight": -0.341018
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->ming=0.15",
+          "weight": 0.15
+         }
+        ],
+        "name": "resentment",
+        "value": 0.075
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "pressed"
+      },
+      "gaze": {
+       "mode": "avoid",
+       "seconds": 1.78,
+       "target": "ming"
+      },
+      "hands": {
+       "action": "grip",
+       "holding": "wallet_ming",
+       "tension": 0.6
+      },
+      "intensity": 0.6,
+      "intent": "hand_over",
+      "micro": [
+       {
+        "at": 0.3,
+        "name": "glance_away"
+       },
+       {
+        "at": 0.6,
+        "name": "touch_object"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": -0.3,
+       "openness": 0.37,
+       "tension": 0.6
+      },
+      "primary": "guilty",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "short",
+       "pace": "normal",
+       "pause_before": 0.68
+      }
+     },
+     {
+      "actor": "ming",
+      "after": {
+       "emotion": "distressed",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "distressed",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "event",
+          "ref": "event:1196:give",
+          "weight": 0.6
+         }
+        ],
+        "name": "distress",
+        "value": 0.61
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->jun=0.58",
+          "weight": 0.57823
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->lan=0.12",
+          "weight": 0.121273
+         }
+        ],
+        "name": "attachment",
+        "value": 0.568
+       }
+      ],
+      "face": {
+       "brows": "knit",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "down"
+      },
+      "gaze": {
+       "mode": "scan",
+       "seconds": 5.71,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.61,
+      "intent": "listen",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.97,
+       "tension": 0.61
+      },
+      "primary": "distressed",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "slow",
+       "pause_before": 0.2
+      }
+     },
+     {
+      "actor": "lan",
+      "after": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->ming=0.07",
+          "weight": 0.072081
+         }
+        ],
+        "name": "attachment",
+        "value": 0.136
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:lan->jun=-0.10",
+          "weight": 0.103138
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:lan->jun=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.072
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 3.57,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.136,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.898,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.23
+      }
+     }
+    ],
+    "prompt": "close_up shot, pull_out. 悅來客棧, night, rain. 阿俊 (hand_over, uneasy), 阿明 (receive, relieved), 阿蘭 (watch, uneasy). hand_over. jun: guilty (hand over); gaze avoid at ming; hands grip; brows neutral, jaw loose, mouth pressed; then glance away, touch object. ming: distressed (listen); gaze scan at jun; brows knit, jaw loose, mouth down. lan: warm (watch); gaze follow at jun; brows neutral, jaw loose, mouth neutral.",
+    "reference_asset_ids": [
+     "char_jun",
+     "char_lan",
+     "char_ming"
+    ],
+    "seed": 174555341,
+    "shot_id": "s01",
+    "subject": "阿俊, 阿明",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 1196,
+    "event_type": "give",
+    "function": "payoff",
+    "packet_hash": "sha256:79ac7aebc73c9a6ff818ed255931a82de00da7b2663627de165d86e273aecbb8",
+    "recipe": "jianghu_story_v1",
+    "scale": "CU",
+    "seed": 17,
+    "shot_id": "s01"
+   }
+  },
+  {
+   "bible": {
+    "characters": [
+     "char:7024b5561af22fa3:e82ed7ad",
+     "char:d8e1d1801bb290b2:84e0b1ce",
+     "char:8c38dd23c33a47bd:de9f3fa9",
+     "char:ed9d2644ad009c3a:a6e1237f",
+     "char:17d2209a294c4b1f:fe567e2c"
+    ],
+    "scene": "scene:manor"
+   },
+   "id": "public_face_slap",
+   "intent": "face_slap",
+   "meaning": "somebody shown to be more than they were taken for, in front of others",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "strike",
+    "camera": "close_up/slow_push_in",
+    "controls": {},
+    "duration_seconds": 2.0,
+    "environment": "鐵劍山莊, cloudy, day",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "hao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "ming",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "ming",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->jun=0.24",
+          "weight": 0.242827
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->kai=0.41",
+          "weight": 0.40848
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->ming=0.28",
+          "weight": 0.276915
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->tao=0.22",
+          "weight": 0.222805
+         }
+        ],
+        "name": "attachment",
+        "value": 0.389
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:hao=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "ming"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.389,
+      "intent": "be_there",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.97,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.2
+      }
+     },
+     {
+      "actor": "ming",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "fidget",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "fidget",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->hao=0.04",
+          "weight": 0.0412
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->jun=0.48",
+          "weight": 0.47672
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->kai=0.44",
+          "weight": 0.444649
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->tao=0.41",
+          "weight": 0.408101
+         }
+        ],
+        "name": "attachment",
+        "value": 0.435
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:ming=ashamed",
+          "weight": 0.35
+         }
+        ],
+        "name": "guilt",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:ming->hao=0.13",
+          "weight": -0.1274
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ming->hao=0.30",
+          "weight": 0.3
+         }
+        ],
+        "name": "resentment",
+        "value": 0.15
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "fidget",
+       "holding": "",
+       "tension": 0.35
+      },
+      "intensity": 0.435,
+      "intent": "listen",
+      "micro": [
+       {
+        "at": 0.3,
+        "name": "glance_away"
+       },
+       {
+        "at": 0.6,
+        "name": "touch_object"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": -0.175,
+       "openness": 0.62,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "short",
+       "pace": "normal",
+       "pause_before": 0.48
+      }
+     },
+     {
+      "actor": "jun",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->hao=0.32",
+          "weight": 0.31901
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->kai=0.55",
+          "weight": 0.548156
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->ming=0.51",
+          "weight": 0.507799
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->tao=0.43",
+          "weight": 0.431925
+         }
+        ],
+        "name": "attachment",
+        "value": 0.545
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:jun=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->hao=0.47",
+          "weight": -0.469573
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->hao=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->ming=0.23",
+          "weight": -0.233218
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->ming=0.15",
+          "weight": 0.15
+         }
+        ],
+        "name": "resentment",
+        "value": 0.075
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.545,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.895,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.24
+      }
+     },
+     {
+      "actor": "kai",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->hao=0.37",
+          "weight": 0.367633
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->jun=0.39",
+          "weight": 0.389158
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->ming=0.35",
+          "weight": 0.348843
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->tao=0.42",
+          "weight": 0.420085
+         }
+        ],
+        "name": "attachment",
+        "value": 0.436
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->hao=0.44",
+          "weight": -0.441088
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->hao=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->ming=0.13",
+          "weight": -0.129186
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->ming=0.30",
+          "weight": 0.3
+         }
+        ],
+        "name": "resentment",
+        "value": 0.15
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.436,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.82,
+       "tension": 0.15
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.27
+      }
+     },
+     {
+      "actor": "tao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->jun=0.57",
+          "weight": 0.568769
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->kai=0.44",
+          "weight": 0.439126
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->ming=0.45",
+          "weight": 0.451298
+         }
+        ],
+        "name": "attachment",
+        "value": 0.568
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:tao->hao=0.16",
+          "weight": -0.16445
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:tao->hao=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:tao->ming=0.46",
+          "weight": -0.462674
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:tao->ming=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "emotion",
+          "ref": "emotion:tao=angry",
+          "weight": 0.35
+         }
+        ],
+        "name": "resentment",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.568,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.62,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.37
+      }
+     }
+    ],
+    "prompt": "close_up shot, slow_push_in. 鐵劍山莊, day, cloudy. 阿豪 (strike, fierce), 阿明 (parry, fierce), 阿俊 (watch, uneasy), 阿凱 (watch, uneasy), 阿濤 (watch, uneasy). strike. hao: warm (be there); gaze follow at ming; brows neutral, jaw loose, mouth neutral. ming: warm (listen); gaze follow at hao; hands fidget; brows neutral, jaw loose, mouth neutral; then glance away, touch object. jun: warm (watch); gaze follow at hao; brows neutral, jaw loose, mouth neutral. kai: warm (watch); gaze follow at hao; brows neutral, jaw loose, mouth neutral. tao: warm (watch); gaze follow at hao; brows neutral, jaw loose, mouth neutral.",
+    "reference_asset_ids": [
+     "char_hao",
+     "char_jun",
+     "char_kai",
+     "char_ming",
+     "char_tao"
+    ],
+    "seed": 2129721757,
+    "shot_id": "s01",
+    "subject": "阿豪, 阿明",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 509,
+    "event_type": "duel",
+    "function": "escalate",
+    "packet_hash": "sha256:98ced0cf3802a82f541b5750add5e200c0de5beb2461671af9834d94d5700452",
+    "recipe": "jianghu_story_v1",
+    "scale": "MCU",
+    "seed": 17,
+    "shot_id": "s01"
+   }
+  },
+  {
+   "bible": {
+    "characters": [
+     "char:71d81a29948daf07:23006fc1",
+     "char:040909075fcaea00:9e9969e8"
+    ],
+    "scene": "scene:market"
+   },
+   "id": "ambiguous_closeup",
+   "intent": "longing_glance",
+   "meaning": "a look held a moment too long",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "talk",
+    "camera": "close_up/slow_push_in",
+    "controls": {},
+    "duration_seconds": 4.0,
+    "environment": "市集, cloudy, day",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "ning",
+      "after": {
+       "emotion": "restrained_anger",
+       "gaze": "rui",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "restrained_anger",
+       "gaze": "rui",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:ning->rui=-0.67",
+          "weight": 0.665077
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ning->rui=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.6
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:ning=uneasy",
+          "weight": 0.35
+         }
+        ],
+        "name": "fear",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "narrow",
+       "jaw": "tight",
+       "mouth": "pressed"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 4.4,
+       "target": "rui"
+      },
+      "hands": {
+       "action": "grip",
+       "holding": "",
+       "tension": 0.6
+      },
+      "intensity": 0.6,
+      "intent": "be_there",
+      "micro": [
+       {
+        "at": 0.35,
+        "name": "jaw_clench"
+       },
+       {
+        "at": 0.7,
+        "name": "swallow"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": -0.175,
+       "openness": 0.37,
+       "tension": 0.6
+      },
+      "primary": "restrained_anger",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "restrained",
+       "pace": "slow",
+       "pause_before": 0.49
+      }
+     },
+     {
+      "actor": "rui",
+      "after": {
+       "emotion": "restrained_anger",
+       "gaze": "ning",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "restrained_anger",
+       "gaze": "ning",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:rui->ning=-0.64",
+          "weight": 0.636292
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:rui->ning=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.579
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:rui=hurt",
+          "weight": 0.35
+         }
+        ],
+        "name": "distress",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "narrow",
+       "jaw": "tight",
+       "mouth": "pressed"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 4.4,
+       "target": "ning"
+      },
+      "hands": {
+       "action": "grip",
+       "holding": "",
+       "tension": 0.579
+      },
+      "intensity": 0.579,
+      "intent": "listen",
+      "micro": [
+       {
+        "at": 0.35,
+        "name": "jaw_clench"
+       },
+       {
+        "at": 0.7,
+        "name": "swallow"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.391,
+       "tension": 0.579
+      },
+      "primary": "restrained_anger",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "restrained",
+       "pace": "slow",
+       "pause_before": 0.48
+      }
+     }
+    ],
+    "prompt": "close_up shot, slow_push_in. 市集, day, cloudy. 阿寧 (talk, warm), 小瑞 (listen, shy). talk. ning: restrained anger (be there); gaze hold at rui; hands grip; brows narrow, jaw tight, mouth pressed; then jaw clench, swallow. rui: restrained anger (listen); gaze hold at ning; hands grip; brows narrow, jaw tight, mouth pressed; then jaw clench, swallow.",
+    "reference_asset_ids": [
+     "char_ning",
+     "char_rui"
+    ],
+    "seed": 293145581,
+    "shot_id": "s01",
+    "subject": "阿寧, 小瑞",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 508,
+    "event_type": "flirt",
+    "function": "longing_glance",
+    "packet_hash": "sha256:fa69ad97abf5db65eb31caced293da9fb91c2ce0dbe991485d84a6f76a7febfd",
+    "recipe": "jianghu_story_v1",
+    "scale": "CU",
+    "seed": 17,
+    "shot_id": "s01"
+   }
+  },
+  {
+   "bible": {
+    "characters": [
+     "char:7024b5561af22fa3:e82ed7ad",
+     "char:d8e1d1801bb290b2:84e0b1ce",
+     "char:8c38dd23c33a47bd:de9f3fa9",
+     "char:ed9d2644ad009c3a:a6e1237f",
+     "char:17d2209a294c4b1f:fe567e2c"
+    ],
+    "scene": "scene:manor"
+   },
+   "id": "crowd_reaction",
+   "intent": "bystander_shock",
+   "meaning": "the bystanders as the thing lands",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "strike",
+    "camera": "close_up/static",
+    "controls": {},
+    "duration_seconds": 5.0,
+    "environment": "鐵劍山莊, cloudy, day",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "hao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "ming",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "ming",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->jun=0.24",
+          "weight": 0.242827
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->kai=0.41",
+          "weight": 0.40848
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->ming=0.28",
+          "weight": 0.276915
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->tao=0.22",
+          "weight": 0.222805
+         }
+        ],
+        "name": "attachment",
+        "value": 0.389
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:hao=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "ming"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.389,
+      "intent": "be_there",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.97,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 2,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.2
+      }
+     },
+     {
+      "actor": "ming",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "fidget",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "fidget",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->hao=0.04",
+          "weight": 0.0412
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->jun=0.48",
+          "weight": 0.47672
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->kai=0.44",
+          "weight": 0.444649
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->tao=0.41",
+          "weight": 0.408101
+         }
+        ],
+        "name": "attachment",
+        "value": 0.435
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:ming=ashamed",
+          "weight": 0.35
+         }
+        ],
+        "name": "guilt",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:ming->hao=0.13",
+          "weight": -0.1274
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ming->hao=0.30",
+          "weight": 0.3
+         }
+        ],
+        "name": "resentment",
+        "value": 0.15
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "fidget",
+       "holding": "",
+       "tension": 0.35
+      },
+      "intensity": 0.435,
+      "intent": "listen",
+      "micro": [
+       {
+        "at": 0.3,
+        "name": "glance_away"
+       },
+       {
+        "at": 0.6,
+        "name": "touch_object"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": -0.175,
+       "openness": 0.62,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 2,
+      "speech": {
+       "delivery": "short",
+       "pace": "normal",
+       "pause_before": 0.48
+      }
+     },
+     {
+      "actor": "jun",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->hao=0.32",
+          "weight": 0.31901
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->kai=0.55",
+          "weight": 0.548156
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->ming=0.51",
+          "weight": 0.507799
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->tao=0.43",
+          "weight": 0.431925
+         }
+        ],
+        "name": "attachment",
+        "value": 0.545
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:jun=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->hao=0.47",
+          "weight": -0.469573
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->hao=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->ming=0.23",
+          "weight": -0.233218
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->ming=0.15",
+          "weight": 0.15
+         }
+        ],
+        "name": "resentment",
+        "value": 0.075
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.545,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.895,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 2,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.24
+      }
+     },
+     {
+      "actor": "kai",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->hao=0.37",
+          "weight": 0.367633
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->jun=0.39",
+          "weight": 0.389158
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->ming=0.35",
+          "weight": 0.348843
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->tao=0.42",
+          "weight": 0.420085
+         }
+        ],
+        "name": "attachment",
+        "value": 0.436
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->hao=0.44",
+          "weight": -0.441088
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->hao=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->ming=0.13",
+          "weight": -0.129186
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->ming=0.30",
+          "weight": 0.3
+         }
+        ],
+        "name": "resentment",
+        "value": 0.15
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.436,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.82,
+       "tension": 0.15
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 2,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.27
+      }
+     },
+     {
+      "actor": "tao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "hao",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->jun=0.57",
+          "weight": 0.568769
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->kai=0.44",
+          "weight": 0.439126
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->ming=0.45",
+          "weight": 0.451298
+         }
+        ],
+        "name": "attachment",
+        "value": 0.568
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:tao->hao=0.16",
+          "weight": -0.16445
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:tao->hao=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:tao->ming=0.46",
+          "weight": -0.462674
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:tao->ming=0.15",
+          "weight": 0.15
+         },
+         {
+          "kind": "emotion",
+          "ref": "emotion:tao=angry",
+          "weight": 0.35
+         }
+        ],
+        "name": "resentment",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.83,
+       "target": "hao"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.568,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.62,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 2,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.37
+      }
+     }
+    ],
+    "prompt": "close_up shot, static. 鐵劍山莊, day, cloudy. 阿豪 (strike, fierce), 阿明 (parry, fierce), 阿俊 (watch, uneasy), 阿凱 (watch, uneasy), 阿濤 (watch, uneasy). strike. hao: warm (be there); gaze follow at ming; brows neutral, jaw loose, mouth neutral. ming: warm (listen); gaze follow at hao; hands fidget; brows neutral, jaw loose, mouth neutral; then glance away, touch object. jun: warm (watch); gaze follow at hao; brows neutral, jaw loose, mouth neutral. kai: warm (watch); gaze follow at hao; brows neutral, jaw loose, mouth neutral. tao: warm (watch); gaze follow at hao; brows neutral, jaw loose, mouth neutral.",
+    "reference_asset_ids": [
+     "char_hao",
+     "char_jun",
+     "char_kai",
+     "char_ming",
+     "char_tao"
+    ],
+    "seed": 597262366,
+    "shot_id": "s02",
+    "subject": "阿豪, 阿明",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 509,
+    "event_type": "duel",
+    "function": "reaction",
+    "packet_hash": "sha256:7816c2a1fed364e3e6c28bf89223da15c950a09d9ac54e83873ec7548041f21e",
+    "recipe": "jianghu_story_v1",
+    "scale": "CU",
+    "seed": 17,
+    "shot_id": "s02"
+   }
+  },
+  {
+   "bible": {
+    "characters": [
+     "char:7024b5561af22fa3:e82ed7ad",
+     "char:d8e1d1801bb290b2:84e0b1ce",
+     "char:8c38dd23c33a47bd:de9f3fa9",
+     "char:1d06934c023552f0:19a4ff08",
+     "char:6dfa1aab9f0af561:81ca50a1",
+     "char:ed9d2644ad009c3a:a6e1237f",
+     "char:71d81a29948daf07:23006fc1",
+     "char:040909075fcaea00:9e9969e8",
+     "char:17d2209a294c4b1f:fe567e2c",
+     "char:3f836be0effee4c7:c6513120"
+    ],
+    "scene": "scene:inn"
+   },
+   "id": "confrontation",
+   "intent": "reveal",
+   "meaning": "somebody says to a face what the room already half knows",
+   "requires": [
+    "t2v"
+   ],
+   "shot": {
+    "action": "accuse",
+    "camera": "close_up/slow_push_in",
+    "controls": {},
+    "duration_seconds": 7.0,
+    "environment": "悅來客棧, clear, day",
+    "fps": 30,
+    "height": 1920,
+    "performance": [
+     {
+      "actor": "jun",
+      "after": {
+       "emotion": "warm",
+       "gaze": "mei",
+       "gesture": "point",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "mei",
+       "gesture": "point",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->hao=0.19",
+          "weight": 0.1923
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->kai=0.55",
+          "weight": 0.548156
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->ming=0.40",
+          "weight": 0.403228
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->ning=0.35",
+          "weight": 0.345744
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->tao=0.32",
+          "weight": 0.324452
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:jun->yun=0.11",
+          "weight": 0.105644
+         }
+        ],
+        "name": "attachment",
+        "value": 0.545
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:jun=hurt",
+          "weight": 0.35
+         }
+        ],
+        "name": "distress",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->mei=-0.13",
+          "weight": 0.12628
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->mei=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->ning=-0.22",
+          "weight": 0.218402
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->ning=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->rui=-0.05",
+          "weight": 0.05
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->rui=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:jun->yun=-0.12",
+          "weight": 0.115248
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:jun->yun=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.153
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 6.91,
+       "target": "mei"
+      },
+      "hands": {
+       "action": "point",
+       "holding": "",
+       "tension": 0.4
+      },
+      "intensity": 0.545,
+      "intent": "confront",
+      "micro": [],
+      "movement": "approach",
+      "posture": {
+       "lean": 0.5,
+       "openness": 0.817,
+       "tension": 0.35
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.27
+      }
+     },
+     {
+      "actor": "mei",
+      "after": {
+       "emotion": "defensive",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "defensive",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "event",
+          "ref": "event:325:confront against mei",
+          "weight": 0.5
+         }
+        ],
+        "name": "self_protection",
+        "value": 0.54
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:mei->hao=0.12",
+          "weight": 0.12409
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:mei->jun=0.31",
+          "weight": 0.3136
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:mei->kai=0.19",
+          "weight": 0.19208
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:mei->lan=0.03",
+          "weight": 0.028325
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:mei->ning=0.42",
+          "weight": 0.423099
+         }
+        ],
+        "name": "attachment",
+        "value": 0.413
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:mei=uneasy",
+          "weight": 0.35
+         }
+        ],
+        "name": "fear",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:mei->rui=-0.22",
+          "weight": 0.215315
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:mei->rui=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:mei->tao=-0.38",
+          "weight": 0.37949
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:mei->tao=0.08",
+          "weight": 0.076864
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:mei->yun=-0.11",
+          "weight": 0.107612
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:mei->yun=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.328
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "tight",
+       "mouth": "pressed"
+      },
+      "gaze": {
+       "mode": "avoid",
+       "seconds": 2.16,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.54,
+      "intent": "defend",
+      "micro": [
+       {
+        "at": 0.15,
+        "name": "delay"
+       }
+      ],
+      "movement": "retreat",
+      "posture": {
+       "lean": -0.27,
+       "openness": 0.43,
+       "tension": 0.54
+      },
+      "primary": "defensive",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "restrained",
+       "pace": "normal",
+       "pause_before": 0.63
+      }
+     },
+     {
+      "actor": "hao",
+      "after": {
+       "emotion": "relieved",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "relieved",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:hao=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->jun=0.07",
+          "weight": 0.072771
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->kai=0.35",
+          "weight": 0.347315
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->lan=0.32",
+          "weight": 0.316932
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->ming=0.28",
+          "weight": 0.282566
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->ning=0.26",
+          "weight": 0.259308
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->rui=0.17",
+          "weight": 0.1666
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->tao=0.22",
+          "weight": 0.222805
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:hao->yun=0.03",
+          "weight": 0.025148
+         }
+        ],
+        "name": "attachment",
+        "value": 0.314
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:hao->ning=-0.16",
+          "weight": 0.163268
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:hao->ning=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.114
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.32,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.35,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.856,
+       "tension": 0.114
+      },
+      "primary": "relieved",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.25
+      }
+     },
+     {
+      "actor": "kai",
+      "after": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->hao=0.30",
+          "weight": 0.296819
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->jun=0.39",
+          "weight": 0.389158
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->lan=-0.07",
+          "weight": -0.067228
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->mei=0.29",
+          "weight": 0.28812
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->ming=0.24",
+          "weight": 0.238673
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->ning=0.09",
+          "weight": 0.086436
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->rui=-0.17",
+          "weight": -0.172872
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:kai->tao=0.36",
+          "weight": 0.357306
+         }
+        ],
+        "name": "attachment",
+        "value": 0.435
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->rui=0.40",
+          "weight": -0.403368
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->rui=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:kai->yun=-0.37",
+          "weight": 0.372238
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:kai->yun=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.36
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.32,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.435,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.61,
+       "tension": 0.36
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.37
+      }
+     },
+     {
+      "actor": "lan",
+      "after": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->kai=0.20",
+          "weight": 0.201684
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->mei=0.38",
+          "weight": 0.383081
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->ming=0.00",
+          "weight": 0.0026
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->ning=0.29",
+          "weight": 0.294416
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->rui=0.52",
+          "weight": 0.516689
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->tao=0.36",
+          "weight": 0.359914
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:lan->yun=0.42",
+          "weight": 0.420368
+         }
+        ],
+        "name": "attachment",
+        "value": 0.512
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:lan->hao=-0.15",
+          "weight": 0.153664
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:lan->hao=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:lan->jun=-0.17",
+          "weight": 0.172872
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:lan->jun=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.121
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.32,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.512,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.849,
+       "tension": 0.121
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.26
+      }
+     },
+     {
+      "actor": "ming",
+      "after": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->hao=0.04",
+          "weight": 0.0412
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->jun=0.36",
+          "weight": 0.364582
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->kai=0.34",
+          "weight": 0.344893
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->lan=0.09",
+          "weight": 0.087228
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->ning=0.06",
+          "weight": 0.0588
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->rui=0.08",
+          "weight": 0.076832
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->tao=0.29",
+          "weight": 0.286213
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ming->yun=0.08",
+          "weight": 0.080477
+         }
+        ],
+        "name": "attachment",
+        "value": 0.296
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:ming->kai=-0.07",
+          "weight": 0.073777
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ming->kai=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:ming->mei=-0.03",
+          "weight": 0.025148
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ming->mei=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.052
+       }
+      ],
+      "face": {
+       "brows": "neutral",
+       "eyes": "neutral",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "follow",
+       "seconds": 4.32,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.296,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.918,
+       "tension": 0.1
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.22
+      }
+     },
+     {
+      "actor": "ning",
+      "after": {
+       "emotion": "restrained_anger",
+       "gaze": "jun",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "restrained_anger",
+       "gaze": "jun",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:ning->rui=-0.60",
+          "weight": 0.603683
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ning->rui=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:ning->tao=-0.08",
+          "weight": 0.0754
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:ning->tao=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.535
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->hao=-0.02",
+          "weight": -0.02
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->jun=0.01",
+          "weight": 0.01
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->kai=0.03",
+          "weight": 0.03
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->lan=0.47",
+          "weight": 0.46755
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->mei=0.36",
+          "weight": 0.358333
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->tao=0.33",
+          "weight": 0.32705
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:ning->yun=0.12",
+          "weight": 0.124852
+         }
+        ],
+        "name": "attachment",
+        "value": 0.45
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:ning=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "narrow",
+       "jaw": "tight",
+       "mouth": "pressed"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 6.91,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "grip",
+       "holding": "",
+       "tension": 0.535
+      },
+      "intensity": 0.535,
+      "intent": "watch",
+      "micro": [
+       {
+        "at": 0.35,
+        "name": "jaw_clench"
+       },
+       {
+        "at": 0.7,
+        "name": "swallow"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.435,
+       "tension": 0.535
+      },
+      "primary": "restrained_anger",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "restrained",
+       "pace": "slow",
+       "pause_before": 0.46
+      }
+     },
+     {
+      "actor": "rui",
+      "after": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:rui->hao=0.24",
+          "weight": 0.2352
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:rui->jun=0.20",
+          "weight": 0.2
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:rui->kai=-0.08",
+          "weight": -0.076832
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:rui->lan=0.50",
+          "weight": 0.49998
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:rui->tao=-0.09",
+          "weight": -0.086436
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:rui->yun=0.17",
+          "weight": 0.166089
+         }
+        ],
+        "name": "attachment",
+        "value": 0.502
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:rui->hao=-0.18",
+          "weight": 0.176
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:rui->hao=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:rui->mei=-0.30",
+          "weight": 0.296629
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:rui->mei=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:rui->ming=-0.10",
+          "weight": 0.09604
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:rui->ming=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:rui->ning=-0.43",
+          "weight": 0.433016
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:rui->ning=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.402
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 6.91,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.502,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.568,
+       "tension": 0.402
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.39
+      }
+     },
+     {
+      "actor": "tao",
+      "after": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "warm",
+       "gaze": "jun",
+       "gesture": "idle",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->jun=0.54",
+          "weight": 0.537007
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->kai=0.31",
+          "weight": 0.310485
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->lan=0.05",
+          "weight": 0.0548
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->ming=0.36",
+          "weight": 0.358096
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:tao->ning=0.23",
+          "weight": 0.228321
+         }
+        ],
+        "name": "attachment",
+        "value": 0.527
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:tao->yun=-0.49",
+          "weight": 0.486321
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:tao->yun=0.00",
+          "weight": 0.0
+         }
+        ],
+        "name": "resentment",
+        "value": 0.419
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:tao=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "soft",
+       "jaw": "loose",
+       "mouth": "neutral"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 6.91,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "idle",
+       "holding": "",
+       "tension": 0.1
+      },
+      "intensity": 0.527,
+      "intent": "watch",
+      "micro": [],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.551,
+       "tension": 0.419
+      },
+      "primary": "warm",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "soft",
+       "pace": "normal",
+       "pause_before": 0.4
+      }
+     },
+     {
+      "actor": "yun",
+      "after": {
+       "emotion": "restrained_anger",
+       "gaze": "jun",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "animal": null,
+      "before": {
+       "emotion": "restrained_anger",
+       "gaze": "jun",
+       "gesture": "grip",
+       "hand": "none",
+       "holding": ""
+      },
+      "changes": [],
+      "drives": [
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "trust:yun->jun=-0.25",
+          "weight": 0.249704
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:yun->jun=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:yun->kai=-0.06",
+          "weight": 0.0588
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:yun->kai=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:yun->lan=-0.24",
+          "weight": 0.2352
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:yun->lan=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:yun->mei=-0.56",
+          "weight": 0.556438
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:yun->mei=0.00",
+          "weight": 0.0
+         },
+         {
+          "kind": "relationship",
+          "ref": "trust:yun->tao=-0.47",
+          "weight": 0.473917
+         },
+         {
+          "kind": "relationship",
+          "ref": "rivalry:yun->tao=0.08",
+          "weight": 0.076864
+         }
+        ],
+        "name": "resentment",
+        "value": 0.422
+       },
+       {
+        "causes": [
+         {
+          "kind": "emotion",
+          "ref": "emotion:yun=happy",
+          "weight": 0.35
+         }
+        ],
+        "name": "relief",
+        "value": 0.35
+       },
+       {
+        "causes": [
+         {
+          "kind": "relationship",
+          "ref": "affection:yun->hao=0.07",
+          "weight": 0.070659
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:yun->lan=0.38",
+          "weight": 0.382914
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:yun->ming=0.10",
+          "weight": 0.100316
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:yun->ning=-0.04",
+          "weight": -0.04
+         },
+         {
+          "kind": "relationship",
+          "ref": "affection:yun->rui=0.10",
+          "weight": 0.095125
+         }
+        ],
+        "name": "attachment",
+        "value": 0.306
+       }
+      ],
+      "face": {
+       "brows": "narrow",
+       "eyes": "neutral",
+       "jaw": "tight",
+       "mouth": "pressed"
+      },
+      "gaze": {
+       "mode": "hold",
+       "seconds": 6.91,
+       "target": "jun"
+      },
+      "hands": {
+       "action": "grip",
+       "holding": "",
+       "tension": 0.422
+      },
+      "intensity": 0.422,
+      "intent": "watch",
+      "micro": [
+       {
+        "at": 0.35,
+        "name": "jaw_clench"
+       },
+       {
+        "at": 0.7,
+        "name": "swallow"
+       }
+      ],
+      "movement": "still",
+      "posture": {
+       "lean": 0.0,
+       "openness": 0.548,
+       "tension": 0.422
+      },
+      "primary": "restrained_anger",
+      "profile": "human",
+      "shot_index": 1,
+      "speech": {
+       "delivery": "restrained",
+       "pace": "slow",
+       "pause_before": 0.4
+      }
+     }
+    ],
+    "prompt": "close_up shot, slow_push_in. 悅來客棧, day, clear. 阿俊 (accuse, hurt), 小美 (flinch, uneasy), 阿豪 (watch, uneasy), 阿凱 (watch, uneasy), 阿蘭 (watch, uneasy), 阿明 (watch, uneasy), 阿寧 (watch, uneasy), 小瑞 (watch, uneasy), 阿濤 (watch, uneasy), 小雲 (watch, uneasy). accuse. jun: warm (confront); gaze hold at mei; hands point; brows neutral, jaw loose, mouth neutral. mei: defensive (defend); gaze avoid at jun; brows neutral, jaw tight, mouth pressed; then delay. hao: relieved (watch); gaze follow at jun; brows neutral, jaw loose, mouth neutral. kai: warm (watch); gaze follow at jun; brows narrow, jaw loose, mouth neutral. lan: warm (watch); gaze follow at jun; brows neutral, jaw loose, mouth neutral. ming: warm (watch); gaze follow at jun; brows neutral, jaw loose, mouth neutral. ning: restrained anger (watch); gaze hold at jun; hands grip; brows narrow, jaw tight, mouth pressed; then jaw clench, swallow. rui: warm (watch); gaze hold at jun; brows narrow, jaw loose, mouth neutral. tao: warm (watch); gaze hold at jun; brows narrow, jaw loose, mouth neutral. yun: restrained anger (watch); gaze hold at jun; hands grip; brows narrow, jaw tight, mouth pressed; then jaw clench, swallow.",
+    "reference_asset_ids": [
+     "char_hao",
+     "char_jun",
+     "char_kai",
+     "char_lan",
+     "char_mei",
+     "char_ming",
+     "char_ning",
+     "char_rui",
+     "char_tao",
+     "char_yun"
+    ],
+    "seed": 928198901,
+    "shot_id": "s01",
+    "subject": "阿俊, 小美",
+    "width": 1080
+   },
+   "source": {
+    "days": 8,
+    "event_id": 325,
+    "event_type": "confront",
+    "function": "reveal",
+    "packet_hash": "sha256:77678f61c7a006c4433d3bbd20ad2a05c29b3c5b89363bf42db568b188c47934",
+    "recipe": "jianghu_story_v1",
+    "scale": "CU",
+    "seed": 17,
+    "shot_id": "s01"
+   }
+  }
+ ],
+ "seed": 17
+}

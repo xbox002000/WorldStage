@@ -10,7 +10,9 @@ from contracts.capability import ProviderManifest, Selection
 from contracts.character import CharacterProfile, CharacterRoster
 from contracts.cognition import CognitiveChoice, CognitiveState
 from contracts.director import DirectorPlan
+from contracts.bible import Bible
 from contracts.audience import AudienceClaim, AudienceExpectation, AudienceKnowledge
+from contracts.episode_packet import EpisodePacketMap
 from contracts.episode_plan import EpisodePlan
 from contracts.intervention import InterventionProposal, WorldIntervention
 from contracts.opportunity import Forecast, Opportunity
@@ -41,7 +43,8 @@ CONTRACTS = {"scene_spec": SceneSpec, "production_packet": ProductionPacket, "re
              "cognitive_state": CognitiveState, "cognitive_choice": CognitiveChoice,
              "character_genome": CharacterGenome, "simulation_branch": SimulationBranch, "persona_evidence": PersonaEvidence,
              "intervention_proposal": InterventionProposal, "world_intervention": WorldIntervention,
-             "audience_knowledge": AudienceKnowledge, "opportunity": Opportunity, "forecast": Forecast, "episode_plan": EpisodePlan}
+             "audience_knowledge": AudienceKnowledge, "opportunity": Opportunity, "forecast": Forecast, "episode_plan": EpisodePlan,
+             "episode_packet_map": EpisodePacketMap, "bible": Bible}
 
 
 def render_all() -> dict[str, str]:

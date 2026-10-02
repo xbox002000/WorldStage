@@ -33,14 +33,20 @@ class Versions(unittest.TestCase):
         from narrative.episode_planner import PLANNER_VERSION
         self.assertEqual(episode_plan.EPISODE_PLAN_VERSION, VERSIONS["episode_plan_contract"])
         self.assertEqual(PLANNER_VERSION, VERSIONS["episode_planner"])
+        from contracts.episode_packet import EPISODE_PACKET_VERSION
+        self.assertEqual(EPISODE_PACKET_VERSION, VERSIONS["episode_packet_contract"])
         from narrative.state import STATE_VERSION
         self.assertEqual(STATE_VERSION, VERSIONS["narrative_state"])
         from narrative.speech import SPEECH_VERSION
         self.assertEqual(SPEECH_VERSION, VERSIONS["speech_model"])
+        from narrative.inner_state import INNER_VERSION
+        self.assertEqual(INNER_VERSION, VERSIONS["inner_state"])
         from narrative.debt import DEBT_VERSION
         from narrative.novelty import NOVELTY_VERSION
         self.assertEqual(NOVELTY_VERSION, VERSIONS["novelty_model"])
         self.assertEqual(DEBT_VERSION, VERSIONS["debt_model"])
+        from contracts.bible import BIBLE_VERSION
+        self.assertEqual(BIBLE_VERSION, VERSIONS["bible_contract"])
 
     def test_the_payoff_metric_is_a_draft_until_it_is_frozen(self):
         self.assertTrue(VERSIONS["payoff_metric"].endswith("v0.1"))

@@ -1,0 +1,271 @@
+{
+  "$defs": {
+    "Bible": {
+      "additionalProperties": false,
+      "properties": {
+        "bible_hash": {
+          "type": "string"
+        },
+        "characters": {
+          "additionalProperties": {
+            "$ref": "#/$defs/CharacterAsset"
+          },
+          "type": "object"
+        },
+        "gaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "scenes": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SceneAsset"
+          },
+          "type": "object"
+        },
+        "version": {
+          "type": "string"
+        },
+        "world": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "world"
+      ],
+      "type": "object"
+    },
+    "CharacterAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "costume": {
+          "type": "string"
+        },
+        "gaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "genome_id": {
+          "type": "string"
+        },
+        "identity_lock": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "lock_asset_id": {
+          "type": "string"
+        },
+        "look": {
+          "$ref": "#/$defs/Look"
+        },
+        "name": {
+          "type": "string"
+        },
+        "person_id": {
+          "type": "string"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/ReferenceAsset"
+          },
+          "type": "array"
+        },
+        "role": {
+          "type": "string"
+        },
+        "standard_description": {
+          "type": "string"
+        },
+        "voice": {
+          "$ref": "#/$defs/VoiceDescription"
+        },
+        "voice_asset_id": {
+          "type": "string"
+        },
+        "wardrobe_lock": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "asset_id",
+        "genome_id",
+        "person_id",
+        "lock_asset_id",
+        "name",
+        "costume",
+        "role",
+        "look",
+        "standard_description",
+        "identity_lock",
+        "wardrobe_lock",
+        "voice",
+        "voice_asset_id"
+      ],
+      "type": "object"
+    },
+    "Look": {
+      "additionalProperties": false,
+      "properties": {
+        "apparent_age": {
+          "type": "integer"
+        },
+        "build": {
+          "type": "string"
+        },
+        "face": {
+          "type": "string"
+        },
+        "gender": {
+          "type": "string"
+        },
+        "hair": {
+          "type": "string"
+        },
+        "marks": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "presence": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "ReferenceAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "face",
+            "full_body",
+            "expression_sheet",
+            "voice_sample",
+            "establishing",
+            "plan_view"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "provider_id": {
+          "type": "string"
+        },
+        "request_hash": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "provider_id"
+      ],
+      "type": "object"
+    },
+    "SceneAsset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "type": "string"
+        },
+        "features": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "footprint": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "gaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "layout_hash": {
+          "type": "string"
+        },
+        "layout_id": {
+          "type": "string"
+        },
+        "location_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "references": {
+          "items": {
+            "$ref": "#/$defs/ReferenceAsset"
+          },
+          "type": "array"
+        },
+        "standard_description": {
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "asset_id",
+        "location_id",
+        "name",
+        "tags",
+        "layout_id",
+        "layout_hash",
+        "footprint",
+        "features",
+        "standard_description"
+      ],
+      "type": "object"
+    },
+    "VoiceDescription": {
+      "additionalProperties": false,
+      "properties": {
+        "catchphrases": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pace": {
+          "type": "string"
+        },
+        "standard_description": {
+          "type": "string"
+        },
+        "timbre": {
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/Bible",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

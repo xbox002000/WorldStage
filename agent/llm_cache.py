@@ -31,7 +31,10 @@ class LLMCache:
         return json.loads(row[0]) if row else None
 
     def put(self, h: str, request: dict, response: dict) -> None:
-        # First answer wins: a replay must keep seeing the answer the original run acted on.
+        # First answer wins: a replay must keep seeing the answer the original run acted on. A recorded failure is not an
+        # answer: a real one takes its place (and a failure never takes the place of anything).
+        if "__failed__" not in response:
+            self.conn.execute("DELETE FROM llm_cache WHERE request_hash = ? AND response_json LIKE '%\"__failed__\"%'", (h,))
         self.conn.execute(
             "INSERT OR IGNORE INTO llm_cache(request_hash, provider, model, request_json, response_json, created_at) "
             "VALUES (?,?,?,?,?,?)",

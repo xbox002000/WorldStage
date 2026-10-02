@@ -1,0 +1,211 @@
+{
+  "$defs": {
+    "BeatCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_index": {
+          "type": "integer"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "intent": {
+          "enum": [
+            "orient",
+            "reveal",
+            "hide",
+            "escalate",
+            "reaction",
+            "payoff",
+            "misdirect",
+            "foreshadow",
+            "isolate",
+            "connect",
+            "contrast",
+            "observe",
+            "setup",
+            "face_slap",
+            "bystander_shock",
+            "longing_glance",
+            "rival_standoff",
+            "confession",
+            "choice",
+            "aftermath",
+            "next_question"
+          ]
+        },
+        "note": {
+          "type": "string"
+        },
+        "shots": {
+          "type": "integer"
+        },
+        "story": {
+          "enum": [
+            "A",
+            "B",
+            "texture"
+          ]
+        }
+      },
+      "required": [
+        "beat_index",
+        "story",
+        "intent",
+        "event_id",
+        "shots"
+      ],
+      "type": "object"
+    },
+    "EpisodePacketMap": {
+      "additionalProperties": false,
+      "properties": {
+        "beats": {
+          "items": {
+            "$ref": "#/$defs/BeatCoverage"
+          },
+          "type": "array"
+        },
+        "body_seconds": {
+          "type": "number"
+        },
+        "budget_seconds": {
+          "type": "number"
+        },
+        "map_hash": {
+          "type": "string"
+        },
+        "over_budget": {
+          "type": "boolean"
+        },
+        "packet_hash": {
+          "type": "string"
+        },
+        "plan_hash": {
+          "type": "string"
+        },
+        "shots": {
+          "items": {
+            "$ref": "#/$defs/ShotBeat"
+          },
+          "type": "array"
+        },
+        "source_plan_hash": {
+          "type": "string"
+        },
+        "trimmed": {
+          "items": {
+            "$ref": "#/$defs/TrimmedScenes"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version",
+        "packet_hash",
+        "plan_hash",
+        "source_plan_hash",
+        "shots",
+        "beats",
+        "trimmed",
+        "body_seconds",
+        "budget_seconds",
+        "over_budget"
+      ],
+      "type": "object"
+    },
+    "ShotBeat": {
+      "additionalProperties": false,
+      "properties": {
+        "beat_index": {
+          "type": "integer"
+        },
+        "derived": {
+          "type": "boolean"
+        },
+        "event_id": {
+          "type": "integer"
+        },
+        "intent": {
+          "enum": [
+            "orient",
+            "reveal",
+            "hide",
+            "escalate",
+            "reaction",
+            "payoff",
+            "misdirect",
+            "foreshadow",
+            "isolate",
+            "connect",
+            "contrast",
+            "observe",
+            "setup",
+            "face_slap",
+            "bystander_shock",
+            "longing_glance",
+            "rival_standoff",
+            "confession",
+            "choice",
+            "aftermath",
+            "next_question"
+          ]
+        },
+        "shot_id": {
+          "type": "string"
+        },
+        "shot_index": {
+          "type": "integer"
+        },
+        "story": {
+          "enum": [
+            "A",
+            "B",
+            "texture"
+          ]
+        }
+      },
+      "required": [
+        "shot_id",
+        "shot_index",
+        "beat_index",
+        "story",
+        "intent",
+        "event_id"
+      ],
+      "type": "object"
+    },
+    "TrimmedScenes": {
+      "additionalProperties": false,
+      "properties": {
+        "event_ids": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "story": {
+          "enum": [
+            "A",
+            "B",
+            "texture"
+          ]
+        }
+      },
+      "required": [
+        "story",
+        "event_ids",
+        "reason"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/EpisodePacketMap",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

@@ -11,6 +11,10 @@ or a fact; the world's validator still decides whether the choice is legal, and 
 
 A daily budget caps the wake-ups. Without a client, over the budget, or when the answer is unusable, the rule agent
 decides. Answers are cached by request hash in the LLM client, so a world replays exactly.
+
+When the provider's free quota is what runs out (not one bad answer), a run that wants a pure world stops instead of
+letting the rule agent finish the day: `pause_on_quota` raises QuotaPause, the day is thrown away and replayed later
+from the cache, where everything already paid for costs nothing (soul_lab.py).
 """
 from __future__ import annotations
 
@@ -25,6 +29,19 @@ from world.intent import Intent
 
 TONE_WORDS = {"warm": "親切地", "neutral": "", "cold": "冷淡地", "hostile": "不客氣地"}
 STRONG = ("angry", "hurt", "ashamed", "scared")
+MOOD_ONLY = "心情很糟"       # a wake point with nothing else behind it: tier B (a bad mood alone seldom changes what is chosen)
+
+
+def option_order(world_seed, actor: str, now: int, n: int) -> list[int]:
+    """The order the options are shown in: a shuffle that is the same every time for the same world, person and moment."""
+    from world.rng import rng
+    order = list(range(n))
+    rng(world_seed, now, actor, "soul_option_order").shuffle(order)
+    return order
+
+
+class QuotaPause(RuntimeError):
+    """The free quota is spent: stop at this decision, do not let the rule agent finish the day."""
 VALUE_ACTS = {  # what goes against a value one holds dear (acts in claims): serious things, not a sharp word
     "truth": ("deceive", "conceal"), "fairness": ("steal", "take"), "loyalty": ("resign", "seek_job", "deceive"),
     "security": ("steal",), "family": ("deceive",),
@@ -171,7 +188,19 @@ class CharacterAgent:
     a stub in tests). budget: wake-ups a day for the whole world. top_k: how many of the most wanted options it sees.
     """
 
-    def __init__(self, rule, client=None, budget: int = 20, top_k: int = 7) -> None:
+    def __init__(self, rule, client=None, budget: int = 20, top_k: int = 7, tier: str = "AB", pause_on_quota: bool = False,
+                 per_person_day: int | None = None, shuffle=False) -> None:
+        if tier not in ("A", "AB"):
+            raise ValueError("tier is 'A' (a value crossed, a clash, a resolve) or 'AB' (and a bad mood on its own)")
+        self.tier = tier
+        self.per_person_day = per_person_day   # most times one person's mind wakes in a day: the same wake point fires again and again with nearly the same state
+        # the options are shown in a deterministic shuffled order, so the first line is not the rule's favourite: True, or a function
+        # (actor, now, n) -> a permutation (soul_lab keeps the one its recorded answers were asked with)
+        self.shuffle = shuffle
+        self.woke_today: Counter = Counter()   # (day, person) -> wake-ups
+        self.pause_on_quota = pause_on_quota
+        self.max_streak = 5              # with pause_on_quota: this many failures in a row (a wrong model name, a dead key) stop the run
+        self._streak = 0
         self.rule = rule
         self.client = client
         self.budget = budget
@@ -196,27 +225,53 @@ class CharacterAgent:
             return seized
         scored = self.rule.scored(conn, actor, now)
         wake = wake_reasons(conn, actor, now, scored) if self.client is not None else []
+        if self.tier == "A" and wake and all(w.startswith(MOOD_ONLY) for w in wake):
+            self.stats["mood_only_skipped"] += 1
+            wake = []
         day = now // 1440
+        if wake and self.per_person_day is not None and self.woke_today[(day, actor)] >= self.per_person_day:
+            self.stats["person_capped"] += 1
+            wake = []
         if not wake or self.used[day] >= self.budget or len(scored) < 2:
             self.stats["rule"] += 1
             return self.rule.pick(scored, actor, now, conn)
         self.used[day] += 1
+        self.woke_today[(day, actor)] += 1
         top = sorted(scored, key=lambda s: -s[0])[: self.top_k]
         if not any(it is None for _, it in top):
             top.append(next(s for s in scored if s[1] is None) if any(s[1] is None for s in scored) else (0.0, None))
-        state = cognitive_state(conn, actor, now, top, wake)
+        order = list(range(len(top)))                # order[k] = the rank (0 = what the rules want most) of the option shown k-th
+        if self.shuffle:
+            order = self.shuffle(actor, now, len(top)) if callable(self.shuffle) else option_order(self.rule.world_seed, actor, now, len(top))
+        shown = [top[i] for i in order]
+        state = cognitive_state(conn, actor, now, shown, wake)
         prompt = PROMPT.format(state=json.dumps(to_dict(state), ensure_ascii=False, sort_keys=True))
         try:
             raw = self.client.generate_json(prompt, CHOICE_SCHEMA, temperature=0.7)
             choice = CognitiveChoice(int(raw["option"]), str(raw.get("reason", ""))[:120], str(raw.get("inner", ""))[:200])
-            it = top[choice.option][1]
+            if not 0 <= choice.option < len(shown):   # a negative number would silently count from the end
+                raise ValueError(f"option {choice.option} is not on the list")
+            it = shown[choice.option][1]
+            rank = order[choice.option]
         except Exception as e:  # unusable or unavailable: live by habit this time
+            from agent.llm import BudgetExceeded
+            if self.pause_on_quota and (isinstance(e, BudgetExceeded) or "all models are unavailable" in str(e)):
+                self.used[day] -= 1
+                self.woke_today[(day, actor)] -= 1
+                raise QuotaPause(str(e)) from e
+            self._streak += 1
+            if self.pause_on_quota and self._streak >= self.max_streak:
+                self.used[day] -= 1
+                self.woke_today[(day, actor)] -= 1
+                raise QuotaPause(f"{self._streak} answers in a row failed (last: {type(e).__name__}: {str(e)[:120]})") from e
             self.stats["agent_failed"] += 1
             self.log.append({"person": actor, "t": now, "wake": wake, "error": type(e).__name__})
             return self.rule.pick(scored, actor, now, conn)
+        self._streak = 0
         self.stats["agent"] += 1
         self.log.append({"person": actor, "t": now, "wake": wake, "chose": state.options[choice.option].text,
-                         "reason": choice.reason, "inner": choice.inner})
+                         "reason": choice.reason, "inner": choice.inner, "option": rank, "shown_at": choice.option,
+                         "rule_top": state.options[order.index(0)].text, "differs": rank != 0, "of": len(state.options)})
         if it is None:
             return None
         source = getattr(self.client, "model", "") or "agent"

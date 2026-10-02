@@ -145,6 +145,49 @@ class InAWorld(unittest.TestCase):
         self.assertEqual((self.c.execute("SELECT COUNT(*) FROM events").fetchone()[0], self.c.execute("SELECT SUM(LENGTH(truth)) FROM events").fetchone()[0]), before)
 
 
+    def test_what_is_underneath_a_feeling_is_said_only_with_its_cause_and_never_loses_the_old_subtext(self):
+        carried = 0
+        for r, got in self.lines():
+            if got and "inner" in got:
+                carried += 1
+                self.assertTrue(got["subtext"].endswith(got["inner"]["underneath"]))
+                self.assertTrue(self.c.execute("SELECT 1 FROM events WHERE event_id = ?", (got["inner"]["because"]["event_id"],)).fetchone())
+                self.assertLess(got["inner"]["because"]["event_id"], r["event_id"])
+        self.assertGreater(carried, 0)
+        S.INNER_SUBTEXT = False
+        try:
+            plain = sum(1 for r, got in self.lines() if got and got.get("subtext"))
+        finally:
+            S.INNER_SUBTEXT = True
+        self.assertGreater(sum(1 for r, got in self.lines() if got and got.get("subtext")), plain)
+
+
+class Underneath(unittest.TestCase):
+    def test_without_a_world_nothing_is_underneath(self):
+        c = stub(emo={"a": "hurt"})
+        self.assertIsNone(c.underneath("a", "b"))
+        out = {"say": "嗯。", "stance": "neutral"}
+        S._with_inner(c, out, "talk", "a", "b")
+        self.assertEqual(out, {"say": "嗯。", "stance": "neutral"})
+
+    def test_what_the_relationship_gave_is_not_replaced_but_a_bare_emotion_is_open_to_a_better_reading(self):
+        class Fake(S.Ctx):
+            def underneath(self, pid, addressee=""):
+                return {"surface": "angry", "underneath": "怕被他丟下", "because": {"event_id": 1, "type": "talk", "text": "x"},
+                        "confidence": 0.7, "rule": "r", "surface_zh": "生氣"}
+        c = Fake(None, 100, {}, 0, "")
+        kept = {"say": "嗯。", "subtext": "話說得客氣，心裡其實還在氣"}
+        S._with_inner(c, kept, "talk", "a", "b")
+        self.assertEqual(kept["subtext"], "話說得客氣，心裡其實還在氣")
+        bare = {"say": "嗯。", "subtext": "壓著火氣"}
+        S._with_inner(c, bare, "talk", "a", "b")
+        self.assertEqual(bare["subtext"], "表面生氣，底下是怕被他丟下")
+        self.assertEqual(bare["inner"]["underneath"], "怕被他丟下")
+        murmur = {"say": "再一次。"}
+        S._with_inner(c, murmur, "goal_change", "a", "")
+        self.assertNotIn("subtext", murmur)
+
+
 class Words(unittest.TestCase):
     def pools(self):
         for name in dir(S):

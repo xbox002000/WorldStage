@@ -1,0 +1,571 @@
+{
+ "bible_hash": "sha256:e1c084df6ad2eef18fa2579721c990e2da77b13c20221190c491341bbb9dafb5",
+ "characters": {
+  "char:040909075fcaea00:9e9969e8": {
+   "asset_id": "char:040909075fcaea00:9e9969e8",
+   "costume": "淺色的短襖配小布包",
+   "gaps": [],
+   "genome_id": "genome:040909075fcaea00",
+   "identity_lock": [
+    "性別：女性",
+    "年齡感：約24歲",
+    "臉：娃娃臉，眼睛很大",
+    "頭髮：栗色短鮑伯",
+    "體型：嬌小",
+    "特徵：總帶著一包小零食分給大家"
+   ],
+   "lock_asset_id": "char_rui",
+   "look": {
+    "apparent_age": 24,
+    "build": "嬌小",
+    "face": "娃娃臉，眼睛很大",
+    "gender": "female",
+    "hair": "栗色短鮑伯",
+    "marks": [
+     "總帶著一包小零食分給大家"
+    ],
+    "presence": "讓場面自然變得和氣"
+   },
+   "name": "小瑞",
+   "person_id": "rui",
+   "references": [],
+   "role": "",
+   "standard_description": "女性；看起來約24歲；臉：娃娃臉，眼睛很大；頭髮：栗色短鮑伯；體型：嬌小；特徵：總帶著一包小零食分給大家；神態：讓場面自然變得和氣；穿著：淺色的短襖配小布包。",
+   "voice": {
+    "catchphrases": [
+     "大家別這樣嘛",
+     "我們和好吧"
+    ],
+    "pace": "輕快，常常打圓場",
+    "standard_description": "音色明亮；語速輕快，常常打圓場。",
+    "timbre": "明亮"
+   },
+   "voice_asset_id": "voice:040909075fcaea00",
+   "wardrobe_lock": [
+    "淺色的短襖配小布包"
+   ]
+  },
+  "char:17d2209a294c4b1f:fe567e2c": {
+   "asset_id": "char:17d2209a294c4b1f:fe567e2c",
+   "costume": "青雲門的灰布長衫，沾著塵土",
+   "gaps": [],
+   "genome_id": "genome:17d2209a294c4b1f",
+   "identity_lock": [
+    "性別：男性",
+    "年齡感：約35歲",
+    "臉：寬臉，鬍渣",
+    "頭髮：平頭",
+    "體型：結實",
+    "特徵：手機螢幕裂了一角"
+   ],
+   "lock_asset_id": "char_tao",
+   "look": {
+    "apparent_age": 35,
+    "build": "結實",
+    "face": "寬臉，鬍渣",
+    "gender": "male",
+    "hair": "平頭",
+    "marks": [
+     "手機螢幕裂了一角"
+    ],
+    "presence": "樸實，講話不拐彎讓人安心"
+   },
+   "name": "阿濤",
+   "person_id": "tao",
+   "references": [],
+   "role": "弟子",
+   "standard_description": "男性；看起來約35歲；臉：寬臉，鬍渣；頭髮：平頭；體型：結實；特徵：手機螢幕裂了一角；神態：樸實，講話不拐彎讓人安心；穿著：青雲門的灰布長衫，沾著塵土。",
+   "voice": {
+    "catchphrases": [
+     "不借",
+     "說重點"
+    ],
+    "pace": "直，不修飾",
+    "standard_description": "音色粗；語速直，不修飾。",
+    "timbre": "粗"
+   },
+   "voice_asset_id": "voice:17d2209a294c4b1f",
+   "wardrobe_lock": [
+    "青雲門的灰布長衫，沾著塵土"
+   ]
+  },
+  "char:1d06934c023552f0:19a4ff08": {
+   "asset_id": "char:1d06934c023552f0:19a4ff08",
+   "costume": "米色的長裙配披肩",
+   "gaps": [],
+   "genome_id": "genome:1d06934c023552f0",
+   "identity_lock": [
+    "性別：女性",
+    "年齡感：約30歲",
+    "臉：柔和的圓眼睛，容易紅眼眶",
+    "頭髮：中長捲髮",
+    "體型：中等",
+    "特徵：手腕上有一條舊的友誼手鍊"
+   ],
+   "lock_asset_id": "char_lan",
+   "look": {
+    "apparent_age": 30,
+    "build": "中等",
+    "face": "柔和的圓眼睛，容易紅眼眶",
+    "gender": "female",
+    "hair": "中長捲髮",
+    "marks": [
+     "手腕上有一條舊的友誼手鍊"
+    ],
+    "presence": "溫柔，卻讓人覺得她很容易受傷"
+   },
+   "name": "阿蘭",
+   "person_id": "lan",
+   "references": [],
+   "role": "",
+   "standard_description": "女性；看起來約30歲；臉：柔和的圓眼睛，容易紅眼眶；頭髮：中長捲髮；體型：中等；特徵：手腕上有一條舊的友誼手鍊；神態：溫柔，卻讓人覺得她很容易受傷；穿著：米色的長裙配披肩。",
+   "voice": {
+    "catchphrases": [
+     "你還記得嗎",
+     "我只是想跟你好好聊聊"
+    ],
+    "pace": "中等，說到在意的事會放慢",
+    "standard_description": "音色柔軟；語速中等，說到在意的事會放慢。",
+    "timbre": "柔軟"
+   },
+   "voice_asset_id": "voice:1d06934c023552f0",
+   "wardrobe_lock": [
+    "米色的長裙配披肩"
+   ]
+  },
+  "char:3f836be0effee4c7:c6513120": {
+   "asset_id": "char:3f836be0effee4c7:c6513120",
+   "costume": "深色的斗篷，帽沿壓低",
+   "gaps": [],
+   "genome_id": "genome:3f836be0effee4c7",
+   "identity_lock": [
+    "性別：女性",
+    "年齡感：約26歲",
+    "臉：小臉，低著眼睛",
+    "頭髮：紮成低馬尾",
+    "體型：嬌小",
+    "特徵：常把手藏在口袋裡"
+   ],
+   "lock_asset_id": "char_yun",
+   "look": {
+    "apparent_age": 26,
+    "build": "嬌小",
+    "face": "小臉，低著眼睛",
+    "gender": "female",
+    "hair": "紮成低馬尾",
+    "marks": [
+     "常把手藏在口袋裡"
+    ],
+    "presence": "安靜，讓人忍不住想問她在想什麼"
+   },
+   "name": "小雲",
+   "person_id": "yun",
+   "references": [],
+   "role": "",
+   "standard_description": "女性；看起來約26歲；臉：小臉，低著眼睛；頭髮：紮成低馬尾；體型：嬌小；特徵：常把手藏在口袋裡；神態：安靜，讓人忍不住想問她在想什麼；穿著：深色的斗篷，帽沿壓低。",
+   "voice": {
+    "catchphrases": [
+     "沒什麼",
+     "你想太多了"
+    ],
+    "pace": "慢，被問到會突然變冷",
+    "standard_description": "音色細輕；語速慢，被問到會突然變冷。",
+    "timbre": "細輕"
+   },
+   "voice_asset_id": "voice:3f836be0effee4c7",
+   "wardrobe_lock": [
+    "深色的斗篷，帽沿壓低"
+   ]
+  },
+  "char:6dfa1aab9f0af561:81ca50a1": {
+   "asset_id": "char:6dfa1aab9f0af561:81ca50a1",
+   "costume": "素色布衣配舊披風",
+   "gaps": [],
+   "genome_id": "genome:6dfa1aab9f0af561",
+   "identity_lock": [
+    "性別：女性",
+    "年齡感：約27歲",
+    "臉：鵝蛋臉，眼神冷靜，很少笑",
+    "頭髮：及肩直髮",
+    "體型：高瘦",
+    "特徵：總是背著一個舊背包"
+   ],
+   "lock_asset_id": "char_mei",
+   "look": {
+    "apparent_age": 27,
+    "build": "高瘦",
+    "face": "鵝蛋臉，眼神冷靜，很少笑",
+    "gender": "female",
+    "hair": "及肩直髮",
+    "marks": [
+     "總是背著一個舊背包"
+    ],
+    "presence": "不說話的時候最吸引人，像隨時會離開"
+   },
+   "name": "小美",
+   "person_id": "mei",
+   "references": [],
+   "role": "",
+   "standard_description": "女性；看起來約27歲；臉：鵝蛋臉，眼神冷靜，很少笑；頭髮：及肩直髮；體型：高瘦；特徵：總是背著一個舊背包；神態：不說話的時候最吸引人，像隨時會離開；穿著：素色布衣配舊披風。",
+   "voice": {
+    "catchphrases": [
+     "再說吧",
+     "我不確定會待多久"
+    ],
+    "pace": "慢，句子很短",
+    "standard_description": "音色清冷；語速慢，句子很短。",
+    "timbre": "清冷"
+   },
+   "voice_asset_id": "voice:6dfa1aab9f0af561",
+   "wardrobe_lock": [
+    "素色布衣配舊披風"
+   ]
+  },
+  "char:7024b5561af22fa3:e82ed7ad": {
+   "asset_id": "char:7024b5561af22fa3:e82ed7ad",
+   "costume": "青雲門的灰布長衫，袖口捲起",
+   "gaps": [],
+   "genome_id": "genome:7024b5561af22fa3",
+   "identity_lock": [
+    "性別：男性",
+    "年齡感：約33歲",
+    "臉：笑臉，酒窩",
+    "頭髮：短髮，總是翹著",
+    "體型：高大",
+    "特徵：常穿同一件印著咖啡店標誌的外套"
+   ],
+   "lock_asset_id": "char_hao",
+   "look": {
+    "apparent_age": 33,
+    "build": "高大",
+    "face": "笑臉，酒窩",
+    "gender": "male",
+    "hair": "短髮，總是翹著",
+    "marks": [
+     "常穿同一件印著咖啡店標誌的外套"
+    ],
+    "presence": "走進來就像把燈打開"
+   },
+   "name": "阿豪",
+   "person_id": "hao",
+   "references": [],
+   "role": "弟子",
+   "standard_description": "男性；看起來約33歲；臉：笑臉，酒窩；頭髮：短髮，總是翹著；體型：高大；特徵：常穿同一件印著咖啡店標誌的外套；神態：走進來就像把燈打開；穿著：青雲門的灰布長衫，袖口捲起。",
+   "voice": {
+    "catchphrases": [
+     "欸你有聽說嗎",
+     "來來來，我請"
+    ],
+    "pace": "快，愛插話",
+    "standard_description": "音色洪亮；語速快，愛插話。",
+    "timbre": "洪亮"
+   },
+   "voice_asset_id": "voice:7024b5561af22fa3",
+   "wardrobe_lock": [
+    "青雲門的灰布長衫，袖口捲起"
+   ]
+  },
+  "char:71d81a29948daf07:23006fc1": {
+   "asset_id": "char:71d81a29948daf07:23006fc1",
+   "costume": "素淨的青色長衫",
+   "gaps": [],
+   "genome_id": "genome:71d81a29948daf07",
+   "identity_lock": [
+    "性別：女性",
+    "年齡感：約28歲",
+    "臉：瘦長臉，戴細框眼鏡",
+    "頭髮：俐落短髮",
+    "體型：瘦",
+    "特徵：手上總抱著一本小冊子"
+   ],
+   "lock_asset_id": "char_ning",
+   "look": {
+    "apparent_age": 28,
+    "build": "瘦",
+    "face": "瘦長臉，戴細框眼鏡",
+    "gender": "female",
+    "hair": "俐落短髮",
+    "marks": [
+     "手上總抱著一本小冊子"
+    ],
+    "presence": "內向，像一本不隨便翻開的書"
+   },
+   "name": "阿寧",
+   "person_id": "ning",
+   "references": [],
+   "role": "",
+   "standard_description": "女性；看起來約28歲；臉：瘦長臉，戴細框眼鏡；頭髮：俐落短髮；體型：瘦；特徵：手上總抱著一本小冊子；神態：內向，像一本不隨便翻開的書；穿著：素淨的青色長衫。",
+   "voice": {
+    "catchphrases": [
+     "那是我的",
+     "請不要碰"
+    ],
+    "pace": "慢，一個字一個字",
+    "standard_description": "音色平穩；語速慢，一個字一個字。",
+    "timbre": "平穩"
+   },
+   "voice_asset_id": "voice:71d81a29948daf07",
+   "wardrobe_lock": [
+    "素淨的青色長衫"
+   ]
+  },
+  "char:8c38dd23c33a47bd:de9f3fa9": {
+   "asset_id": "char:8c38dd23c33a47bd:de9f3fa9",
+   "costume": "青雲門的灰布長衫，整整齊齊",
+   "gaps": [],
+   "genome_id": "genome:8c38dd23c33a47bd",
+   "identity_lock": [
+    "性別：男性",
+    "年齡感：約32歲",
+    "臉：窄臉，眼神銳利",
+    "頭髮：整齊的側分",
+    "體型：瘦而挺",
+    "特徵：西裝口袋裡永遠有一支筆"
+   ],
+   "lock_asset_id": "char_kai",
+   "look": {
+    "apparent_age": 32,
+    "build": "瘦而挺",
+    "face": "窄臉，眼神銳利",
+    "gender": "male",
+    "hair": "整齊的側分",
+    "marks": [
+     "西裝口袋裡永遠有一支筆"
+    ],
+    "presence": "整潔得讓人不敢隨便"
+   },
+   "name": "阿凱",
+   "person_id": "kai",
+   "references": [],
+   "role": "弟子",
+   "standard_description": "男性；看起來約32歲；臉：窄臉，眼神銳利；頭髮：整齊的側分；體型：瘦而挺；特徵：西裝口袋裡永遠有一支筆；神態：整潔得讓人不敢隨便；穿著：青雲門的灰布長衫，整整齊齊。",
+   "voice": {
+    "catchphrases": [
+     "按規矩來",
+     "這是我的功勞吧"
+    ],
+    "pace": "有條理，帶刺",
+    "standard_description": "音色清晰偏尖；語速有條理，帶刺。",
+    "timbre": "清晰偏尖"
+   },
+   "voice_asset_id": "voice:8c38dd23c33a47bd",
+   "wardrobe_lock": [
+    "青雲門的灰布長衫，整整齊齊"
+   ]
+  },
+  "char:d8e1d1801bb290b2:84e0b1ce": {
+   "asset_id": "char:d8e1d1801bb290b2:84e0b1ce",
+   "costume": "洗得發舊的灰布長衫",
+   "gaps": [],
+   "genome_id": "genome:d8e1d1801bb290b2",
+   "identity_lock": [
+    "性別：男性",
+    "年齡感：約29歲",
+    "臉：圓臉，眼下有倦色",
+    "頭髮：短髮，有點亂",
+    "體型：微胖",
+    "特徵：襯衫第二顆釦子常常扣錯"
+   ],
+   "lock_asset_id": "char_jun",
+   "look": {
+    "apparent_age": 29,
+    "build": "微胖",
+    "face": "圓臉，眼下有倦色",
+    "gender": "male",
+    "hair": "短髮，有點亂",
+    "marks": [
+     "襯衫第二顆釦子常常扣錯"
+    ],
+    "presence": "讓人想幫他一把"
+   },
+   "name": "阿俊",
+   "person_id": "jun",
+   "references": [],
+   "role": "弟子",
+   "standard_description": "男性；看起來約29歲；臉：圓臉，眼下有倦色；頭髮：短髮，有點亂；體型：微胖；特徵：襯衫第二顆釦子常常扣錯；神態：讓人想幫他一把；穿著：洗得發舊的灰布長衫。",
+   "voice": {
+    "catchphrases": [
+     "我晚點還你",
+     "不好意思啊"
+    ],
+    "pace": "不穩，常常停頓",
+    "standard_description": "音色沙啞；語速不穩，常常停頓。",
+    "timbre": "沙啞"
+   },
+   "voice_asset_id": "voice:d8e1d1801bb290b2",
+   "wardrobe_lock": [
+    "洗得發舊的灰布長衫"
+   ]
+  },
+  "char:ed9d2644ad009c3a:a6e1237f": {
+   "asset_id": "char:ed9d2644ad009c3a:a6e1237f",
+   "costume": "青雲門的灰布長衫，腰繫深色束帶",
+   "gaps": [],
+   "genome_id": "genome:ed9d2644ad009c3a",
+   "identity_lock": [
+    "性別：男性",
+    "年齡感：約31歲",
+    "臉：方臉，眉毛濃，笑起來有點用力",
+    "頭髮：短髮，抹了髮蠟",
+    "體型：中等偏壯",
+    "特徵：左手戴一支很貴的錶"
+   ],
+   "lock_asset_id": "char_ming",
+   "look": {
+    "apparent_age": 31,
+    "build": "中等偏壯",
+    "face": "方臉，眉毛濃，笑起來有點用力",
+    "gender": "male",
+    "hair": "短髮，抹了髮蠟",
+    "marks": [
+     "左手戴一支很貴的錶"
+    ],
+    "presence": "站得很直，一開口就像在開會"
+   },
+   "name": "阿明",
+   "person_id": "ming",
+   "references": [],
+   "role": "弟子",
+   "standard_description": "男性；看起來約31歲；臉：方臉，眉毛濃，笑起來有點用力；頭髮：短髮，抹了髮蠟；體型：中等偏壯；特徵：左手戴一支很貴的錶；神態：站得很直，一開口就像在開會；穿著：青雲門的灰布長衫，腰繫深色束帶。",
+   "voice": {
+    "catchphrases": [
+     "這件事我來處理",
+     "你相信我"
+    ],
+    "pace": "快，愛搶話",
+    "standard_description": "音色低沉偏亮；語速快，愛搶話。",
+    "timbre": "低沉偏亮"
+   },
+   "voice_asset_id": "voice:ed9d2644ad009c3a",
+   "wardrobe_lock": [
+    "青雲門的灰布長衫，腰繫深色束帶"
+   ]
+  }
+ },
+ "gaps": [],
+ "scenes": {
+  "scene:inn": {
+   "asset_id": "scene:inn",
+   "features": [
+    "前牆有一面寬約8公尺的窗",
+    "5張桌子",
+    "18張椅子",
+    "1個櫃台",
+    "1個棲架",
+    "1扇門"
+   ],
+   "footprint": [
+    14.0,
+    10.0
+   ],
+   "gaps": [],
+   "layout_hash": "sha256:dc70e5339a49621e9412841ae9800b0becfd424ed2e94690de35dbde3d3faf0e",
+   "layout_id": "cafe.v1",
+   "location_id": "inn",
+   "name": "悅來客棧",
+   "references": [],
+   "standard_description": "悅來客棧：室內，約14×10公尺；前牆有一面寬約8公尺的窗；5張桌子；18張椅子；1個櫃台；1個棲架；1扇門。",
+   "tags": [
+    "food",
+    "social",
+    "home",
+    "work"
+   ]
+  },
+  "scene:manor": {
+   "asset_id": "scene:manor",
+   "features": [
+    "前牆有一面寬約4公尺的窗",
+    "4張書桌",
+    "12張椅子",
+    "1扇門"
+   ],
+   "footprint": [
+    12.0,
+    8.0
+   ],
+   "gaps": [],
+   "layout_hash": "sha256:75f39d41806b59a60fb3699190cde45ccedaf0bf54e6e2f3035de00487a44a01",
+   "layout_id": "office.v1",
+   "location_id": "manor",
+   "name": "鐵劍山莊",
+   "references": [],
+   "standard_description": "鐵劍山莊：室內，約12×8公尺；前牆有一面寬約4公尺的窗；4張書桌；12張椅子；1扇門。",
+   "tags": [
+    "home",
+    "training",
+    "social"
+   ]
+  },
+  "scene:market": {
+   "asset_id": "scene:market",
+   "features": [
+    "1張長椅",
+    "1座月台"
+   ],
+   "footprint": [
+    16.0,
+    6.0
+   ],
+   "gaps": [],
+   "layout_hash": "sha256:b8a22af58a594969bc60d38d142f7ed417009cacf562e48c1d7e9012588d9aaa",
+   "layout_id": "station.v1",
+   "location_id": "market",
+   "name": "市集",
+   "references": [],
+   "standard_description": "市集：戶外，約16×6公尺；1張長椅；1座月台。",
+   "tags": [
+    "social",
+    "work"
+   ]
+  },
+  "scene:qingyun": {
+   "asset_id": "scene:qingyun",
+   "features": [
+    "前牆有一面寬約4公尺的窗",
+    "4張書桌",
+    "12張椅子",
+    "1扇門"
+   ],
+   "footprint": [
+    12.0,
+    8.0
+   ],
+   "gaps": [],
+   "layout_hash": "sha256:75f39d41806b59a60fb3699190cde45ccedaf0bf54e6e2f3035de00487a44a01",
+   "layout_id": "office.v1",
+   "location_id": "qingyun",
+   "name": "青雲門",
+   "references": [],
+   "standard_description": "青雲門：室內，約12×8公尺；前牆有一面寬約4公尺的窗；4張書桌；12張椅子；1扇門。",
+   "tags": [
+    "home",
+    "training",
+    "social"
+   ]
+  },
+  "scene:road": {
+   "asset_id": "scene:road",
+   "features": [
+    "2張長椅",
+    "3棵樹"
+   ],
+   "footprint": [
+    14.5,
+    11.5
+   ],
+   "gaps": [],
+   "layout_hash": "sha256:d725d4c2b3356a8e8774ad5536db42ddeafa4609ff479a272595c219fd6534c6",
+   "layout_id": "park.v1",
+   "location_id": "road",
+   "name": "山道",
+   "references": [],
+   "standard_description": "山道：戶外，約14.5×11.5公尺；2張長椅；3棵樹。",
+   "tags": [
+    "transit"
+   ]
+  }
+ },
+ "version": "bible_v0.1",
+ "world": "jianghu_story_v1"
+}

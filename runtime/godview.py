@@ -26,7 +26,7 @@ VERBS = {"talk": "和{t}聊天", "tell": "告訴{t}一件事", "confront": "質�
          "repay": "還錢給{t}", "take": "拿走了{o}", "find": "找回了{o}", "misplace": "弄丟了{o}", "give": "把{o}交給{t}",
          "notice_missing": "發現{o}不見了", "steal": "偷走{t}的{o}", "bark": "對{t}吠", "move": "走到{p}", "eat": "吃東西",
          "work": "工作", "sleep": "睡覺", "upkeep": "回家過夜", "goal_change": "改變了目標", "reflection": "想了想自己",
-         "parrot_speaks": "鸚鵡學舌", "feed_pet": "餵了寵物"}  # domain packs caption their own events
+         "parrot_speaks": "鸚鵡學舌", "feed_pet": "餵了寵物", "breakthrough": "的功力有了突破"}  # domain packs caption their own events
 
 
 def _names(conn) -> dict:

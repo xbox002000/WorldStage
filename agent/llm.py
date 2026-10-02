@@ -99,8 +99,10 @@ class LLMClient:
         mode: str = "live",
         cache: LLMCache | None = None,
         system_prompt: str = "",
+        ledger=None,
+        daily_limit: int | None = None,
     ) -> None:
-        if mode not in ("live", "record", "replay"):
+        if mode not in ("live", "record", "replay", "cache"):   # cache: ask the cache first, and only what it lacks goes out (then it is kept)
             raise ValueError(f"unknown mode {mode!r}")
         if mode != "live" and cache is None:
             raise ValueError(f"mode {mode!r} needs a cache")
@@ -116,6 +118,8 @@ class LLMClient:
         self._sleep = sleep
         self._clock = clock
         self._last = -1e9
+        self.ledger = ledger              # agent/llm_ledger.py: what is spent today, kept across runs
+        self.daily_limit = daily_limit    # the free calls a day this model has, when known: asking past it is refused here, not by the provider
         self.calls = 0  # every attempt counts against quota
         self.failures = 0
 
@@ -141,8 +145,12 @@ class LLMClient:
             if hit is None:
                 raise CacheMiss(h)
             return hit
+        if self.mode == "cache":
+            hit = self.cache.get(h)
+            if hit is not None and FAILED not in hit:
+                return hit
         result = self._call(prompt, schema, temperature)
-        if self.mode == "record":
+        if self.mode in ("record", "cache"):
             self.cache.put(h, req, result)
         return result
 
@@ -152,11 +160,15 @@ class LLMClient:
         for attempt in range(self.retries + 1):
             if self.max_calls is not None and self.calls >= self.max_calls:
                 raise BudgetExceeded(f"call budget of {self.max_calls} reached")
+            if self.ledger is not None and self.daily_limit is not None and self.ledger.used(self.model) >= self.daily_limit:
+                raise QuotaExhausted(f"{self.model}: {self.daily_limit} calls today are spent (ledger)")
             wait = self._last + self.min_interval - self._clock()
             if wait > 0:
                 self._sleep(wait)
             self._last = self._clock()
             self.calls += 1
+            if self.ledger is not None:
+                self.ledger.add(self.model)
             try:
                 return json.loads(self._backend(prompt, schema, temperature))
             except Exception as e:  # noqa: BLE001 - SDK raises its own error types
@@ -277,7 +289,7 @@ class FallbackClient:
 
 def build_chain(gemini_model: str = DEFAULT_MODEL, *, max_calls: int | None = None, min_interval: float = 4.0,
                 use_openrouter: bool = True, openrouter_max_calls: int | None = None, mode: str = "live",
-                cache: LLMCache | None = None) -> FallbackClient:
+                cache: LLMCache | None = None, retries: int = 5, ledger=None, daily_limit: int | None = None) -> FallbackClient:
     """Gemini first, then OpenRouter free models when an OPENROUTER_API_KEY is available.
 
     In replay mode nothing is called, so the OpenRouter models are included whether or not a key exists.
@@ -286,7 +298,8 @@ def build_chain(gemini_model: str = DEFAULT_MODEL, *, max_calls: int | None = No
     # `gemini_model` may be a comma-separated chain ("gemini-3.5-flash,gemini-3.5-flash-lite"): a model whose daily
     # quota is used up hands over to the next one.
     names = [m.strip() for m in gemini_model.split(",") if m.strip()] or [DEFAULT_MODEL]
-    clients = [LLMClient(m, max_calls=max_calls, min_interval=min_interval, **cache_args) for m in names]
+    clients = [LLMClient(m, max_calls=max_calls, min_interval=min_interval, retries=retries, ledger=ledger, daily_limit=daily_limit, **cache_args)
+               for m in names]
     if use_openrouter and (mode == "replay" or has_api_key("OPENROUTER_API_KEY")):
         for model, structured in OPENROUTER_FALLBACKS:
             clients.append(LLMClient(

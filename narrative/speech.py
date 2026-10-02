@@ -14,6 +14,10 @@ believed makes the doubters gasp). It is chosen among the lines whose conditions
 always reads the same; and it is not fed back to anyone: characters act on claims, never on these words. Romance stays within
 what a public channel shows (a look, an offer of tea, a confession), and every speaker is an adult.
 
+Besides the subtext the relationship gives (the rules in `_talk_subtext`), a line carries what is *underneath the speaker's feeling*
+when narrative/inner_state.py can name it from the event that set the feeling and from what held between the two people just
+before (surface: angry, underneath: afraid of being left, because event 61). It says nothing when it cannot trace one.
+
 `speech_v0.1`: a draft. The pools are the first writing, in the file to be argued with and extended.
 """
 from __future__ import annotations
@@ -23,15 +27,28 @@ import sqlite3
 from typing import Callable
 
 SPEECH_VERSION = "speech_v0.1"
+INNER_SUBTEXT = True      # a switch for experiments (the before/after in docs/speech.md): False says only what the relationship gives
 Guard = Callable[["Ctx", str, str], bool] | None
 
 
 class Ctx:
     """The situation of one event, as of just before it (lazily read, cached)."""
 
-    def __init__(self, conn: sqlite3.Connection, event_id: int, truth: dict, ts: int = 0, place: str = "") -> None:
+    def __init__(self, conn: sqlite3.Connection, event_id: int, truth: dict, ts: int = 0, place: str = "", names: dict | None = None) -> None:
         self.conn, self.event_id, self.truth, self.ts, self.place = conn, event_id, truth, ts, place
+        self.names = names or {}
         self._cache: dict = {}
+
+    def underneath(self, pid: str, addressee: str = "") -> dict | None:
+        """What is under what `pid` shows, if it can be traced and has not been said yet (narrative/inner_state.py); None without a world."""
+        key = ("inner", pid, addressee)
+        if key not in self._cache:
+            if self.conn is None or not pid or not INNER_SUBTEXT:
+                self._cache[key] = None
+            else:
+                from narrative.inner_state import inner_subtext
+                self._cache[key] = inner_subtext(self.conn, pid, self.event_id, addressee, self.names)
+        return self._cache[key]
 
     def rel(self, a: str, b: str, field: str) -> float:
         key = ("rel", a, b, field)
@@ -292,7 +309,7 @@ def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str
     """{"say", "stance", and where there are: "answer", "subtext", "reactions": [{"who", "say"}]} or None for what nobody says aloud."""
     t = json.loads(truth) if isinstance(truth, str) else truth
     names = names or {}
-    c = Ctx(conn, event_id, t, ts, place)
+    c = Ctx(conn, event_id, t, ts, place, names)
     a, b = _who(t, "actor"), _who(t, "target") or _who(t, "victim") or _who(t, "suspect")
     reason = t.get("reason") or ""
     kind, _, stance = reason.partition(":")
@@ -360,12 +377,33 @@ def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str
             out = {"say": text, "stance": SELF_STANCE.get(etype, "self")}
     if out is not None and not out.get("say"):
         out = None
+    if out is not None:
+        _with_inner(c, out, etype, a, b)
     if out is None:
         from narrative.lines import line
         return line(event_id, etype, t, names)         # a domain's event says what the domain gives it
     if t.get("outcome") in OUTCOME and etype in ("accuse", "confront"):
         out["answer"] = _pick(OUTCOME[t["outcome"]], c, b, a, "ans")
     return out
+
+
+GENERIC_SUBTEXT = ("心裡有事，沒說出口", "壓著火氣")      # what a bare emotion gives; a traced reading says more and replaces them
+
+
+def _with_inner(c: Ctx, out: dict, etype: str, a: str, b: str) -> None:
+    """Hang on a line what is underneath the speaker's feeling, where it can be traced to the event that made it (and has not been said)."""
+    from narrative.inner_state import ALONE, VOICED_ON
+    if etype not in VOICED_ON or not a:
+        return                                       # (a thing taken, a goal changed, a drill: murmurs that do not carry a feeling out)
+    if out.get("subtext") and out["subtext"] not in GENERIC_SUBTEXT:
+        return                                       # the relationship already gave this line its subtext
+    state = c.underneath(a, "" if etype in ALONE else b)
+    if state is None:
+        return
+    from narrative.inner_state import phrase
+    out["subtext"] = phrase(state)
+    out["inner"] = {"surface": state["surface"], "underneath": state["underneath"], "because": state["because"],
+                    "confidence": state["confidence"], "rule": state["rule"]}
 
 
 def _duel(c: Ctx, t: dict, a: str, b: str, names: dict) -> dict:

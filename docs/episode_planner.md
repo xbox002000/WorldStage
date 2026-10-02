@@ -119,3 +119,94 @@ record). The planner does not invent it. Shot variety rose with the A/B story, w
 
 Not done: the provider-side translation of intents and the character/scene bible (phase 8); the season grammar (one node per episode,
 one arc closed per season) is still the producer's, not the planner's.
+
+## Into the packet: the A story, the B story and the ordinary moment are filmed (2026-10-02)
+
+Until now the B story and the texture existed only in `episode_plan.json` and the control room; a packet was one thread's scenes. Now
+`DailyConfig(episode_first=True, episode_ab=True)` (both off by default) films them. Files: `production/episode_packet.py`,
+`contracts/episode_packet.py` (`EpisodePacketMap`), `episode_packet_lab.py`, `tests/test_episode_packet.py`.
+
+```text
+Options(ab_story=True) -> Material (A arc, B arc, texture) -> compose(): plan -> filmed beats, in the plan's order -> one arc
+  -> SceneSpec -> DirectorPlan (each beat's intent added to its functions) -> ProductionPacket   +   EpisodePacketMap beside it
+```
+
+- **The compiler is not touched.** The packet is what `compile_packet` always made from a SceneSpec whose beats are the plan's filmed beats
+  (A, B and texture, in the plan's order: by event id, so the story lines interleave as they happened). Every shot's `function` is one
+  word of the closed `ShotIntent` list and its `intent` text starts with it ("escalate: pressure closing in"); a test scans all of them
+  for model words (cinematic, 8k, lens, ...) and finds none.
+- **Which beat and which story line a shot belongs to is in a map beside the packet, not a field in it**: `episode_packet_map.json`
+  (packet hash, plan hash, per shot: beat index, story A/B/texture, intent, event; per beat: how many shots it got; what was cut and why).
+  *This deviates from "the packet records it"*, and the reason is the byte-for-byte requirement below: any field added to `Shot`
+  changes every packet's bytes, the schema and `PACKET_VERSION`. A provider's compiler reads packet and map together by `packet_hash`.
+- **The beats the plan does not film are not filmed**: a scene in which nothing changed (the planner's rule) used to be filmed anyway when
+  the daily job followed a plan (it filmed the whole arc and passed intents only for the changed scenes).
+- The reaction beat (`bystander_shock`) is told after the beat it reacts to. (The first version of the daily job built `{event: [intent]}`
+  with a dict comprehension, so an event with two beats kept only the last intent: face_slap was replaced by bystander_shock. That
+  happens to 27 events in the 111 episodes below. `episode_first` without `episode_ab` still does that; it was left as it was.)
+
+### Length: there was no budget, so there is one now
+
+Nothing in the code limited an episode's length (an episode was as long as its scenes). More scenes need a limit, and it should be anchored
+to what is filmed today, not to what the A/B episode turns out to be: **`BODY_SECONDS_BUDGET = 30 s` of shots** (the title card, the recap
+and the ending are the style's, about 5 s more). Today's longest single-story packet over the 8 seeds is 29 s (thread director) and
+30 s (planner). Rule, when an A/B episode is over it: **cut the texture first; then the B story's earlier scene; then the rest of the B
+story; the A story is never cut** (if it alone is over, the map says `over_budget`; that never happened in 111 episodes). A cut is made by
+planning the episode again without those scenes, so the curve and the breath in the plan are those of what is filmed; the map's `trimmed`
+lists what went and why, and `source_plan_hash` names the uncut plan. Tests: texture goes first, B only after texture, the earlier B scene
+before the later, A is never cut, within the budget nothing is cut.
+
+### Measured (episode_packet_lab.py: seeds 501..508, jianghu_story_v1, 14 days, greedy producer, no spatial runtime)
+
+Each arm tells its own fortnight (its own memory of what it has shown). `off` = the thread director's pick (today's default), `first` =
+`episode_first` with the single-story planner (what the daily job does with that flag), `ab` = `episode_first` + `episode_ab`, shown with
+no budget and with the 30 s budget. Only packets were compiled; nothing was rendered.
+
+| 112 days | off | first | ab, no budget | **ab, 30 s** |
+|---|---|---|---|---|
+| episodes | 112 | 111 | 111 | **111** |
+| shots per episode (mean / p90 / max) | 7.1 / 10 / 13 | 7.5 / 10 / 12 | 10.1 / 13 / 17 | **9.6 / 12 / 14** |
+| seconds of shots (mean / p90 / max) | 16.6 / 24 / 29 | 18.4 / 24 / 30 | 24.2 / 33 / 43 | **23.2 / 29 / 30** |
+| episodes over 30 s | 0 | 0 | 17 (15%) | 0 |
+| distinct shot intents in the packet (mean) | 3.29 | 3.94 | 4.54 | **4.41** |
+| packets with a single intent | 0 | 0 | 0 | 0 |
+| packets with two intents or fewer | 6.2% | 4.5% | 0% | 0% |
+| share of `escalate` among the shots | 39% | 34% | 37% | 37% |
+| distinct intents of the *plan's beats* (mean) | n/a | 2.05 | 3.03 | **2.89** |
+| plans whose beats have a single intent | n/a | 48.6% | 3.6% | **7.2%** |
+| dry-run, every shot a model would want, kling_3_pro (USD, nothing sent) | 2.55 | 2.42 | 3.51 | **3.40** |
+
+Of the 111 A/B episodes: 84 film a B story (88 had one planned), 82 film texture (100 planned); of the 1070 shots, 667 are A, 282 B and
+121 texture (seconds per episode: A 14.9, B 5.7, texture 2.7). 18 episodes were trimmed (texture in 18, B as well in 10); the A story was
+never cut. 69 of 681 filmed beats (10%) got no shot from the director's shot economy; they are in the map with `shots: 0` and a note.
+
+### What did not hold
+
+- **"Single-intent packets" was never a packet problem.** The planner's single-intent measure is about its *beats* (48.6% of single-story
+  plans, 7.2% with A/B: the earlier 51% to 5% holds). In the packet the director's own coverage (orient, escalate with its reaction
+  shot, connect ...) already gives every episode at least two intents, so the packet measure is 0% in every arm and the rise in kinds
+  (3.94 to 4.41) is modest. The share of `escalate` hardly moves (34% to 37%).
+- **The A story gets less screen time**, not more: 14.9 s per episode against 18.4 s, because the plan does not film its scenes in which
+  nothing changed. The extra 4.8 s per episode (+26%) is the B story and the ordinary moment, minus what the A story lost.
+- **Dry-run cost +40%** if every shot a model would want were sent (2.42 to 3.40 USD per episode at kling_3_pro's listed price). Nothing
+  was sent; production/dryrun.py has no code that sends anything. The model budget is the user's call.
+- **Order is by time, not by importance**: the plan orders beats by event id, so an episode may open on the B story (its scenes happened
+  first) and the A story arrives later; the packet marks the change of story only by the cut (a dissolve when the day changes, else a plain
+  cut) and by the map. The whole packet keeps the A story's focalizer: B scenes are shown as the audience's, not through B's own people.
+  Whether that reads as two stories or as a jumble is not measured here (nobody has watched it).
+- **There is no byte-for-byte test against HEAD, and none can be.** A SceneSpec records `ruleset_hash`, which covers every `contracts/*.py`
+  and `world/**/*.py`; the packet records `compiler.hash` over `narrative/compiler.py`, `direction.py` and `contracts/packet.py`. Any new
+  contract file (this one, and the bible's) therefore changes every packet's hash while no shot moves. What was checked instead: the packet
+  without its provenance hashes (`scene_hash`, `compiler`, `direction_hash`, `performance_hash`, `runtime_hash`, `packet_hash`) of the
+  pristine HEAD (a `git archive`) and of this tree: the 20 packets of the daily job (seeds 17 and 502, `episode_first` off and on, 5 days each, with the runtime and the performance plan, `render=False`) are identical, byte for byte (741,942 bytes of canonical JSON), and so are the 4 packets of the `Fingerprint` test's seeded fortnight (golden `ab4a86644a85fd74a273763e`). The compile path (`narrative/compiler.py`, `direction.py`,
+  `contracts/packet.py`) is not edited by this work. A permanent test (`Fingerprint`) pins that content for a seeded fortnight, and
+  `Off` pins that `make_episodes` without a composition is the documented steps and has no map.
+- **A HEAD bug blocks payoff episodes with a succession or a new faction, with or without this work**: `world/domains/factions.py` gives
+  those two events `describe="{who}..."` but a packet's caption fills `{a}`, `{b}`, `{thing}` (narrative/compiler.py:118), so compiling any
+  packet that holds one raises `KeyError('who')`. The fortnights above only run because the lab (and the test module) patch the two
+  strings at run time; a real `episode_first` day on such an event crashes today. The fix is two words (`{who}` to `{a}`); it is outside
+  this work's files and was not made.
+- `episode_first` still writes a `director_plan.json` without the plan's intents (the packet's own plan has them); for `episode_ab`
+  the file is written with them. Not changed for the single-story option.
+- The A story's unfilmed (nothing-changed) scenes are not recorded as shown, so a later day's arc may offer them again; the planner drops
+  them again. Harmless, not fixed.

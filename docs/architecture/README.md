@@ -15,6 +15,7 @@ an earlier design doc already records the decision, it is linked rather than cop
 | 08 | Spatial whitebox | [08-spatial-whitebox.md](08-spatial-whitebox.md) |
 | 09 | Render → Diagnose → Repair | [09-render-diagnose-repair.md](09-render-diagnose-repair.md) |
 | 10 | Experiments | `production/experiment.py` (a frozen config per experiment id), [../experiment_A.md](../experiment_A.md) |
+| 11 | Provider conformance and the Bible (attaching a video model) | [provider_conformance.md](provider_conformance.md) |
 
 ## The pipeline as built
 

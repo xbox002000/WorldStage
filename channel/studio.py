@@ -37,6 +37,19 @@ STUDIO_VERSION = 1
 LOCK = threading.Lock()   # one simulation at a time (SQLite stays on one thread)
 TIES = ("trust", "affection", "respect", "resentment", "attraction")
 
+# -- the character timeline (read model, `timeline` in studio.json): which events count as a moment in somebody's life ---------------
+TIMELINE_VERSION = 1
+TIMELINE_KINDS = ("payoff", "love", "growth", "outburst", "betrayal", "duel", "switch", "goal", "turn")   # the page has a word and a mark for each
+LOVE = ("confession", "date", "break_up")                  # confess / date / break up
+OUTBURSTS = ("shove", "strike", "smash", "break_down")     # losing control (world/domains/body.py)
+GOAL_TO = ("formed", "transformed", "abandoned", "completed")
+TURN_FIELDS = ("affection", "respect")                     # whose feeling about somebody flipped sign
+TURN_DEAD = 0.15                                           # a feeling must pass +/-0.15 to count as a side (no flip-flopping around zero)
+SAYING = {"breakthrough": "的功力有了突破"}                  # events whose caption (runtime/godview.py) is still the bare event type
+# how pleasant each emotion is, for the mood curve: the minutes of a day spent in each, weighted by this
+VALENCE = {"happy": 1.0, "proud": 0.8, "relieved": 0.6, "curious": 0.4, "calm": 0.15, "tired": -0.2, "uneasy": -0.4, "embarrassed": -0.45,
+           "ashamed": -0.7, "scared": -0.7, "sad": -0.75, "angry": -0.8, "hurt": -0.85}
+
 
 class Studio:
     def __init__(self, out: Path, seed: int | None = None, days: int = 0, recipe: str = "jianghu_story_spatial_v1", strategy: str = "greedy",
@@ -57,6 +70,9 @@ class Studio:
         self.shown: set[int] = set()
         self.recent: tuple = ()
         self.days: list[dict] = []
+        self.tl = {"places": {}, "events": {}, "people": {}}   # the character timeline, filled one day at a time (a read model, never written back)
+        self._emo: dict[str, str] = {}                           # a person's emotion at the start of the next day
+        self._side: dict[tuple, int] = {}                        # (who feels, about whom, field) -> the side of zero they were last on
         self.advance(days)
 
     # -- running -------------------------------------------------------------------------------------------------------
@@ -92,6 +108,150 @@ class Studio:
             "payoffs": [self._payoff(p, names) for p in found],
             "events": self.conn.execute("SELECT COUNT(*) FROM events WHERE timestamp >= ? AND timestamp < ?", (day * 1440, (day + 1) * 1440)).fetchone()[0],
         })
+        self._timeline_day(day, episode, found, names)
+
+    # -- the character timeline: one row per person, one cell per day ---------------------------------------------------------------
+    def _timeline_day(self, day: int, episode: dict | None, found: list[dict], names: dict) -> None:
+        """Add today to everybody's timeline: the mood, the part in the episode, the moments that matter (a payoff, a confession, a
+        breakthrough, losing control, a betrayal, a duel, going over to another side, a new goal) and the turns in how others feel
+        about them. It only reads the world. Every moment keeps the event it comes from and, when that event is on screen in today's
+        episode, the scene (beat), so the page can go straight there."""
+        from world.domains import factions as F
+        c, lo, hi = self.conn, day * 1440, (day + 1) * 1440
+        humans = F.humans(c)
+        hs = set(humans)
+        tl = self.tl
+        for p in humans:
+            tl["people"].setdefault(p, {"mood": [], "emo": [], "role": "", "ev": [], "turns": []})
+        beat_of: dict[int, int] = {}      # event -> the scene of today's episode that shows it (an event not on screen is reached through its day)
+        for b in (episode or {"beats": []})["beats"]:
+            if b["shoot"]:
+                for eid in b["event_ids"]:
+                    beat_of.setdefault(eid, b["index"])
+        rows = {r["event_id"]: r for r in c.execute("SELECT event_id, type, timestamp, location_id, truth FROM events WHERE timestamp >= ? AND timestamp < ? ORDER BY event_id", (lo, hi))}
+        part: dict[int, list] = {}
+        for eid, pid, role in c.execute("SELECT p.event_id, p.person_id, p.role FROM event_participants p JOIN events e USING (event_id) WHERE e.timestamp >= ? AND e.timestamp < ?", (lo, hi)):
+            part.setdefault(eid, []).append((pid, role))
+        picked: dict[tuple, dict] = {}    # (event id, kind) -> the moment
+
+        def clock(r) -> str:
+            return f"{(r['timestamp'] % 1440) // 60:02d}:{(r['timestamp'] % 1440) % 60:02d}"
+
+        def place(r, rec: dict) -> None:
+            if r["location_id"]:
+                rec["plid"] = r["location_id"]
+                tl["places"][r["location_id"]] = names.get(r["location_id"], r["location_id"])
+            if beat_of.get(r["event_id"]) is not None:
+                rec["b"] = beat_of[r["event_id"]]
+
+        def take(eid: int, kind: str, who: list[str], note: str = "", extra: str = "", hero: str = "") -> None:
+            who = [w for w in dict.fromkeys(who) if w in hs]
+            if not who:
+                return
+            r = rows[eid]
+            rec = picked.get((eid, kind))
+            if rec is None:
+                cap = caption(r["type"], json.loads(r["truth"]), r["location_id"] or "", names)
+                if r["type"] in SAYING and cap.endswith(r["type"]):
+                    cap = cap[:-len(r["type"])] + SAYING[r["type"]]
+                rec = picked[(eid, kind)] = {"id": eid, "k": kind, "d": day, "t": r["timestamp"] * 60, "c": clock(r), "w": [], "cap": cap}
+                place(r, rec)
+            rec["w"] = sorted(set(rec["w"]) | set(who))
+            for key, val in (("n", note), ("x", extra), ("h", hero if hero in hs else "")):
+                if val:
+                    rec[key] = val
+
+        def involved(eid: int, truth: dict) -> list[str]:
+            ids = [pid for pid, role in part.get(eid, []) if role in ("actor", "target")]
+            return ids or [x for x in (truth.get("actor"), truth.get("target") or truth.get("victim")) if x]
+
+        paid = {p["event_id"]: p for p in found}
+        for eid, r in rows.items():
+            t, truth = r["type"], json.loads(r["truth"])
+            if eid in paid:
+                p = paid[eid]
+                take(eid, "payoff", [p["protagonist"], p.get("against") or ""], note=p["kind"], hero=p["protagonist"])
+            elif t in LOVE:
+                take(eid, "love", involved(eid, truth), note=truth.get("outcome", "") if t == "confession" else t, hero=truth.get("actor", "") if t == "confession" else "")
+            elif t == "breakthrough":
+                take(eid, "growth", [truth.get("actor", "")], hero=truth.get("actor", ""))
+            elif t in OUTBURSTS:
+                take(eid, "outburst", involved(eid, truth), note=t, hero=truth.get("actor", ""))
+            elif (t == "confront" and str(truth.get("outcome", "")).endswith("_exposed")) or (t == "accuse" and truth.get("outcome") in ("caught", "false")) or t == "steal":
+                take(eid, "betrayal", involved(eid, truth), note=truth.get("outcome") or t, hero=truth.get("actor", ""))
+            elif t == "duel":
+                take(eid, "duel", involved(eid, truth), hero=truth.get("winner", ""))
+            elif t == "goal_change" and truth.get("to") in GOAL_TO:
+                take(eid, "goal", [truth.get("actor", "")], note=truth["to"], extra=truth.get("text", ""), hero=truth.get("actor", ""))
+        fname = {r[0]: r[1] for r in c.execute("SELECT faction_id, name FROM factions")}
+        for eid, pid, old, new in c.execute("SELECT d.event_id, d.entity_id, d.old_value, d.new_value FROM event_deltas d JOIN events e USING (event_id) "
+                                            "WHERE d.entity_type = 'affiliation' AND d.field = 'faction_id' AND e.timestamp >= ? AND e.timestamp < ? ORDER BY d.delta_id", (lo, hi)):
+            if old != new:   # founding one, joining, leaving, or going over to another
+                code = "found" if rows[eid]["type"] == "found_faction" else "leave" if not new else "join" if not old else "change"
+                take(eid, "switch", [pid], note=code, extra="、".join(fname.get(x, str(x)) for x in (old, new) if x), hero=pid)
+        # the part each played in today's episode: the lead (the payoff's hero, else who is in most of the scenes that matter), or in it
+        ep_people = [x for x in (episode or {"people": []})["people"] if x in hs]
+        lead = ""
+        if episode:
+            lead = next((p["protagonist"] for p in found if p["protagonist"] in ep_people), "")
+            if not lead:
+                score: dict[str, float] = {}
+                for b in episode["beats"]:
+                    if b["shoot"] and not b.get("derived") and b.get("story") != "texture":
+                        for pid in {x for e in b["event_ids"] for x, _ in part.get(e, []) if x in hs}:
+                            score[pid] = score.get(pid, 0.0) + 1.0 + b["tension"]
+                lead = min((p for p in ep_people if p in score), key=lambda p: (-score[p], p), default="")
+        for pid in humans:
+            tl["people"][pid]["role"] += "L" if pid == lead else "S" if pid in ep_people else "."
+        # the mood of the day: the minutes spent in each emotion, weighted by how pleasant it is
+        changes: dict[str, list] = {}
+        for pid, ts, old, new in c.execute("SELECT d.entity_id, e.timestamp, d.old_value, d.new_value FROM event_deltas d JOIN events e USING (event_id) "
+                                           "WHERE d.entity_type = 'person' AND d.field = 'emotion' AND e.timestamp >= ? AND e.timestamp < ? ORDER BY e.timestamp, d.delta_id", (lo, hi)):
+            changes.setdefault(pid, []).append((ts - lo, old, new))
+        for pid in humans:
+            ch = changes.get(pid, [])
+            cur = self._emo.get(pid) or (ch[0][1] if ch and ch[0][1] else None) or c.execute("SELECT emotion FROM people WHERE id = ?", (pid,)).fetchone()[0]
+            total, last, minutes = 0.0, 0, {}
+            for at, _old, new in ch + [(1440, None, None)]:
+                total += VALENCE.get(cur, 0.0) * (at - last)
+                minutes[cur] = minutes.get(cur, 0) + at - last
+                cur, last = new or cur, at
+            self._emo[pid] = cur
+            # the feeling the day is remembered by: the strongest one held for an hour or more (the people settle back to calm overnight)
+            held = [e for e, m in minutes.items() if m >= 60]
+            main = max(held, key=lambda e: (abs(VALENCE.get(e, 0.0)) * minutes[e], e), default="calm")
+            tl["people"][pid]["mood"].append(round(total / 1440, 2))
+            tl["people"][pid]["emo"].append(main)
+        # turns: somebody's affection or respect for this person crossed zero (and stayed across it, past the dead zone)
+        side = lambda v: 1 if v >= TURN_DEAD else -1 if v <= -TURN_DEAD else 0  # noqa: E731
+        turns: dict[tuple, dict] = {}
+        for ent, fld, old, new, eid in c.execute("SELECT d.entity_id, d.field, d.old_value, d.new_value, d.event_id FROM event_deltas d JOIN events e USING (event_id) "
+                                                 f"WHERE d.entity_type = 'relationship' AND d.field IN ({','.join('?' * len(TURN_FIELDS))}) AND e.timestamp >= ? AND e.timestamp < ? "
+                                                 "ORDER BY e.timestamp, d.delta_id", (*TURN_FIELDS, lo, hi)):
+            who, about = ent.split(":", 1)
+            if who == about or who not in hs or about not in hs or old is None or new is None:
+                continue
+            key = (who, about, fld)
+            before, now = self._side.get(key, side(float(old))), side(float(new))
+            if now:
+                if before and now != before:
+                    r = rows[eid]
+                    turns[key] = {"e": eid, "d": day, "t": r["timestamp"] * 60, "c": clock(r), "o": who, "f": fld, "y": now, "a": round(float(old), 2), "z": round(float(new), 2)}
+                    place(r, turns[key])
+                self._side[key] = now
+            else:
+                self._side.setdefault(key, before)
+        for key, turn in sorted(turns.items(), key=lambda kv: (kv[1]["t"], kv[0])):
+            tl["people"][key[1]]["turns"].append(turn)
+        for rec in sorted(picked.values(), key=lambda r: (r["t"], r["id"], r["k"])):
+            tl["events"][f"{rec['id']}:{rec['k']}"] = rec
+            for pid in rec["w"]:
+                tl["people"][pid]["ev"].append(f"{rec['id']}:{rec['k']}")
+
+    def timeline(self) -> dict:
+        t = self.tl
+        return {"version": TIMELINE_VERSION, "days": len(self.days), "places": t["places"], "people": t["people"],
+                "events": sorted(t["events"].values(), key=lambda r: (r["t"], r["id"], r["k"]))}
 
     def _names(self) -> dict:
         names = _names(self.conn)
@@ -184,7 +344,7 @@ class Studio:
         doc = {"version": STUDIO_VERSION, "meta": {"seed": self.seed, "recipe": self.recipe, "strategy": self.strategy, "days": len(self.days), "title": self.title,
                                                      "week_budget": led.week_budget if led else 0},
                "days": self.days, "people": self.people(), "world3d": self._world3d(),
-               "totals": payoff.summary(self.conn)}
+               "totals": payoff.summary(self.conn), "timeline": self.timeline()}
         self.json.write_text(canonical_json(doc), encoding="utf-8")
         from render.studio.build import build
         build(self.json, self.out / "site")
@@ -264,6 +424,11 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_error(404)
         except (ValueError, KeyError) as e:
             self._json(400, {"error": str(e)})
+
+    def end_headers(self) -> None:
+        # the page is rebuilt whenever the code changes: a browser that kept an old script next to a new page shows buttons that do nothing
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
 
     def log_message(self, *args) -> None:
         pass

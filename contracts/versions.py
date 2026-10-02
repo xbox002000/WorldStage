@@ -19,8 +19,11 @@ VERSIONS = {
     "pacing_model": "pacing_v0.1",                  # narrative/pacing.py PACING_VERSION (a draft)
     "episode_plan_contract": 1,           # contracts/episode_plan.py EPISODE_PLAN_VERSION
     "episode_planner": "episode_planner_v0.2",      # narrative/episode_planner.py PLANNER_VERSION (a draft)
+    "episode_packet_contract": 1,        # contracts/episode_packet.py EPISODE_PACKET_VERSION
     "speech_model": "speech_v0.1",                  # narrative/speech.py SPEECH_VERSION (a draft; a read model)
     "narrative_state": "narrative_state_v0.1",      # narrative/state.py STATE_VERSION (a draft; a read model)
+    "inner_state": "inner_state_v0.1",              # narrative/inner_state.py INNER_VERSION (a draft; a read model)
     "novelty_model": "novelty_v0.1",                # narrative/novelty.py NOVELTY_VERSION (a draft)
     "debt_model": "debt_model_v0.1",                # narrative/debt.py DEBT_VERSION (a draft; a read model, not used by the director)
+    "bible_contract": "bible_v0.1",                 # contracts/bible.py BIBLE_VERSION (a draft; the cast and places a provider is told about)
 }

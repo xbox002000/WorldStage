@@ -52,7 +52,7 @@ const hue = (name) => { let h = 0; for (const c of String(name)) h = (h * 31 + c
 const avatar = (name) => `<span class="av" style="background:hsl(${hue(name)} 45% 42%)" title="${esc(name)}">${esc(String(name).slice(-2))}</span>`;
 
 let D = null;
-const S = { day: 0, filter: "all", tab: "producer", person: null, scene: null, step: null, view: "story", frameReady: false, pending: null };
+const S = { day: 0, filter: "all", tab: "producer", person: null, scene: null, step: null, view: "story", frameReady: false, pending: null, tlPerson: null, tlHide: new Set() };
 
 /* ---------- loading ---------- */
 async function load() {
@@ -328,7 +328,7 @@ function personDetail(p) {
   const parts = Object.entries(p.debt_parts).filter(([, v]) => v > 0);
   return `<button class="back" data-p="">← 回到所有人物</button>
   <div class="card sec"><h3>${avatar(p.name)} ${esc(p.name)}<span class="dim" style="font-weight:400">${p.age ? p.age + " 歲 ・ " : ""}${emo(p.emotion)}</span></h3>
-    ${D.world3d ? `<button class="seek" data-seek-t="${S.day * 86400 + 8 * 3600}" data-seek-who="${p.id}" style="margin-bottom:8px">在現場看他（第 ${S.day + 1} 天早上）</button>` : ""}
+    <div class="row2" style="margin-bottom:8px">${tlOn() && D.timeline.people[p.id] ? `<button class="tlbtn" data-tl="${esc(p.id)}" title="他在整段世界裡每一天的時間軸">看他的時間軸</button>` : ""}${D.world3d ? `<button class="seek" data-seek-t="${S.day * 86400 + 8 * 3600}" data-seek-who="${p.id}">在現場看他（第 ${S.day + 1} 天早上）</button>` : ""}</div>
     <div class="bars"><div class="bl"><span>真實武功</span><span class="track"><i style="width:${pct(p.ability)}%"></i></span><span>${pct(p.ability)}</span></div>
     <div class="bl"><span>眾人以為</span><span class="track"><i class="${p.ability - p.crowd >= 0.12 ? "under" : ""}" style="width:${pct(p.crowd)}%"></i></span><span>${pct(p.crowd)}</span></div>
     <div class="bl"><span>魅力</span><span class="track"><i style="width:${pct(p.charm)}%"></i></span><span>${pct(p.charm)}</span></div></div></div>
@@ -347,11 +347,31 @@ function setView(v) {
   S.view = v; document.body.dataset.view = v;
   document.querySelectorAll("#views button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.v === v)));
   $("#worldView").hidden = v !== "world";
+  $("#timelineView").hidden = v !== "timeline";
+  if (v === "timeline") { renderTimeline(); window.scrollTo({ top: 0 }); }
   if (v === "world") {
     const f = $("#worldFrame");
     if (!f.getAttribute("src")) { S.frameReady = false; f.src = "world/index.html?embed=1"; }
+    watchFrame();
     flush();
   } else window.scrollTo({ top: 0 });
+}
+/* a blank frame is never silent: say why (a file: page cannot load the 3D modules), and offer a reload when it does not answer */
+let frameTimer = null;
+function watchFrame() {
+  const note = $("#worldNote"); clearTimeout(frameTimer);
+  if (location.protocol === "file:") {
+    note.hidden = false;
+    note.innerHTML = "這一頁是用檔案直接打開的，瀏覽器不讓它載入 3D。請改用伺服器打開：<code>python -m channel.studio --preset jianghu</code>，再開 http://127.0.0.1:8795/ 。";
+    return;
+  }
+  if (S.frameReady) { note.hidden = true; return; }
+  frameTimer = setTimeout(() => {
+    if (S.frameReady || S.view !== "world") return;
+    note.hidden = false;
+    note.innerHTML = `3D 現場超過 10 秒沒有回應（可能是瀏覽器沒開啟 WebGL，或伺服器已經關了）。<button class="seek" id="frameReload">重新載入 3D</button>`;
+    $("#frameReload").onclick = () => { note.hidden = true; S.frameReady = false; $("#worldFrame").src = "world/index.html?embed=1&r=" + Date.now(); watchFrame(); };
+  }, 10000);
 }
 function flush() {
   const f = $("#worldFrame");
@@ -379,9 +399,132 @@ function seek(t, place, who) {
 }
 window.addEventListener("message", (e) => {
   if (e.origin !== location.origin || !e.data) return;
-  if (e.data.type === "ready") { S.frameReady = true; flush(); }
+  if (e.data.type === "ready") { S.frameReady = true; $("#worldNote").hidden = true; flush(); }
   if (e.data.type === "story") { const day = Math.floor(e.data.t / 86400); setView("story"); select(Math.min(day, D.days.length - 1), true); }
 });
+
+/* ---------- the character timeline: one person across the whole world ---------- */
+const TLK = {   // kind -> [name, glyph]
+  payoff: ["爽點", "★"], love: ["愛情", "♥"], growth: ["突破", "▲"], outburst: ["失控", "⚡"], betrayal: ["背叛與揭穿", "✕"],
+  duel: ["比武", "⚔"], switch: ["改投", "⇄"], goal: ["目標改變", "◎"], turn: ["關係轉折", "↻"],
+};
+const TLN = {   // what the note on a moment says
+  love: { accepted: "告白成功", declined: "告白被婉拒", date: "約會", break_up: "分手" },
+  outburst: { shove: "推了人", strike: "動手打人", smash: "砸東西", break_down: "崩潰" },
+  betrayal: { lie_exposed: "謊言被揭穿", distortion_exposed: "扭曲被揭穿", concealment_exposed: "隱瞞被揭穿", caught: "人贓俱獲", false: "冤枉了人", steal: "偷竊" },
+  switch: { found: "成立派系", join: "加入", leave: "離開派系", change: "改投別人" },
+  goal: { formed: "立下目標", transformed: "目標轉變", abandoned: "放棄目標", completed: "完成目標" },
+  payoff: PAYOFF,
+};
+const tlOn = () => !!(D.timeline && D.timeline.people);
+let tlCache = null;
+function tlIndex() {
+  if (!tlCache || tlCache.src !== D.timeline) tlCache = { src: D.timeline, by: Object.fromEntries(D.timeline.events.map((e) => [`${e.id}:${e.k}`, e])) };
+  return tlCache.by;
+}
+function tlItems(pid) {   // every moment and every turn of one person, in time order; unknown fields and kinds are tolerated
+  const p = D.timeline.people[pid]; const by = tlIndex();
+  const ev = (p.ev || []).map((k) => by[k] && { ...by[k], key: k }).filter(Boolean);
+  const turns = (p.turns || []).map((t) => ({ ...t, k: "turn", id: t.e, key: `t${t.e}:${t.o}:${t.f}` }));
+  return [...ev, ...turns].sort((a, b) => a.t - b.t || String(a.k).localeCompare(b.k));
+}
+function tlRole(it, pid) {   // what the person was in that moment, in words
+  if (it.k === "payoff") return it.h === pid ? "他是主角" : "他是對手";
+  if (it.k === "duel") return it.h === pid ? "他贏了" : "他輸了";
+  if (it.k === "love" || it.k === "outburst" || it.k === "betrayal") return it.h ? (it.h === pid ? "他主動" : "他是對方") : "";
+  return "";
+}
+function tlText(it) {
+  if (it.k === "turn") return `${nameOf(it.o)}對他的${(REL[it.f] || [it.f])[0]}翻${it.y > 0 ? "正了" : "負了"}（現在 ${sgn(it.z)}）`;
+  const note = (TLN[it.k] || {})[it.n]; const cap = it.cap || "";
+  return cap + (note && !cap.includes(note) ? `（${note}${it.x ? "：" + it.x : ""}）` : it.x ? `（${it.x}）` : "");
+}
+const tlPlace = (it) => (D.timeline.places || {})[it.plid] || "";
+function tlSeekBtn(it, pid) {
+  const w = D.world3d; if (!w) return "";
+  const out = it.d < w.first_day || it.d > w.last_day;
+  return `<button class="seek${out ? " off" : ""}" data-seek-t="${it.t}" data-seek-place="${esc(it.plid || "")}" data-seek-who="${esc(pid)}" title="${out ? `這一天不在 3D 回放的範圍內（第 ${w.first_day + 1}–${w.last_day + 1} 天）` : "在 3D 世界裡，停在這一刻、這個地方，跟著他"}">▶ 在現場看${out ? "（超出範圍）" : ""}</button>`;
+}
+function tlDefault() {
+  const ids = D.people.map((p) => p.id).filter((id) => D.timeline.people[id]);
+  return ids.slice().sort((a, b) => tlItems(b).length - tlItems(a).length || (a < b ? -1 : 1))[0] || null;
+}
+function tlJump(day, beat, explain) {
+  setView("story"); select(Math.max(0, Math.min(D.days.length - 1, day)), false);
+  if (beat != null && $(`#sc${beat}`)) focusScene(beat);
+  else { window.scrollTo({ top: 0 }); if (explain) toast(`第 ${day + 1} 天：這件事沒有被拍進那一集的場景，已帶你到那一天的集`); }
+}
+function renderTimeline() {
+  const box = $("#tlBody"), bar = $("#tlPeople");
+  if (!tlOn()) {
+    bar.innerHTML = ""; box.innerHTML = `<div class="card sec"><div class="empty">這個世界是舊版程式留下來的，沒有時間軸的資料。重新用 python -m channel.studio 產生一次，就會有。</div></div>`; return;
+  }
+  const T = D.timeline;
+  const ids = D.people.map((p) => p.id).filter((id) => T.people[id]);
+  if (!S.tlPerson || !T.people[S.tlPerson]) S.tlPerson = tlDefault();
+  const pid = S.tlPerson, tp = T.people[pid] || {}, n = (tp.mood || []).length;
+  bar.innerHTML = ids.map((id) => `<button class="tlp" role="tab" data-tp="${esc(id)}" aria-selected="${id === pid}">${avatar(nameOf(id))}<span>${esc(nameOf(id))}</span><span class="cnt" title="重要時刻加關係轉折">${tlItems(id).length}</span></button>`).join("");
+  if (!pid || !n) { box.innerHTML = `<div class="card sec"><div class="empty">還沒有資料</div></div>`; return; }
+  const items = tlItems(pid), kinds = Object.keys(TLK);
+  const role = tp.role || "";
+  const leads = [...role].map((c, i) => (c === "L" ? i : -1)).filter((i) => i >= 0), supports = [...role].filter((c) => c === "S").length;
+  const count = Object.fromEntries(kinds.map((k) => [k, items.filter((x) => x.k === k).length]));
+  const shown = items.filter((x) => !S.tlHide.has(x.k));
+  const person = D.people.find((p) => p.id === pid) || {};
+  const last = (tp.emo || [])[n - 1];
+
+  const avail = Math.max(260, box.clientWidth - 40), LW = avail < 560 ? 60 : 92;
+  const CW = Math.max(46, Math.min(84, Math.floor((avail - LW) / n)));
+  const row = (label, cells, cls = "") => `<div class="tlrow ${cls}"><div class="tlrl">${label}</div>${cells}</div>`;
+  const dayCells = Array.from({ length: n }, (_, d) => {
+    const dd = dayOf(d), ep = dd && dd.episode;
+    return `<button class="tlday" data-jump="1" data-d="${d}" title="第 ${d + 1} 天${ep ? "：" + esc(ep.core_question) : "：沒有集"}"><span class="n">${d + 1}</span><i class="${dd ? kindOf(dd) : "none"}"></i></button>`;
+  }).join("");
+  const roleCells = Array.from({ length: n }, (_, d) => {
+    const c = role[d] || ".", ep = (dayOf(d) || {}).episode;
+    const word = c === "L" ? "主角" : c === "S" ? "配角" : "";
+    return word ? `<button class="tlcell role r${c}" data-jump="1" data-d="${d}" title="第 ${d + 1} 天：他是這一集的${word}${ep ? "。" + esc(ep.core_question) : ""}">${word}</button>`
+      : `<span class="tlcell role r0" title="第 ${d + 1} 天：這一集沒有他">·</span>`;
+  }).join("");
+  // mood: a line through the days; above the middle line the day was pleasant, below it was not
+  const H = 104, MID = H / 2, W = n * CW, X = (d) => d * CW + CW / 2, Y = (v) => MID - Math.max(-1, Math.min(1, v)) * (MID - 12);
+  const mood = tp.mood, pts = mood.map((v, d) => [X(d), Y(v)]);
+  const path = pts.map(([x, y], d) => `${d ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const bands = [...role].map((c, d) => (c === "L" || c === "S" ? `<rect class="band ${c}" x="${d * CW}" y="0" width="${CW}" height="${H}"/>` : "")).join("");
+  const dots = pts.map(([x, y], d) => `<circle class="md ${mood[d] >= 0 ? "pos" : "neg"}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" data-jump="1" data-d="${d}" tabindex="0" role="button" aria-label="第 ${d + 1} 天 ${emo((tp.emo || [])[d])}"><title>第 ${d + 1} 天：${emo((tp.emo || [])[d])}（心情 ${sgn(mood[d])}）</title></circle>`).join("");
+  const moodSvg = `<svg class="tlsvg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="group" aria-label="${esc(nameOf(pid))}每天的心情">${bands}<line class="zero" x1="0" x2="${W}" y1="${MID}" y2="${MID}"/><path class="mline" d="${path}"/>${dots}</svg>`;
+  const marker = (it) => {
+    const [kn, g] = TLK[it.k] || [it.k, "•"]; const cls = it.k === "turn" ? ` ${it.y > 0 ? "up" : "down"} wide` : "";
+    const lab = it.k === "turn" ? `${it.y > 0 ? "↑" : "↓"}${esc(String(nameOf(it.o)).slice(-2))}` : g;
+    return `<button class="tlev k-${esc(it.k)}${cls}" data-jump="1" data-d="${it.d}" data-b="${it.b ?? ""}" data-x="1" title="${esc(kn)}：${esc(tlText(it))}">${lab}</button>`;
+  };
+  const cellsOf = (test) => Array.from({ length: n }, (_, d) => `<div class="tlcell evs">${shown.filter((x) => x.d === d && test(x)).map(marker).join("")}</div>`).join("");
+  const grid = `<div class="tlscroll" tabindex="0" aria-label="時間軸，可以左右捲動"><div class="tlgrid" style="--cw:${CW}px;--lw:${LW}px;--n:${n}">
+    ${row("天", dayCells, "hd")}${row("角色", roleCells)}
+    <div class="tlrow"><div class="tlrl" title="越高越愉快">心情<br><span class="dim">愉快在上</span></div><div class="tlmood" style="grid-column:2 / span ${n}">${moodSvg}</div></div>
+    ${row("重要時刻", cellsOf((x) => x.k !== "turn"))}${row("關係轉折", cellsOf((x) => x.k === "turn"))}</div></div>`;
+  const legend = `<div class="tllegend" role="group" aria-label="哪些標記要顯示">${kinds.map((k) => `<button class="tlf k-${k}" data-tk="${k}" aria-pressed="${!S.tlHide.has(k)}"${count[k] ? "" : ' data-empty="1"'}><span class="g">${TLK[k][1]}</span>${TLK[k][0]}<b>${count[k]}</b></button>`).join("")}</div>`;
+  const byDay = {}; shown.forEach((it) => { (byDay[it.d] = byDay[it.d] || []).push(it); });
+  const list = Object.keys(byDay).map(Number).sort((a, b) => a - b).map((d) => `<div class="tlday-h">第 ${d + 1} 天${role[d] === "L" ? '<span class="tag ao">他是主角</span>' : role[d] === "S" ? '<span class="tag">他是配角</span>' : ""}</div>` +
+    byDay[d].map((it) => {
+      const [kn, g] = TLK[it.k] || [it.k, "•"]; const rw = tlRole(it, pid);
+      const where = [it.c, tlPlace(it)].filter(Boolean).join(" ・ ");
+      return `<div class="tlitem" data-jump="1" data-d="${it.d}" data-b="${it.b ?? ""}" data-x="1" tabindex="0" role="button" aria-label="${esc(tlText(it))}">
+        <span class="tlev k-${esc(it.k)}${it.k === "turn" ? (it.y > 0 ? " up" : " down") : ""} static">${g}</span>
+        <div class="body"><div class="top"><b>${esc(kn)}</b>${rw ? `<span class="tag">${rw}</span>` : ""}<span class="dim sm">${esc(where)}</span></div>
+        <div class="cap">${esc(tlText(it))}</div>
+        ${it.b == null ? '<div class="dim sm">這件事沒有被拍進那一集的場景，會帶你到那一天</div>' : ""}</div>
+        <div class="acts"><span class="go">到這一集</span>${tlSeekBtn(it, pid)}</div></div>`;
+    }).join("")).join("");
+  box.innerHTML = `
+  <div class="card sec tlsum"><div class="who1">${avatar(nameOf(pid))}<div><div class="nm">${esc(nameOf(pid))}</div><div class="dim sm">${person.age ? person.age + " 歲 ・ " : ""}最後一天的心情：${emo(last)}</div></div></div>
+    <div class="facts"><span class="fact yes">主角 ${leads.length} 集</span><span class="fact">配角 ${supports} 集</span><span class="fact no">沒出現 ${n - leads.length - supports} 天</span>
+      <span class="fact">重要時刻 ${items.filter((x) => x.k !== "turn").length} 件</span><span class="fact">關係轉折 ${count.turn} 次</span></div>
+    ${leads.length ? `<div class="leads"><span class="dim sm">他是主角的集：</span>${leads.slice(0, 14).map((d) => `<button class="cg" data-jump="1" data-d="${d}" title="${esc(((dayOf(d) || {}).episode || {}).core_question || "")}">第 ${d + 1} 天</button>`).join("")}${leads.length > 14 ? `<span class="dim sm">…還有 ${leads.length - 14} 集</span>` : ""}</div>` : ""}
+    <div class="row2"><button data-tlperson="${esc(pid)}">到他的人物頁</button>${D.world3d ? `<button class="seek" data-seek-t="${(n - 1) * 86400 + 8 * 3600}" data-seek-who="${esc(pid)}">在現場看他（第 ${n} 天早上）</button>` : ""}</div></div>
+  <div class="card block"><h3>每一天</h3><p class="note">${n} 天，最早的在左邊。底色深的是他當主角的那天，淺的是配角。每個標記都能點，會跳到那一集；圖例可以點，把不想看的種類收起來。</p>${legend}${grid}</div>
+  <div class="card block"><h3>發生了什麼</h3><p class="note">${shown.length ? `照時間順序，${shown.length} 件。點一列，到那一集的那一幕；「在現場看」到 3D 的同一刻。` : "沒有符合的標記（圖例都被收起來了，或這個人還沒有重要的事）。"}</p><div class="tllist">${list}</div></div>`;
+}
 
 /* ---------- switching worlds ---------- */
 async function worldPicker() {
@@ -431,7 +574,7 @@ async function go(n) {
     if (r.status === 409) { toast("這個世界是上次留下來的，只能看，不能再走。換一個世界，或新增一個。"); return; }
     if (!r.ok) throw new Error(r.status);
     const fresh = await (await fetch("studio.json", { cache: "no-store" })).json();
-    D = fresh; window.STUDIO = fresh; renderHeader(); select(D.days.length - 1, false); toast(`世界又走了 ${n} 天`);
+    D = fresh; window.STUDIO = fresh; renderHeader(); select(D.days.length - 1, false); if (S.view === "timeline") renderTimeline(); toast(`世界又走了 ${n} 天`);
     const f = $("#worldFrame"); if (f.getAttribute("src")) { S.frameReady = false; f.src = "world/index.html?embed=1&r=" + Date.now(); }
   } catch (e) {
     toast("這個頁面沒有連到程式。用 python -m channel.studio 啟動，才能讓世界再走一天。");
@@ -446,6 +589,7 @@ function bind() {
   });
   $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; S.tab = b.dataset.t; S.person = null; renderSide(); });
   $("#pane").addEventListener("click", (e) => {
+    const tl = e.target.closest("[data-tl]"); if (tl) { S.tlPerson = tl.dataset.tl; setView("timeline"); return; }
     const p = e.target.closest("[data-p]"); if (p) { S.person = p.dataset.p || null; renderSide(); return; }
     const d = e.target.closest(".pitem"); if (d) select(+d.dataset.d);
   });
@@ -454,6 +598,19 @@ function bind() {
     if (b.dataset.play) { playEpisode(); return; }
     seek(+b.dataset.seekT, b.dataset.seekPlace || undefined, b.dataset.seekWho || undefined);
   });
+  const tlView = $("#timelineView");
+  tlView.addEventListener("click", (e) => {
+    if (e.target.closest(".seek")) return;   // the global handler goes to the 3D world
+    const tp = e.target.closest("[data-tp]"); if (tp) { S.tlPerson = tp.dataset.tp; renderTimeline(); return; }
+    const tk = e.target.closest("[data-tk]"); if (tk) { const k = tk.dataset.tk; if (S.tlHide.has(k)) S.tlHide.delete(k); else S.tlHide.add(k); renderTimeline(); return; }
+    const pp = e.target.closest("[data-tlperson]"); if (pp) { S.tab = "people"; S.person = pp.dataset.tlperson; setView("story"); renderSide(); return; }
+    const j = e.target.closest("[data-jump]"); if (j) tlJump(+j.dataset.d, j.dataset.b === "" || j.dataset.b == null ? null : +j.dataset.b, !!j.dataset.x);
+  });
+  tlView.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.dataset && e.target.dataset.jump && e.target.tagName !== "BUTTON") { e.preventDefault(); e.target.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+  });
+  let rz = null;
+  window.addEventListener("resize", () => { if (S.view !== "timeline") return; clearTimeout(rz); rz = setTimeout(renderTimeline, 150); });
   $("#views").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.v === "world" && !D.world3d) { toast("這個世界沒有 3D 空間（用空間配方 jianghu_story_spatial_v1 啟動）"); return; }

@@ -66,6 +66,10 @@ class DailyConfig:
     # World C: pick the day's material with the episode planner (a payoff the audience waited for, then a choice against oneself,
     # then the best thread) instead of the thread ranking alone. Off by default: it changes which episode a day makes.
     episode_first: bool = False
+    # With episode_first: film the plan's A story, B story and an ordinary moment (the planner's A/B options) as one packet, within the
+    # length budget (production/episode_packet.py), and write an episode_packet_map.json beside it. Off by default: without it the
+    # packet is one story's scenes, exactly as before.
+    episode_ab: bool = False
 
 
 @dataclass(frozen=True)
@@ -137,6 +141,8 @@ def _refuse_real_people(live: Path) -> None:
 def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] | None = None,
               sleep: Callable[[float], None] = time.sleep,
               on_day: Callable[[DayResult], None] | None = None) -> list[DayResult]:
+    if cfg.episode_ab and not (cfg.episode_first and cfg.world_c):
+        raise ValueError("episode_ab films the planner's A/B plan: it needs episode_first and world_c")
     live = Path(cfg.world_db)
     if not live.exists():
         if not cfg.init:
@@ -159,7 +165,7 @@ def run_daily(cfg: DailyConfig, *, client_factory: Callable[[LLMCache], object] 
         conn.close()
 
 
-def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown: set[int], episode_plan=None) -> None:
+def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown: set[int], episode_plan=None, intents=None) -> None:
     """How the chosen scene is staged in space (read-only), for a spatial backend such as Blender later."""
     spec = build_scene_specs(world, [cand], [folder.name])[0]
     plan = compile_spatial(spec)
@@ -167,7 +173,7 @@ def _write_spatial(world: sqlite3.Connection, cand, folder: Path, thread, shown:
     (folder / "spatial_plan.json").write_text(canonical_json(plan), encoding="utf-8")
     (folder / "thread.json").write_text(canonical_json(thread), encoding="utf-8")
     from narrative.direction import plan_direction
-    (folder / "director_plan.json").write_text(canonical_json(plan_direction(world, spec, thread, shown)), encoding="utf-8")
+    (folder / "director_plan.json").write_text(canonical_json(plan_direction(world, spec, thread, shown, intents=intents)), encoding="utf-8")
     if episode_plan is not None:
         (folder / "episode_plan.json").write_text(canonical_json(episode_plan), encoding="utf-8")
 
@@ -226,10 +232,19 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
     world = open_world_reader(live)
     try:
         planned = None   # (kind, payoff, grammar steps) when the episode planner chose the material
+        comp = None      # the composed A/B episode (episode_ab): its plan, its arc (A, B and texture scenes) and its intents
         if cfg.world_c and cfg.episode_first:
             from narrative import episode_planner as ep
             from narrative.selector import Candidate
-            arc, thread, kind, payoff, steps = ep.choose_material(world, day, series.used_event_ids(conn))
+            if cfg.episode_ab:
+                from production import episode_packet as epk
+                shown0 = series.used_event_ids(conn)
+                m = ep.material(world, day, shown0, (), ep.AB)
+                arc, thread, kind, payoff, steps = m.arc, m.thread, m.kind, m.payoff, m.steps
+                comp = epk.compose(world, m, shown0, day, None, ep.AB, cfg.style)
+                arc = arc if comp is None else comp.arc     # a plan that films nothing falls back to the A story's own arc
+            else:
+                arc, thread, kind, payoff, steps = ep.choose_material(world, day, series.used_event_ids(conn))
             cand = None if arc is None else Candidate(arc, payoff["earned"] if payoff else 0.5, {"episode_planner": 1.0})
             planned = (kind, payoff, steps)
         elif cfg.world_c:
@@ -243,20 +258,29 @@ def _one_day(cfg: DailyConfig, live: Path, conn: sqlite3.Connection, client_fact
             if cfg.world_c:
                 from narrative.episode_planner import plan_episode
                 kind, payoff, steps = planned or ("thread", None, None)
-                plan = plan_episode(world, cand.arc, thread, shown, day, kind, payoff, steps)
-                if planned is not None:   # the planner chose it, so what it wants of each scene goes to the director
-                    intents = {i: [b.intent] for b in plan.beats if b.shoot for i in b.event_ids}
+                if comp is not None:
+                    plan, intents = comp.plan, comp.intents
+                else:
+                    plan = plan_episode(world, cand.arc, thread, shown, day, kind, payoff, steps)
+                    if planned is not None:   # the planner chose it, so what it wants of each scene goes to the director
+                        intents = {i: [b.intent] for b in plan.beats if b.shoot for i in b.event_ids}
             (episode,) = make_episodes(world, conn, Path(cfg.out_dir), [cand], scene_ids=[f"day_{day + 1:02d}"],
                                        sim_day=day, orientation=cfg.orientation, style=cfg.style,
                                        quality=cfg.quality, render=cfg.render, route=cfg.look,
                                        threads=[thread] if cfg.world_c else None, shown=shown,
-                                       runtime_cache=str(Path(cfg.out_dir) / "runtime.ckpt"), intents=intents)
+                                       runtime_cache=str(Path(cfg.out_dir) / "runtime.ckpt"), intents=intents,
+                                       compositions=[comp] if comp is not None else None)
             status = ("episode" if episode.episode_id else
                       "render_failed" if episode.qa_status == "render_failed" else "qa_failed")
             if episode.video is not None:
                 LocalPublisher(conn, episode.episode_id).publish(episode.video.parent)
             if cfg.world_c:
-                _write_spatial(world, cand, Path(cfg.out_dir) / f"day_{day + 1:02d}", thread, shown, plan)
+                folder = Path(cfg.out_dir) / f"day_{day + 1:02d}"
+                _write_spatial(world, cand, folder, thread, shown, plan, intents if comp is not None else None)
+                if comp is not None and episode.shot_map is not None:   # the composed packet's record, also when nothing was rendered
+                    (folder / "episode_packet_map.json").write_text(canonical_json(episode.shot_map), encoding="utf-8")
+                    if not (folder / "packet.json").exists():
+                        (folder / "packet.json").write_text(canonical_json(prod.load_packet(conn, episode.packet_hash)), encoding="utf-8")
         conn.execute("INSERT INTO daily_runs(experiment_id, sim_day, world_revision, snapshot_hash, episode_id, status, usage_json, "
                      "created_at) VALUES (?,?,?,?,?,?,?,strftime('%s','now'))",
                      (cfg.experiment, day, revision, snap, episode.episode_id if episode else None, status,

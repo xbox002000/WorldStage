@@ -335,8 +335,8 @@ class Factions(Domain):
         "campaign": EventStyle(caption="向{t}拉票", lines=("這次，請支持我。", "我需要你的一票。"), social=True, say=3.0,
                                beat=("talk", "listen", "focused", "calm", "medium", "static", 4), describe="{a} 向 {b} 拉票", heat=0),
         "succession": EventStyle(caption="位子有了新主人", lines=("從今天起，由他來擔任。",), say=0.0,
-                                 describe="{who}接下了位子", functions=("payoff", "turn"), first_time=True, heat=1),
-        "found_faction": EventStyle(caption="成立派系", describe="{who}拉起了自己的一派", functions=("escalate",), heat=0),
+                                 describe="{a}接下了位子", functions=("payoff", "turn"), first_time=True, heat=1),
+        "found_faction": EventStyle(caption="成立派系", describe="{a}拉起了自己的一派", functions=("escalate",), heat=0),
         "circles": EventStyle(caption="", describe="", heat=0),
     }
 

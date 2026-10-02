@@ -19,6 +19,7 @@ from capability.defaults import default_registry
 from capability.registry import CapabilityRegistry
 from contracts.base import canonical_json
 from contracts.capability import Policy, Requirement
+from contracts.episode_packet import EpisodePacketMap
 from contracts.render_request import RenderRequest, Take
 from contracts.stylepack import SUSPENSE_V1, StylePack
 from narrative.compiler import compile_packet
@@ -29,6 +30,7 @@ from narrative.selector import Candidate, select_top
 from narrative.spatial import compile_spatial
 from production import db as prod
 from production import series
+from production.episode_packet import Composition, build_map
 from production.provenance import file_sha256
 from production.qa import preflight
 from production.shots import ShotOutcome, render_shot
@@ -57,6 +59,7 @@ class EpisodeResult:
     continuity: dict | None = None
     providers: dict | None = None  # capability -> the provider(s) that did the job
     shots: list[ShotOutcome] | None = None  # shots route: per-shot attempts, failures and repairs
+    shot_map: EpisodePacketMap | None = None  # which plan beat and story line each shot is (only for a composed A/B episode)
 
 
 def _pick(conn: sqlite3.Connection, registry: CapabilityRegistry, req: Requirement, policy: Policy):
@@ -92,11 +95,16 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                   style: StylePack = SUSPENSE_V1, quality: str = "looks", render: bool = True, route: str = "procedural",
                   registry: CapabilityRegistry | None = None, policy: Policy = Policy(),
                   threads: list | None = None, shown: set[int] | frozenset[int] = frozenset(),
-                  runtime_cache: str | None = None, intents: dict[int, list[str]] | None = None) -> list[EpisodeResult]:
+                  runtime_cache: str | None = None, intents: dict[int, list[str]] | None = None,
+                  compositions: list[Composition | None] | None = None) -> list[EpisodeResult]:
     """Turn chosen arcs into episodes, one after another (a later episode's recap can cite an earlier one).
 
     With `threads` (one StoryThread per candidate, from the story director) each scene gets a DirectorPlan first,
-    and the packet's shots follow it. `shown`: events earlier episodes showed (what the audience already knows)."""
+    and the packet's shots follow it. `shown`: events earlier episodes showed (what the audience already knows).
+
+    `compositions` (one per candidate, from production/episode_packet.py `compose`): the candidate's arc is an episode plan's A story,
+    B story and ordinary moment; each such packet gets an EpisodePacketMap beside it (which beat and story line every shot is).
+    Without it nothing here differs from before."""
     if route not in ROUTES:
         raise ValueError(f"unknown route {route!r} (one of {ROUTES})")
     registry = registry or default_registry(lambda h: prod.load_packet(conn, h))
@@ -108,11 +116,15 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
         validate_spec(world, spec)
         recap = series.build_recap(conn, spec)
         thread = threads[i] if threads else None
+        comp = compositions[i] if compositions else None
+        if comp is not None and tuple(comp.arc.ids) != tuple(cand.arc.ids):
+            raise ValueError("the composition was made for another arc than the candidate's")
         direction = plan_direction(world, spec, thread, set(shown), intents=intents) if threads else None   # (a day's material with no thread is told plainly)
         performance = plan_performance(world, spec, direction) if direction is not None else None
         runtime = _runtime(world, runtime_cache).trace([b.event_id for b in spec.beats]) if direction is not None else None
         packet = compile_packet(spec, style, orientation, recap=recap, direction=direction, performance=performance,
                                 runtime=runtime)
+        shot_map = build_map(packet, comp) if comp is not None else None
         prod.save_scene_spec(conn, spec)
         prod.save_packet(conn, packet)
         total, w, h = packet.qa.total_seconds, packet.canvas.width, packet.canvas.height
@@ -168,6 +180,8 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
                 (target / "subtitles.srt").write_text(to_srt(packet), encoding="utf-8")
                 (target / "packet.json").write_text(canonical_json(packet), encoding="utf-8")
                 (target / "scene_spec.json").write_text(canonical_json(spec), encoding="utf-8")
+                if shot_map is not None:
+                    (target / "episode_packet_map.json").write_text(canonical_json(shot_map), encoding="utf-8")
                 if direction is not None:
                     (target / "director_plan.json").write_text(canonical_json(direction), encoding="utf-8")
                 episode_id = series.record_episode(
@@ -182,7 +196,7 @@ def make_episodes(world: sqlite3.Connection, conn: sqlite3.Connection, out_dir: 
             qa_status = "render_failed"
         results.append(EpisodeResult(spec.scene_id, spec.title, take.take_id or 0, take.request_hash,
                                      packet.packet_hash, spec.scene_hash, video, hit, qa_status, elapsed,
-                                     episode_id, recap, cand.continuity, providers, shots))
+                                     episode_id, recap, cand.continuity, providers, shots, shot_map))
     return results
 
 

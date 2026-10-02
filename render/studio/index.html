@@ -18,6 +18,7 @@
   </div>
   <nav id="views" class="seg views" role="tablist" aria-label="看哪一邊">
     <button data-v="story" role="tab" aria-selected="true">導播室</button>
+    <button data-v="timeline" role="tab" aria-selected="false" title="選一個人，看他在整段世界裡的每一天">角色時間軸</button>
     <button data-v="world" role="tab" aria-selected="false" title="同一個世界，3D 的現場">世界現場（3D）</button>
   </nav>
   <div id="chips" class="chips" aria-label="這個世界"></div>
@@ -39,6 +40,8 @@
       <p>每一欄是一天。柱子越高，這集的張力越高。柱子下面的圓點：<b>實心</b>是製作人那天出了手，<b>空心</b>是它刻意不動；星號是那天有爽點。</p></div>
     <div><h3>這一集</h3>
       <p>曲線是張力的起伏，每個點是一場戲。<b>不拍</b>的是什麼都沒改變、或沒人在場的場景。爽文六步亮起來的，是世界真的產生了的；虛線的，是世界沒有產生，這裡不會替它編。</p></div>
+    <div><h3>角色時間軸</h3>
+      <p>每一格是一天。<b>角色</b>那一列：這天他是那一集的主角、配角，還是沒出現。<b>情緒</b>是那天心情的好壞（越高越愉快）。<b>重要時刻</b>是爽點、告白、突破、失控、背叛、比武、改投、目標改變；<b>關係轉折</b>是別人對他的好感或尊重翻過了零。點標記就跳到那一集。</p></div>
     <div><h3>製作人</h3>
       <p>它只能改變「會發生什麼機會」：公告一場比武、送來一件東西、讓位子空出來、指派一個配角。誰贏、誰愛誰，永遠是角色和規則決定的。</p></div>
   </div>
@@ -73,7 +76,16 @@
   </div>
 </main>
 
+<section id="timelineView" hidden aria-label="角色時間軸">
+  <div class="card tlhead">
+    <div class="tltitle"><h2>角色時間軸</h2><span class="hint">選一個人，看他在整段世界裡的每一天；點任何一個標記，會跳到那一集的那一幕。</span></div>
+    <div id="tlPeople" class="tlpeople" role="tablist" aria-label="選一個人"></div>
+  </div>
+  <div id="tlBody" aria-live="polite"></div>
+</section>
+
 <section id="worldView" hidden aria-label="世界現場">
+  <p id="worldNote" class="hint" hidden></p>
   <iframe id="worldFrame" title="世界現場（3D）" loading="lazy"></iframe>
   <p class="hint">這裡是同一個世界。在導播室點「在現場看」，會停在那一幕發生的時間和地點；按「回導播室」回到那一天的集。</p>
 </section>
