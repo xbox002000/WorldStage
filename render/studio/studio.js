@@ -733,5 +733,9 @@ function bind() {
   try { D = await load(); } catch (e) { $("#episode").innerHTML = `<div class="card ephead"><div class="question">讀不到資料</div><p class="dim">用 python -m channel.studio --new 17 --days 14 產生，再開這一頁。</p></div>`; return; }
   const m = /#d=(\d+)/.exec(location.hash); S.day = m ? Math.min(D.days.length - 1, Math.max(0, +m[1] - 1)) : D.days.length - 1;
   bind(); renderHeader(); renderStrip(); renderEpisode(); renderSide(); worldPicker();
+  // a link can open another view: #v=timeline&p=<person id> or #v=world
+  const v = /[#&]v=(timeline|world)/.exec(location.hash), p = /[#&]p=([\w-]+)/.exec(location.hash);
+  if (p) S.tlPerson = p[1];
+  if (v && (v[1] === "timeline" || D.world3d)) setView(v[1]);
 })();
 })();

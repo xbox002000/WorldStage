@@ -717,7 +717,7 @@ class Handler(SimpleHTTPRequestHandler):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="out/studio", help="the folder all the worlds live under")
-    ap.add_argument("--preset", default="jianghu", choices=sorted(PRESETS), help="the world to open first (others are made from the page)")
+    ap.add_argument("--preset", default=None, choices=sorted(PRESETS), help="the world to open first (default jianghu; others are made from the page)")
     ap.add_argument("--new", type=int, default=None, help="world seed (default: the preset's)")
     ap.add_argument("--days", type=int, default=14)
     ap.add_argument("--recipe", default=None, help="override the preset's recipe (jianghu_story_v1 is the same world without space: faster, no 3D)")
@@ -728,11 +728,10 @@ def main() -> None:
     ap.add_argument("--no-serve", action="store_true")
     a = ap.parse_args()
     hub = Hub(Path(a.out))
-    if a.mind:
-        keys = [hub.make_mind(Path(m)) for m in a.mind]
-        key = keys[0]
-    else:
-        key = hub.make(a.preset, a.new, a.days, a.recipe, a.strategy)
+    keys = [hub.make_mind(Path(m)) for m in a.mind or []]
+    if a.preset or not keys:   # --mind alone opens the mind world; with --preset too, both are there and the preset opens first
+        keys.insert(0, hub.make(a.preset or "jianghu", a.new, a.days, a.recipe, a.strategy))
+    key = keys[0]
     hub.front_door(key)
     print("studio", hub.root / key / "studio.json")
     if a.no_serve:
