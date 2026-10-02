@@ -1,0 +1,697 @@
+{
+ "content": "jianghu_drama",
+ "topics": {
+  "swordplay": "劍法",
+  "manuals": "劍譜典籍",
+  "duels": "比武論劍",
+  "tea": "茶",
+  "wine": "酒",
+  "chess": "下棋",
+  "horses": "馬匹",
+  "escort": "鏢局的事",
+  "legends": "江湖傳說",
+  "herbs": "藥草",
+  "rumours": "江湖傳聞",
+  "poetry": "詩詞",
+  "fishing": "垂釣",
+  "cooking": "下廚做菜",
+  "roaming": "浪跡天涯",
+  "cats": "野貓",
+  "zither": "琴曲",
+  "silver": "銀兩",
+  "attire": "衣裳",
+  "ink": "丹青",
+  "sect_rules": "門規",
+  "the_rival_sect": "對頭門派",
+  "elders": "長老訓話",
+  "overtraining": "加練",
+  "noise": "喧嘩吵鬧",
+  "lying": "說謊",
+  "borrowing": "借銀兩",
+  "showing_off": "炫耀武藝",
+  "being_ordered": "被呼來喝去",
+  "prying": "被打聽私事"
+ },
+ "people": [
+  {
+   "id": "ming",
+   "name": "林嘯",
+   "age": 31,
+   "gender": "male",
+   "costume": "青雲門的灰布長衫，腰繫深色束帶",
+   "background": {
+    "birthplace": "朔北黑石堡",
+    "family": "與父親疏遠，父親是退隱的老鏢師，從不稱讚他",
+    "education": "青雲門入門弟子"
+   },
+   "occupation": {
+    "domain": "work",
+    "role": "首席弟子",
+    "place": "qingyun",
+    "superior": "掌門",
+    "duty": "train",
+    "words": {
+     "work": "練功",
+     "superior": "掌門",
+     "overtime": "加練",
+     "praise": "得到掌門的誇獎",
+     "quit": "離開師門",
+     "look": "打聽別的門派",
+     "offer": "收到別派相邀",
+     "accept": "答應了別派",
+     "decline": "婉拒了別派",
+     "lapse": "別派的邀約過期了"
+    }
+   },
+   "interests": {
+    "fishing": 0.8,
+    "legends": 0.7,
+    "duels": 0.5,
+    "swordplay": 0.6
+   },
+   "dislikes": {
+    "being_ordered": 0.8,
+    "lying": 0.6,
+    "showing_off": 0.4
+   },
+   "values": {
+    "ambition": 0.8,
+    "truth": 0.6,
+    "fairness": 0.7,
+    "belonging": 0.4
+   },
+   "habits": [
+    {
+     "when": "after_work",
+     "do": "drink_cold_tea",
+     "label": "收功後灌一壺涼茶"
+    },
+    {
+     "when": "stressed",
+     "do": "polish_sword",
+     "label": "心煩就一遍遍擦劍"
+    },
+    {
+     "when": "angry",
+     "do": "go_quiet",
+     "label": "生氣時反而不說話"
+    }
+   ],
+   "social": {
+    "strangers": "客氣",
+    "friends": "愛逞強",
+    "intimate": "嘴硬",
+    "conflict": "bottle_up"
+   },
+   "core": {
+    "want": "被人肯定，證明自己",
+    "fear": "被人看不起",
+    "wound": "父親從不稱讚他",
+    "false_belief": "只有贏了才值得被尊重",
+    "need": "學會不靠輸贏也能肯定自己",
+    "life_question": "我要怎樣才算夠好？"
+   },
+   "life_goal": "有一天被真正肯定",
+   "season_goal": "今年在門派比試中出頭"
+  },
+  {
+   "id": "mei",
+   "name": "沈青璃",
+   "age": 27,
+   "gender": "female",
+   "costume": "素色布衣配舊披風",
+   "background": {
+    "birthplace": "江南水鄉",
+    "family": "母親盼她留在故鄉",
+    "education": "隨師學過幾年丹青"
+   },
+   "interests": {
+    "roaming": 0.9,
+    "ink": 0.8,
+    "tea": 0.5,
+    "zither": 0.4
+   },
+   "dislikes": {
+    "rumours": 0.7,
+    "prying": 0.8,
+    "noise": 0.5
+   },
+   "values": {
+    "freedom": 0.9,
+    "truth": 0.7,
+    "family": 0.4,
+    "belonging": 0.3
+   },
+   "habits": [
+    {
+     "when": "alone",
+     "do": "sketch",
+     "label": "獨處時就畫幾筆速寫"
+    },
+    {
+     "when": "anxious",
+     "do": "check_travel_pass",
+     "label": "不安時反覆翻看行囊裡的路引"
+    }
+   ],
+   "social": {
+    "strangers": "冷淡",
+    "friends": "直接",
+    "intimate": "若即若離",
+    "conflict": "avoid"
+   },
+   "core": {
+    "want": "離開這片江湖，過自己的人生",
+    "fear": "一輩子困在原地",
+    "wound": "外婆留給她的戒指不見了",
+    "false_belief": "離開就能解決一切",
+    "need": "明白她逃的其實是失去",
+    "life_question": "我該留下還是離開？"
+   },
+   "life_goal": "去遠方的城鎮落腳",
+   "season_goal": "離開這片江湖"
+  },
+  {
+   "id": "jun",
+   "name": "秦硯舟",
+   "age": 29,
+   "gender": "male",
+   "costume": "洗得發舊的灰布長衫",
+   "background": {
+    "birthplace": "南嶺山村",
+    "family": "家裡欠了債，他每月託人捎銀兩回家",
+    "education": "鏢局雜役出身"
+   },
+   "occupation": {
+    "domain": "work",
+    "role": "弟子",
+    "place": "qingyun",
+    "superior": "掌門",
+    "duty": "train",
+    "words": {
+     "work": "練功",
+     "superior": "掌門",
+     "overtime": "加練",
+     "praise": "得到掌門的誇獎",
+     "quit": "離開師門",
+     "look": "打聽別的門派",
+     "offer": "收到別派相邀",
+     "accept": "答應了別派",
+     "decline": "婉拒了別派",
+     "lapse": "別派的邀約過期了"
+    }
+   },
+   "interests": {
+    "chess": 0.8,
+    "duels": 0.6,
+    "silver": 0.5
+   },
+   "dislikes": {
+    "showing_off": 0.8,
+    "borrowing": 0.6,
+    "elders": 0.5
+   },
+   "values": {
+    "security": 0.8,
+    "family": 0.8,
+    "truth": 0.4,
+    "fairness": 0.6
+   },
+   "habits": [
+    {
+     "when": "anxious",
+     "do": "count_money",
+     "label": "焦慮時一遍遍數錢袋裡的銅錢"
+    },
+    {
+     "when": "evening",
+     "do": "play_chess",
+     "label": "夜裡一個人對著棋盤擺到很晚"
+    }
+   ],
+   "social": {
+    "strangers": "防備",
+    "friends": "講義氣",
+    "intimate": "自卑",
+    "conflict": "sulk"
+   },
+   "core": {
+    "want": "還清債，抬得起頭",
+    "fear": "被人看不起他窮",
+    "wound": "小時候被討債的人堵在家門口",
+    "false_belief": "有錢才有尊嚴",
+    "need": "接受幫助不是丟臉",
+    "life_question": "我什麼時候才能不再欠人？"
+   },
+   "life_goal": "讓家裡不再欠債",
+   "season_goal": "攢錢捎回家"
+  },
+  {
+   "id": "lan",
+   "name": "柳含霜",
+   "age": 30,
+   "gender": "female",
+   "costume": "米色的長裙配披肩",
+   "background": {
+    "birthplace": "清河鎮",
+    "family": "和宋清晏曾是結拜姊妹，一次誤會後疏遠",
+    "education": "藥鋪學徒出身"
+   },
+   "interests": {
+    "herbs": 0.8,
+    "cooking": 0.7,
+    "legends": 0.5,
+    "rumours": 0.4
+   },
+   "dislikes": {
+    "lying": 0.7,
+    "noise": 0.4
+   },
+   "values": {
+    "belonging": 0.9,
+    "loyalty": 0.7,
+    "truth": 0.6
+   },
+   "habits": [
+    {
+     "when": "hurt",
+     "do": "tend_herbs",
+     "label": "難過時去侍弄院裡的藥草"
+    },
+    {
+     "when": "lonely",
+     "do": "seek_company",
+     "label": "寂寞時主動去找人說話"
+    }
+   ],
+   "social": {
+    "strangers": "親切",
+    "friends": "黏人",
+    "intimate": "容易受傷",
+    "conflict": "appease"
+   },
+   "core": {
+    "want": "找回和宋清晏的姊妹情",
+    "fear": "被丟下",
+    "wound": "最好的姊妹一夜之間不理她",
+    "false_belief": "是我不夠好，別人才會離開",
+    "need": "明白情分不必用討好換",
+    "life_question": "我還能被原諒嗎？"
+   },
+   "life_goal": "有一群生死與共的朋友",
+   "season_goal": "和宋清晏和好"
+  },
+  {
+   "id": "hao",
+   "name": "顧長風",
+   "age": 33,
+   "gender": "male",
+   "costume": "青雲門的灰布長衫，袖口捲起",
+   "background": {
+    "birthplace": "東海漁港",
+    "family": "大家族，兄弟姊妹眾多，一桌吃飯十幾口",
+    "education": "在客棧幫過工，認得各路人物"
+   },
+   "occupation": {
+    "domain": "work",
+    "role": "弟子",
+    "place": "qingyun",
+    "superior": "掌門",
+    "duty": "train",
+    "words": {
+     "work": "練功",
+     "superior": "掌門",
+     "overtime": "加練",
+     "praise": "得到掌門的誇獎",
+     "quit": "離開師門",
+     "look": "打聽別的門派",
+     "offer": "收到別派相邀",
+     "accept": "答應了別派",
+     "decline": "婉拒了別派",
+     "lapse": "別派的邀約過期了"
+    }
+   },
+   "interests": {
+    "rumours": 0.9,
+    "duels": 0.7,
+    "cooking": 0.6,
+    "tea": 0.6,
+    "wine": 0.5
+   },
+   "dislikes": {
+    "being_ordered": 0.3,
+    "noise": 0.2
+   },
+   "values": {
+    "belonging": 0.9,
+    "loyalty": 0.6,
+    "fairness": 0.5
+   },
+   "habits": [
+    {
+     "when": "happy",
+     "do": "talk_a_lot",
+     "label": "高興時話停不下來"
+    },
+    {
+     "when": "bored",
+     "do": "wander",
+     "label": "無聊就到處串門子"
+    }
+   ],
+   "social": {
+    "strangers": "熱情",
+    "friends": "太黏",
+    "intimate": "大方",
+    "conflict": "appease"
+   },
+   "core": {
+    "want": "被大家需要",
+    "fear": "被排擠",
+    "wound": "少年時被同村的孩子聯手孤立",
+    "false_belief": "知道大家的事，大家就會需要我",
+    "need": "學會分寸",
+    "life_question": "大家是真的喜歡我嗎？"
+   },
+   "life_goal": "身邊永遠熱熱鬧鬧",
+   "season_goal": "和客棧的常客交朋友"
+  },
+  {
+   "id": "yun",
+   "name": "江映月",
+   "age": 26,
+   "gender": "female",
+   "costume": "深色的斗篷，帽沿壓低",
+   "background": {
+    "birthplace": "遠方的小山村",
+    "family": "母親臥病，湯藥錢是一筆重擔",
+    "education": "山村出身，識得幾味草藥"
+   },
+   "interests": {
+    "cats": 0.8,
+    "zither": 0.7,
+    "attire": 0.5,
+    "herbs": 0.6
+   },
+   "dislikes": {
+    "prying": 0.9,
+    "rumours": 0.6,
+    "lying": 0.3
+   },
+   "values": {
+    "security": 0.8,
+    "family": 0.9,
+    "truth": 0.4
+   },
+   "habits": [
+    {
+     "when": "anxious",
+     "do": "twist_ring_finger",
+     "label": "緊張時反覆摩挲自己的手指"
+    },
+    {
+     "when": "alone",
+     "do": "feed_stray_cat",
+     "label": "獨處時去餵後院的野貓"
+    }
+   ],
+   "social": {
+    "strangers": "防備",
+    "friends": "安靜",
+    "intimate": "不敢靠近",
+    "conflict": "avoid"
+   },
+   "core": {
+    "want": "守住秘密，保住現在的生活",
+    "fear": "被發現她拿了沈青璃的戒指",
+    "wound": "當年為了給母親抓藥，一時糊塗",
+    "false_belief": "說出來就什麼都沒了",
+    "need": "承認，才能不再害怕",
+    "life_question": "我還算是好人嗎？"
+   },
+   "life_goal": "讓母親過好日子",
+   "season_goal": "不讓任何人知道戒指的事"
+  },
+  {
+   "id": "kai",
+   "name": "謝臨川",
+   "age": 32,
+   "gender": "male",
+   "costume": "青雲門的灰布長衫，整整齊齊",
+   "background": {
+    "birthplace": "京城",
+    "family": "父母是書院先生，對他期望很高",
+    "education": "讀過幾年書院，後來棄文習武"
+   },
+   "occupation": {
+    "domain": "work",
+    "role": "弟子",
+    "place": "qingyun",
+    "superior": "掌門",
+    "duty": "train",
+    "words": {
+     "work": "練功",
+     "superior": "掌門",
+     "overtime": "加練",
+     "praise": "得到掌門的誇獎",
+     "quit": "離開師門",
+     "look": "打聽別的門派",
+     "offer": "收到別派相邀",
+     "accept": "答應了別派",
+     "decline": "婉拒了別派",
+     "lapse": "別派的邀約過期了"
+    }
+   },
+   "interests": {
+    "fishing": 0.9,
+    "manuals": 0.6,
+    "tea": 0.5
+   },
+   "dislikes": {
+    "showing_off": 0.7,
+    "lying": 0.4,
+    "overtraining": 0.5
+   },
+   "values": {
+    "ambition": 0.8,
+    "fairness": 0.8,
+    "truth": 0.5,
+    "loyalty": 0.5
+   },
+   "habits": [
+    {
+     "when": "stressed",
+     "do": "pace",
+     "label": "心煩就來回踱步"
+    },
+    {
+     "when": "morning",
+     "do": "ask_news",
+     "label": "清早一定先打聽山下傳來的消息"
+    }
+   ],
+   "social": {
+    "strangers": "得體",
+    "friends": "嘴巴壞",
+    "intimate": "其實很在乎",
+    "conflict": "confront"
+   },
+   "core": {
+    "want": "被掌門看見，不輸給林嘯",
+    "fear": "辜負家人的期望",
+    "wound": "從小被拿來和表哥比較",
+    "false_belief": "別人贏就是我輸",
+    "need": "承認林嘯其實是他最懂的人",
+    "life_question": "我在跟誰比？"
+   },
+   "life_goal": "讓江湖上都記得他的名字",
+   "season_goal": "成為掌門最看重的弟子"
+  },
+  {
+   "id": "ning",
+   "name": "宋清晏",
+   "age": 28,
+   "gender": "female",
+   "costume": "素淨的青色長衫",
+   "background": {
+    "birthplace": "東海邊的小鎮",
+    "family": "獨女，自小隨父讀書",
+    "education": "讀過詩書，通文墨"
+   },
+   "interests": {
+    "manuals": 0.9,
+    "herbs": 0.6,
+    "zither": 0.6,
+    "cats": 0.5
+   },
+   "dislikes": {
+    "prying": 0.9,
+    "noise": 0.8,
+    "rumours": 0.7
+   },
+   "values": {
+    "truth": 0.8,
+    "freedom": 0.6,
+    "belonging": 0.4
+   },
+   "habits": [
+    {
+     "when": "evening",
+     "do": "write_diary",
+     "label": "每晚在燈下寫日記"
+    },
+    {
+     "when": "angry",
+     "do": "go_quiet",
+     "label": "生氣時一句話都不說"
+    }
+   ],
+   "social": {
+    "strangers": "沉默",
+    "friends": "慢熱",
+    "intimate": "敏感",
+    "conflict": "bottle_up"
+   },
+   "core": {
+    "want": "寫完那本日記",
+    "fear": "心事被人看見",
+    "wound": "以前的日記被人偷看，還被當眾唸出來",
+    "false_belief": "不說出口就不會受傷",
+    "need": "讓一個人真正了解她",
+    "life_question": "我可以把心打開嗎？"
+   },
+   "life_goal": "寫一本自己的書",
+   "season_goal": "寫完這本日記"
+  },
+  {
+   "id": "tao",
+   "name": "魏山河",
+   "age": 35,
+   "gender": "male",
+   "costume": "青雲門的灰布長衫，沾著塵土",
+   "background": {
+    "birthplace": "東海漁村",
+    "family": "父親是漁夫",
+    "education": "漁家出身，後來投入青雲門"
+   },
+   "occupation": {
+    "domain": "work",
+    "role": "弟子",
+    "place": "qingyun",
+    "superior": "掌門",
+    "duty": "train",
+    "words": {
+     "work": "練功",
+     "superior": "掌門",
+     "overtime": "加練",
+     "praise": "得到掌門的誇獎",
+     "quit": "離開師門",
+     "look": "打聽別的門派",
+     "offer": "收到別派相邀",
+     "accept": "答應了別派",
+     "decline": "婉拒了別派",
+     "lapse": "別派的邀約過期了"
+    }
+   },
+   "interests": {
+    "fishing": 0.7,
+    "silver": 0.8,
+    "cooking": 0.4,
+    "horses": 0.5
+   },
+   "dislikes": {
+    "borrowing": 0.9,
+    "showing_off": 0.5,
+    "lying": 0.6
+   },
+   "values": {
+    "security": 0.8,
+    "fairness": 0.7,
+    "truth": 0.7
+   },
+   "habits": [
+    {
+     "when": "morning",
+     "do": "keep_accounts",
+     "label": "每天清早記一筆帳"
+    },
+    {
+     "when": "stressed",
+     "do": "stand_outside",
+     "label": "心煩就到院外站一會兒，望著遠山"
+    }
+   ],
+   "social": {
+    "strangers": "直來直往",
+    "friends": "固執",
+    "intimate": "笨拙",
+    "conflict": "confront"
+   },
+   "core": {
+    "want": "攢夠銀兩買一匹好馬，也攢一點安全感",
+    "fear": "老了一無所有",
+    "wound": "父親出海借錢，最後賠光",
+    "false_belief": "錢借出去就回不來",
+    "need": "相信有些人值得",
+    "life_question": "我可以信任誰？"
+   },
+   "life_goal": "有一筆誰也拿不走的積蓄",
+   "season_goal": "攢夠銀兩買一匹馬"
+  },
+  {
+   "id": "rui",
+   "name": "薛采薇",
+   "age": 24,
+   "gender": "female",
+   "costume": "淺色的短襖配小布包",
+   "background": {
+    "birthplace": "悅來客棧所在的鎮上",
+    "family": "父母常吵架，她總是負責勸和",
+    "education": "鎮上私塾念過兩年"
+   },
+   "interests": {
+    "zither": 0.8,
+    "cats": 0.7,
+    "cooking": 0.5,
+    "legends": 0.4
+   },
+   "dislikes": {
+    "noise": 0.6,
+    "lying": 0.5
+   },
+   "values": {
+    "belonging": 0.9,
+    "fairness": 0.7,
+    "truth": 0.6
+   },
+   "habits": [
+    {
+     "when": "anxious",
+     "do": "hum",
+     "label": "緊張時輕輕哼曲子"
+    },
+    {
+     "when": "happy",
+     "do": "steam_buns",
+     "label": "開心時蒸一籠點心分給大家"
+    }
+   ],
+   "social": {
+    "strangers": "友善",
+    "friends": "照顧人",
+    "intimate": "壓抑自己",
+    "conflict": "appease"
+   },
+   "core": {
+    "want": "讓大家和好",
+    "fear": "大家吵架是她的錯",
+    "wound": "父母分道揚鑣那天她沒能勸住",
+    "false_belief": "別人好，我才能好",
+    "need": "允許自己也會生氣",
+    "life_question": "我自己想要什麼？"
+   },
+   "life_goal": "有一個不吵架的家",
+   "season_goal": "讓柳含霜和宋清晏和好"
+  }
+ ]
+}

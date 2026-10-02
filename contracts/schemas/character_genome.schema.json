@@ -94,6 +94,16 @@
         "knowledge": {
           "$ref": "#/$defs/KnowledgeBoundary"
         },
+        "looks": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "name": {
           "type": "string"
         },
@@ -106,6 +116,16 @@
         "profile": {
           "$ref": "#/$defs/CharacterProfile"
         },
+        "talkativeness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "temperament": {
           "additionalProperties": {
             "type": "number"
@@ -117,6 +137,16 @@
         },
         "voice": {
           "$ref": "#/$defs/Voice"
+        },
+        "warmth": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

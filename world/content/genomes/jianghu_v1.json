@@ -3,52 +3,52 @@
     "lin": {
       "appearance": {"face": "方正的臉，法令紋深", "hair": "花白長髮束在腦後", "build": "挺拔", "marks": ["腰間佩一把舊劍鞘"], "looks_age": 55, "presence": "不怒自威，所到之處自然安靜"},
       "voice": {"timbre": "渾厚低沉", "pace": "緩慢而穩", "catchphrases": ["名聲是一輩子的事", "此事容後再議"]},
-      "charm": 0.55, "attracted_to": ["female"], "attachment": "secure"
+      "charm": 0.55, "looks": 0.55, "warmth": 0.45, "talkativeness": 0.35, "attracted_to": ["female"], "attachment": "secure"
     },
     "lu": {
       "appearance": {"face": "劍眉星目，神情有點緊", "hair": "束髮，一絲不苟", "build": "修長結實", "marks": ["右手虎口有練劍的厚繭"], "presence": "武功出眾的光環，卻藏著心虛"},
       "voice": {"timbre": "清朗", "pace": "快而克制", "catchphrases": ["師弟，要多練", "我自有分寸"]},
-      "charm": 0.75, "attracted_to": ["female"], "attachment": "avoidant"
+      "charm": 0.75, "looks": 0.75, "warmth": 0.50, "talkativeness": 0.40, "attracted_to": ["female"], "attachment": "avoidant"
     },
     "su": {
       "appearance": {"face": "圓臉，眼睛亮亮的", "hair": "雙髻", "build": "纖細", "marks": ["腰上掛著一個繡花小囊"], "presence": "天真熱心，讓人想保護"},
       "voice": {"timbre": "清脆", "pace": "輕快，好奇時會連問好幾句", "catchphrases": ["真的嗎真的嗎", "我去問問看"]},
-      "charm": 0.80, "attracted_to": ["male"], "attachment": "secure"
+      "charm": 0.80, "looks": 0.80, "warmth": 0.85, "talkativeness": 0.85, "attracted_to": ["male"], "attachment": "secure"
     },
     "shi": {
       "appearance": {"face": "稚氣的方臉，鼻頭常常脹紅", "hair": "紮成一束", "build": "矮壯", "marks": ["手上總有練功的瘀傷"], "presence": "憨直倔強，不服輸"},
       "voice": {"timbre": "略帶變聲期的沙", "pace": "急", "catchphrases": ["我一定會贏", "不信比一比"]},
-      "charm": 0.50, "attracted_to": [], "attachment": "secure"
+      "charm": 0.50, "looks": 0.50, "warmth": 0.45, "talkativeness": 0.60, "attracted_to": [], "attachment": "secure"
     },
     "tie": {
       "appearance": {"face": "闊臉，濃眉虎目", "hair": "灰黑相間，披散", "build": "魁梧", "marks": ["背上一把大劍，劍柄纏著紅布"], "looks_age": 57, "presence": "霸氣外露，進門先占中間的位子"},
       "voice": {"timbre": "洪亮粗啞", "pace": "大聲而快", "catchphrases": ["青雲門算什麼", "本莊主說了算"]},
-      "charm": 0.60, "attracted_to": ["female"], "attachment": "anxious"
+      "charm": 0.60, "looks": 0.55, "warmth": 0.40, "talkativeness": 0.90, "attracted_to": ["female"], "attachment": "anxious"
     },
     "hong": {
       "appearance": {"face": "俊朗，嘴角總帶一點傲氣", "hair": "高高束起，繫紅絲帶", "build": "高挑", "marks": ["一襲紅邊黑衣"], "presence": "少年得意，讓人又羨又恨"},
       "voice": {"timbre": "高亮", "pace": "快而上揚", "catchphrases": ["報上名來", "我只打最強的"]},
-      "charm": 0.80, "attracted_to": ["female"], "attachment": "avoidant"
+      "charm": 0.80, "looks": 0.85, "warmth": 0.25, "talkativeness": 0.35, "attracted_to": ["female"], "attachment": "avoidant"
     },
     "han": {
       "appearance": {"face": "窄臉，眼睛細長，常常笑", "hair": "整齊的黑髮", "build": "中等偏瘦", "marks": ["袖口總是乾乾淨淨"], "presence": "客氣得讓人放下戒心"},
       "voice": {"timbre": "圓滑", "pace": "慢，每句都留一點餘地", "catchphrases": ["莊主說得是", "小的只是隨口一提"]},
-      "charm": 0.50, "attracted_to": ["female"], "attachment": "anxious"
+      "charm": 0.50, "looks": 0.45, "warmth": 0.55, "talkativeness": 0.65, "attracted_to": ["female"], "attachment": "anxious"
     },
     "hua": {
       "appearance": {"face": "明豔，眼角有細紋，笑時很有韻味", "hair": "挽成髻，插一支銀簪", "build": "豐腴", "marks": ["手上總有一條帕子"], "presence": "八面玲瓏，誰都覺得被她看重"},
       "voice": {"timbre": "清亮柔潤", "pace": "不疾不徐", "catchphrases": ["客官請坐", "這事兒啊，我倒聽說過"]},
-      "charm": 0.85, "attracted_to": ["male"], "attachment": "secure"
+      "charm": 0.85, "looks": 0.85, "warmth": 0.90, "talkativeness": 0.80, "attracted_to": ["male"], "attachment": "secure"
     },
     "zhou": {
       "appearance": {"face": "瘦臉，山羊鬍", "hair": "全白，鬆鬆挽著", "build": "瘦小", "marks": ["手裡一把摺扇和一塊驚堂木"], "looks_age": 65, "presence": "一開口所有人都會靠過來聽"},
       "voice": {"timbre": "蒼老而有力", "pace": "抑揚頓挫", "catchphrases": ["且聽老朽道來", "話說當年"]},
-      "charm": 0.35, "attracted_to": ["female"], "attachment": "secure"
+      "charm": 0.35, "looks": 0.30, "warmth": 0.65, "talkativeness": 0.95, "attracted_to": ["female"], "attachment": "secure"
     },
     "yan": {
       "appearance": {"face": "輪廓分明，神情疏淡", "hair": "隨意披散，用布條束著", "build": "精瘦", "marks": ["背一把沒有裝飾的長劍", "左眉有一道細疤"], "presence": "來歷不明，讓人好奇又不敢靠近"},
       "voice": {"timbre": "低而冷", "pace": "少言", "catchphrases": ["出劍吧", "不必多說"]},
-      "charm": 0.90, "attracted_to": ["female", "male"], "attachment": "avoidant"
+      "charm": 0.90, "looks": 0.90, "warmth": 0.20, "talkativeness": 0.10, "attracted_to": ["female", "male"], "attachment": "avoidant"
     }
   }
 }

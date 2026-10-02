@@ -9,6 +9,10 @@ own episode, with its own memory of what it has shown. The variants (narrative/e
   ab         the progress planner, with a B story and an ordinary moment in each episode
   progress   plus: a thread in which nothing real happened is not the day's story, the new state is a consequence, voters are
              bystanders, a question is a goal, a choice or a revelation (never "will they regret it")
+  script     the control room's setting: ab, plus the season's ledgers (today's events, a hard event in, montage, a question not asked again)
+
+Every plan is also run through the script lint (narrative/lint.py): faults by code, how much of an episode is talk, the same line twice,
+and how many days with a hard event had one on screen.
 
 For each seed a world is run (jianghu_story_v1, the greedy director) a day at a time, and each day the planner makes the episode
 (narrative/episode_planner.py). Reported: how many days had an episode, how many were a release the audience waited for
@@ -29,7 +33,9 @@ ROOT = Path(__file__).resolve().parent
 
 from narrative.episode_planner import DEFAULT, V1, Options  # noqa: E402
 
-VARIANTS = {"v1": V1, "narrative": Options("narrative", False, False, "v1", "free"), "progress": DEFAULT, "ab": Options(ab_story=True)}
+from narrative.episode_planner import SHOW  # noqa: E402
+
+VARIANTS = {"v1": V1, "narrative": Options("narrative", False, False, "v1", "free"), "progress": DEFAULT, "ab": Options(ab_story=True), "script": SHOW}
 
 
 def run(args) -> dict:
@@ -38,6 +44,7 @@ def run(args) -> dict:
     from agent.volition import VolitionDecider
     from contracts.base import to_dict
     from narrative import episode_planner as EP
+    from narrative import lint as LN
     from narrative.dramaturgy import analyse
     from producer.director import Director
     from world.db import connect, init_db
@@ -48,20 +55,27 @@ def run(args) -> dict:
     build_world(conn, seed, recipe)
     d = VolitionDecider(seed)
     sim = Simulation(conn, d, d, set(), feed="synthetic_v1", producer=Director("greedy", seed))
-    state = {v: {"shown": set(), "plans": []} for v in VARIANTS}
+    state = {v: {"shown": set(), "plans": [], "ledger": EP.Ledger() if opt.script else None, "prior": [], "hard": []} for v, opt in VARIANTS.items()}
     for day in range(days):
         sim.run(1)
         sit = analyse(conn)["situations"]
         for v, opt in VARIANTS.items():
             st = state[v]
             recent = tuple(frozenset(q["people"]) for q in st["plans"][-2:] if not q.get("quiet"))
-            plan = EP.plan_day(conn, day, st["shown"], sit, recent, opt)
+            plan = EP.plan_day(conn, day, st["shown"], sit, recent, opt, st["ledger"])
+            hard = LN.hard_events(conn, day)
             if plan is None:
-                st["plans"].append({"day": day, "quiet": True})
+                st["plans"].append({"day": day, "quiet": True, "hard": hard})
                 continue
             for b in plan.beats:
                 st["shown"] |= set(b.event_ids)
-            st["plans"].append(to_dict(plan))
+            resolved = LN.resolve(conn, plan)
+            issues = LN.lint_episode(resolved, prior=st["prior"], names=resolved["people_names"] + [r[0] for r in conn.execute("SELECT name FROM people")],
+                                     facts=LN.object_facts(conn, day))
+            st["prior"].append(resolved)
+            d = to_dict(plan)
+            d.update(hard=hard, lint=[i.as_dict() for i in issues], lint_metrics=LN.metrics(resolved), hard_on_screen=LN.hard_taken(resolved, hard)[1])
+            st["plans"].append(d)
     dil = {k: conn.execute("SELECT COUNT(*) FROM events WHERE json_extract(truth, '$.dilemma.tension') >= ?", (k,)).fetchone()[0] for k in (0.3, 0.4, 0.5)}
     return {"seed": seed, "variants": {v: st["plans"] for v, st in state.items()}, "dilemmas": dil}
 
@@ -104,13 +118,19 @@ def summarize(rows: list[dict], variant: str) -> dict:
         "core_question": sum(1 for p in eps if p["core_question"]), "open_ending": sum(1 for p in eps if p["ending_question"]),
         "breath": sum(1 for p in eps if p["has_breath"]), "inner_conflict": sum(1 for p in eps if p["inner_conflict"]),
         "regret_questions": sum(1 for p in eps if p["core_question"].endswith("會後悔嗎？") or p["ending_question"].endswith("會後悔嗎？")),
-        "question_types": {k: sum(1 for p in eps if p["question_type"] == k) for k in ("goal", "choice", "revelation", "open")} if variant in ("progress", "ab") else {},
+        "question_types": {k: sum(1 for p in eps if p["question_type"] == k) for k in ("goal", "choice", "revelation", "open")} if variant in ("progress", "ab", "script") else {},
         "b_story_episodes": sum(1 for p in eps if any(b["story"] == "B" for b in p["beats"])),
         "texture_episodes": sum(1 for p in eps if any(b["story"] == "texture" for b in p["beats"])),
         "scenes_per_episode": round(len(filmed) / max(1, n), 2),
         "dropped_beats": len(allb) - len(filmed), "beats": len(allb),
         "expectation_scenes": sum(1 for b in filmed if "expectation" in b["checklist"]["delta_kinds"]),
         "distinct_intents_per_episode": round(sum(len({b["intent"] for b in p["beats"] if b["shoot"]}) for p in eps) / max(1, n), 2),
+        "lint_issues": sum(len(p["lint"]) for p in eps),
+        **{f"lint_{c}": sum(1 for p in eps for i in p["lint"] if i["code"] == c) for c in ("L1", "L2", "L3", "L4", "L5", "L8")},
+        "chat_share": round(sum(p["lint_metrics"]["chat_beats"] for p in eps) / max(1, sum(p["lint_metrics"]["beats"] for p in eps)), 3),
+        "same_line_twice": sum(p["lint_metrics"]["dup_lines"] for p in eps),
+        "hard_days": sum(1 for plans in plans_by_seed for p in plans if p["hard"]),
+        "hard_days_on_screen": sum(1 for p in eps if p["hard"] and p["hard_on_screen"]),
     }
 
 

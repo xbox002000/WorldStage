@@ -64,6 +64,105 @@ PROMPT = """你是一個持續運轉的虛擬世界裡的一個人。下面是�
 
 用 JSON 回答：option（編號）、reason（一句話，用他的口吻，繁體中文）、inner（他心裡真正的想法，不會說出口，可以留空）。
 """
+# Prompt v2 (CharacterAgent(prompt_version=2)): v1 above stays byte for byte what the recorded worlds were asked (their answers are cached by the
+# whole prompt). v2 adds the era of the world, who is a he and who a she, and that the reason must be about the option chosen; and its answers are
+# checked (check_answer). It is for worlds made from now on: a v2 prompt is a different prompt, so it never meets a v1 answer.
+PROMPT_V2 = """你是一個持續運轉的虛擬世界裡的一個人。{era}下面是你此刻知道的一切（JSON）：你是誰、你想要和害怕什麼、你的感受、
+你的目標、你眼前的人和你對他們的看法、你記得的事，以及你現在做得到的事（options，已編號）。
+
+只能從 options 裡選一個（回答它的編號 n）。你不知道清單以外的任何事，也不能做清單以外的事。
+像這個人一樣選：照他的個性、價值、傷口、此刻的心情和處境，而不是照「正確答案」。好人也會選錯，會嘴硬，會逃避。
+
+{state}
+
+{pronouns}用 JSON 回答：option（編號）、reason（一句話，用你自己的口吻，繁體中文。它說的必須是你選的那一項：選了誰、做什麼，就講那個人和那件事，不要提到別的選項裡的人或事）、inner（你心裡真正的想法，不會說出口，可以留空）。
+"""
+PROMPT_VERSIONS = (1, 2)
+PROMPT_V2_VERSION = "cognition_prompt_v2"   # contracts/versions.py
+# the era a world is in, from its recipe's core (what the world is about): said once in a v2 prompt, and the modern words below are refused in it
+ERA_LINES = {
+    "martial_arts": "這裡是古代的江湖：沒有手機、咖啡、辦公室、電影，也沒有大學或公司；人們說的是師門、鏢局、客棧、銀兩，用的是劍、茶與酒。你想的和說的，都要像這個時代的人。",
+}
+ERA_LABELS = {  # how an option reads in an era whose people would not say it the way the domain's label does (a v2 prompt only)
+    "martial_arts": {"break_up": "向{t}說清楚，從此不再往來", "date": "和{t}相處"},
+}
+MODERN_WORDS = (  # things a jianghu has no word for: a reason or an inner thought with one of these is refused (v2, a jianghu world)
+    "手機", "電話", "簡訊", "電腦", "網路", "網站", "影片", "直播", "社群", "咖啡", "冰咖啡", "辦公室", "加班", "上班", "下班", "同事",
+    "老闆", "主管", "公司", "薪水", "業績", "電影", "電視", "專輯", "籃球", "足球", "電玩", "遊戲機", "大學", "學校", "汽車", "機車", "捷運",
+    "火車", "飛機", "機票", "超商", "便利商店", "信用卡", "銀行", "多肉", "新手機", "咖啡店", "手錶", "眼鏡", "耳機",
+)
+SINGULAR_PRONOUN = {"他": "male", "她": "female"}
+NOT_A_PERSON = ("他們", "她們", "其他", "他人", "他鄉", "他日", "他處", "他方", "他事", "別他", "其他人", "吉他", "排他")
+GENDER_WORD = {"male": "男", "female": "女"}
+PRONOUN_OF = {"male": "他", "female": "她"}
+
+
+class AnswerRejected(ValueError):
+    """The mind answered, and the answer is not one to act on (a word the world does not have, a reason about another option, the wrong he or she):
+    the rule agent decides this time. It is not a failure of the provider, so it does not count towards stopping a run."""
+
+
+def world_era(conn: sqlite3.Connection) -> str:
+    """What kind of world this is, from its recipe's core ('' when nothing is said of it)."""
+    try:
+        from world.recipes import load_recipe, recipe_of
+        return load_recipe(recipe_of(conn)).core
+    except Exception:
+        return ""
+
+
+def _gender_of(conn: sqlite3.Connection, pid: str) -> str:
+    from world.profiles import profile
+    p = profile(conn, pid)
+    return p.gender if p is not None and p.gender in PRONOUN_OF else ""
+
+
+def pronoun_line(conn: sqlite3.Connection, state_text: str) -> str:
+    """Who is a he and who a she, for every person the state names (empty when nobody's sex is known)."""
+    rows = [(r[0], r[1]) for r in conn.execute("SELECT id, name FROM people ORDER BY id")]
+    named = [f"{name}＝{PRONOUN_OF[g]}" for pid, name in rows if name and name in state_text and (g := _gender_of(conn, pid))]
+    return ("人物的稱呼（說到他們時，男的只用「他」，女的只用「她」，不要用錯）：" + "、".join(named) + "。\n\n") if named else ""
+
+
+def check_answer(conn: sqlite3.Connection, actor: str, shown: list, texts: list[str], chosen: int, reason: str, inner: str) -> None:
+    """Is the answer one to act on? Raises AnswerRejected (with why) when it is not. `texts` are the options as the mind read them. Three things are refused (v2):
+      - a word the world's era does not have (MODERN_WORDS) in the reason or the inner thought;
+      - a reason that is about another option: it names a person or a thing that belongs to other options only, and none of the chosen one's;
+      - a he or a she that is not who the answer is about: with the people the answer names (and the one the chosen option is aimed at) all of
+        one sex, the other pronoun is wrong.
+    These are checks of the words, not of the thought: a reason that is fine and merely odd is let through."""
+    text = f"{reason}{inner}"
+    if ERA_LINES.get(world_era(conn)):
+        hit = next((w for w in MODERN_WORDS if w in text), "")
+        if hit:
+            raise AnswerRejected(f"a word the world does not have: {hit}")
+    people = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM people") if r[1] and r[0] != actor}
+    things = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM objects") if r[1]}
+    mine = conn.execute("SELECT name FROM people WHERE id = ?", (actor,)).fetchone()
+    self_name = mine[0] if mine else ""
+    known = {**people, **things}
+
+    def belongs(k: int) -> set[str]:
+        it = shown[k][1]
+        if it is None:
+            return set()
+        label = texts[k].replace(self_name, "") if self_name else texts[k]
+        return {i for i, n in known.items() if n in label or i == (it.target or "")}
+
+    chosen_set = belongs(chosen)
+    others = set().union(*[belongs(k) for k in range(len(shown)) if k != chosen]) - chosen_set
+    named = {i for i, n in known.items() if n in reason}
+    if chosen_set and named and not (named & chosen_set) and (named & others):
+        raise AnswerRejected("the reason is about another option: " + "、".join(sorted(known[i] for i in named & others)))
+    plain = text
+    for w in NOT_A_PERSON:
+        plain = plain.replace(w, "")
+    used = {g for p_, g in SINGULAR_PRONOUN.items() if p_ in plain}
+    referents = {i for i in people if people[i] in text} | {i for i in chosen_set if i in people}
+    if used and referents:
+        sexes = {_gender_of(conn, i) for i in referents} - {""}
+        if len(sexes) == 1 and not (used & sexes):
+            raise AnswerRejected(f"the pronoun is for {'/'.join(sorted(used))}, the answer is about {next(iter(sexes))}")
 
 
 def _names(conn: sqlite3.Connection) -> dict[str, str]:
@@ -73,11 +172,24 @@ def _names(conn: sqlite3.Connection) -> dict[str, str]:
     return out
 
 
-def describe_intent(conn: sqlite3.Connection, it: Intent | None, names: dict[str, str]) -> str:
-    """An option as the person would think of it."""
+def describe_intent(conn: sqlite3.Connection, it: Intent | None, names: dict[str, str], version: int = 1) -> str:
+    """An option as the person would think of it. Version 2 says it in the world's own words: the topic by the roster's label of it (a jianghu's
+    劍法, never a town's 音樂), a job's actions by the person's own words for it (偷偷打聽別的門派), and a few labels by the era's."""
     if it is None:
         return "什麼都不做"
     t = names.get(it.target or "", it.target or "")
+    if version >= 2:
+        from world.profiles import topics as world_topics
+        label = world_topics(conn)
+        if it.action == "talk" and it.topic and not it.topic.startswith("@") and it.topic in label:
+            return f"{TONE_WORDS.get(it.tone or '', '')}對{t}說話（聊{label[it.topic]}）"
+        if it.action in ("look_for_work", "accept_offer"):
+            from world.domains.work import words
+            w = words(conn, it.actor)
+            return f"偷偷{w['look']}" if it.action == "look_for_work" else f"接受邀請，{w['quit']}"
+        era = ERA_LABELS.get(world_era(conn), {})
+        if it.action in era:
+            return era[it.action].format(t=t)
     if it.action == "talk":
         topic = ""
         if it.topic:
@@ -135,7 +247,7 @@ def wake_reasons(conn: sqlite3.Connection, pid: str, now: int, scored: list) -> 
     return out
 
 
-def cognitive_state(conn: sqlite3.Connection, pid: str, now: int, options: list, wake: list[str]) -> CognitiveState:
+def cognitive_state(conn: sqlite3.Connection, pid: str, now: int, options: list, wake: list[str], version: int = 1) -> CognitiveState:
     from agent.perception import memory_lines, observe
     from world.domains import active
     from world.goals import describe, goals_of
@@ -148,6 +260,8 @@ def cognitive_state(conn: sqlite3.Connection, pid: str, now: int, options: list,
     if p is not None:
         who = {"年齡": str(p.age), **({"工作": p.occupation.role} if p.occupation else {}),
                **{BACKGROUND_WORDS.get(k, k): v for k, v in p.background.items()}}
+        if version >= 2 and p.gender in PRONOUN_OF:
+            who = {"性別": f"{GENDER_WORD[p.gender]}（{PRONOUN_OF[p.gender]}）", **who}
         core = {k: v for k, v in (("想要", p.core.want), ("害怕", p.core.fear), ("傷口", p.core.wound),
                                   ("錯誤的信念", p.core.false_belief), ("真正需要", p.core.need),
                                   ("人生的問題", p.core.life_question), ("一生的目標", p.life_goal),
@@ -176,7 +290,7 @@ def cognitive_state(conn: sqlite3.Connection, pid: str, now: int, options: list,
         goals=[describe(conn, g) for g in goals_of(conn, pid) if g["status"] in ("active", "formed", "blocked")],
         place=names.get(me["location_id"], me["location_id"]), people=people,
         memories=[f"{m['text']}（{m['how']}）" for m in memory_lines(conn, pid, names)],
-        options=[OptionView(n, it.action if it else "idle", (it.target or "") if it else "", describe_intent(conn, it, names))
+        options=[OptionView(n, it.action if it else "idle", (it.target or "") if it else "", describe_intent(conn, it, names, version))
                  for n, (_, it) in enumerate(options)],
         wake=wake)
 
@@ -189,9 +303,14 @@ class CharacterAgent:
     """
 
     def __init__(self, rule, client=None, budget: int = 20, top_k: int = 7, tier: str = "AB", pause_on_quota: bool = False,
-                 per_person_day: int | None = None, shuffle=False) -> None:
+                 per_person_day: int | None = None, shuffle=False, prompt_version: int = 1) -> None:
         if tier not in ("A", "AB"):
             raise ValueError("tier is 'A' (a value crossed, a clash, a resolve) or 'AB' (and a bad mood on its own)")
+        if prompt_version not in PROMPT_VERSIONS:
+            raise ValueError(f"prompt_version is one of {PROMPT_VERSIONS}")
+        # 1 (the default): the prompt the recorded worlds were asked; 2: era, who is he or she, a reason about the option chosen, and a checked answer.
+        # A world made with v2 says so (meta 'prompt_version', written by soul_lab.py --prompt-version 2): whoever replays it from its cache passes that.
+        self.prompt_version = prompt_version
         self.tier = tier
         self.per_person_day = per_person_day   # most times one person's mind wakes in a day: the same wake point fires again and again with nearly the same state
         # the options are shown in a deterministic shuffled order, so the first line is not the rule's favourite: True, or a function
@@ -244,13 +363,21 @@ class CharacterAgent:
         if self.shuffle:
             order = self.shuffle(actor, now, len(top)) if callable(self.shuffle) else option_order(self.rule.world_seed, actor, now, len(top))
         shown = [top[i] for i in order]
-        state = cognitive_state(conn, actor, now, shown, wake)
-        prompt = PROMPT.format(state=json.dumps(to_dict(state), ensure_ascii=False, sort_keys=True))
+        version = self.prompt_version
+        state = cognitive_state(conn, actor, now, shown, wake, version)
+        state_text = json.dumps(to_dict(state), ensure_ascii=False, sort_keys=True)
+        if version >= 2:
+            era = ERA_LINES.get(world_era(conn), "")
+            prompt = PROMPT_V2.format(state=state_text, era=era, pronouns=pronoun_line(conn, state_text))
+        else:
+            prompt = PROMPT.format(state=state_text)
         try:
             raw = self.client.generate_json(prompt, CHOICE_SCHEMA, temperature=0.7)
             choice = CognitiveChoice(int(raw["option"]), str(raw.get("reason", ""))[:120], str(raw.get("inner", ""))[:200])
             if not 0 <= choice.option < len(shown):   # a negative number would silently count from the end
                 raise ValueError(f"option {choice.option} is not on the list")
+            if version >= 2:
+                check_answer(conn, actor, shown, [o.text for o in state.options], choice.option, choice.reason, choice.inner)
             it = shown[choice.option][1]
             rank = order[choice.option]
         except Exception as e:  # unusable or unavailable: live by habit this time
@@ -259,6 +386,12 @@ class CharacterAgent:
                 self.used[day] -= 1
                 self.woke_today[(day, actor)] -= 1
                 raise QuotaPause(str(e)) from e
+            if isinstance(e, AnswerRejected):  # the provider did answer: this is about the words, not about a dead key or a spent quota
+                self._streak = 0
+                self.stats["agent_failed"] += 1
+                self.stats["agent_rejected"] += 1
+                self.log.append({"person": actor, "t": now, "wake": wake, "error": "AnswerRejected", "why": str(e)})
+                return self.rule.pick(scored, actor, now, conn)
             self._streak += 1
             if self.pause_on_quota and self._streak >= self.max_streak:
                 self.used[day] -= 1

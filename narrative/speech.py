@@ -37,6 +37,7 @@ class Ctx:
     def __init__(self, conn: sqlite3.Connection, event_id: int, truth: dict, ts: int = 0, place: str = "", names: dict | None = None) -> None:
         self.conn, self.event_id, self.truth, self.ts, self.place = conn, event_id, truth, ts, place
         self.names = names or {}
+        self.variant = 0          # a later reading of the same event picks another line (the control room does it for a line already said in the episode)
         self._cache: dict = {}
 
     def underneath(self, pid: str, addressee: str = "") -> dict | None:
@@ -119,7 +120,7 @@ def _pick(pool: list[tuple[str, Guard]], ctx: Ctx, a: str, b: str, salt: str = "
             ok += [text, text]
     if not ok:
         return None
-    return ok[(ctx.event_id * 7 + _hash(a + salt)) % len(ok)]
+    return ok[(ctx.event_id * 7 + _hash(a + salt) + ctx.variant * 13) % len(ok)]
 
 
 def _g(*pairs):
@@ -215,25 +216,93 @@ def _about(c: "Ctx", t: dict, a: str, b: str, names: dict) -> tuple[str, str] | 
 
 
 REPLY = {
-    "chat": _g("對啊。", "哈哈，真的。", "你也是。", "改天再聊。", "好啊。", ("跟你聊天最輕鬆了。", fond)),
-    "soothe": _g("好了好了，別生氣。", "我們冷靜一點好不好？", "我不是那個意思。", ("你別這樣，我會難過。", fond)),
-    "apologize": _g("對不起，是我不好。", "我錯了……", "是我不對，對不起。", ("我說得太過分了，真的抱歉。", honest)),
-    "explain": _g("你聽我解釋……", "事情不是你想的那樣。", "我可以說明。", ("你先聽我說完，好嗎？", shy)),
-    "deny": _g("我才沒有！", "不是我！", "你有什麼證據？", ("你憑什麼這樣說我？", hot), ("我……沒有，真的沒有。", liar)),
-    "rebuff": _g("關你什麼事。", "你管太多了。", "我不想談。", ("這是我的事，你別插手。", scorns)),
+    "chat": _g("對啊。", "哈哈，真的。", "你也是。", "改天再聊。", "好啊。", ("跟你聊天最輕鬆了。", fond),
+               "是啊，我也這麼想。", "說得也是。", "那就這麼說定了。", "有空再坐坐。", "嗯，我記下了。", "哈，你這話倒有意思。",
+               ("和你說話，一點也不累。", fond), ("咱們幾個，就數你最懂我。", knows_well)),
+    "soothe": _g("好了好了，別生氣。", "我們冷靜一點好不好？", "我不是那個意思。", ("你別這樣，我會難過。", fond),
+                 "先消消氣，有話慢慢說。", "是我說重了，你別放在心上。", "別動氣，傷身子。", "咱們坐下來談，行嗎？",
+                 ("你生氣，我也不好受。", fond), ("我知道你不是故意的。", respects), "這事不值得鬧僵。", "算了算了，各退一步吧。"),
+    "apologize": _g("對不起，是我不好。", "我錯了……", "是我不對，對不起。", ("我說得太過分了，真的抱歉。", honest),
+                    "是我欠考慮，你別怪我。", "這件事，我認錯。", "我不該那樣說你。", ("我知道傷了你，我心裡也不好過。", fond),
+                    "都是我的不是，給你賠個禮。", "你說得對，是我疏忽了。", "抱歉，讓你難堪了。", "我欠你一句道歉。"),
+    "explain": _g("你聽我解釋……", "事情不是你想的那樣。", "我可以說明。", ("你先聽我說完，好嗎？", shy),
+                  "你誤會了，聽我從頭說起。", "這裡面有些緣故，容我說說。", "我沒有惡意，你先聽我講。", "別急著下結論。",
+                  "我有我的難處。", ("我若有半句假話，你儘管罵我。", honest), "不是這樣的，事情得從頭說。", "給我一點時間，我解釋給你聽。"),
+    "deny": _g("我才沒有！", "不是我！", "你有什麼證據？", ("你憑什麼這樣說我？", hot), ("我……沒有，真的沒有。", liar),
+               "這話從何說起？", "你找錯人了。", "我連碰都沒碰過。", "誰說的？叫他來當面對質！", "我行得正，坐得直。",
+               ("你別血口噴人！", hot), "你這是冤枉好人。"),
+    "rebuff": _g("關你什麼事。", "你管太多了。", "我不想談。", ("這是我的事，你別插手。", scorns),
+                 "這事你不必過問。", "你還是管好自己吧。", "我的事，我自己會處理。", "別問了。",
+                 "你不覺得你問得太多了嗎？", "這不是你該操心的。", ("輪不到你來說我。", scorns), "免談。"),
     "retort": _g("你才是！", "你少管我！", "講這什麼話？", "你憑什麼這樣說我？", "你再說一次看看！",
-                 ("你自己又好到哪裡去？", bitter), ("要比，就來比啊！", hot)),
-    "storm_off": _g("我不想再聽了！", "我走了。", "算了！", ("你好自為之。", scorns)),
+                 ("你自己又好到哪裡去？", bitter), ("要比，就來比啊！", hot),
+                 "有本事你再說一遍！", "你算老幾？", "我的事，輪不到你教訓！", "彼此彼此！", "嘴上說得好聽！",
+                 ("別以為我怕你。", hot), ("你別忘了你自己做過什麼。", bitter)),
+    "storm_off": _g("我不想再聽了！", "我走了。", "算了！", ("你好自為之。", scorns),
+                    "不談了！", "話不投機半句多。", "隨你怎麼想。", "我先走一步。", "夠了，我不奉陪了。",
+                    ("你自己想想吧。", scorns), "我去別處待著。", "別跟過來。"),
 }
+# what two people say to each other just after a duel between them: the one who lost and the one who won (a quarrel's retort after a
+# bout is not "你才是！"; whoever lost does not talk like the one who won)
+AFTER_DUEL = {
+    "lost": _g("……今天算你贏。", "技不如人，我認了。", "我會再練的。", ("下次，我不會輸。", hot), ("你贏了，我服。", honest),
+               "你比我強，這我承認。", ("別得意，我還會再來。", bitter), "輸給你，我不甘心。", "這一招，我記住了。", ("……我輸得不冤。", respects)),
+    "won": _g("承讓。", "你也不弱，只差一點。", ("別往心裡去。", generous), "今天我運氣好些。", ("想再比，我隨時奉陪。", hot),
+              "各憑本事罷了。", ("我不是想羞辱你。", honest), "好好養傷。", ("早就說過，別小看我。", scorns), "這一場，我也不輕鬆。"),
+}
+DUEL_WINDOW = 12     # events: the talk of the two that comes this soon after their duel is about the duel
+
+
 INTERVENE = {
     "comfort": _g("別理他，你還好嗎？", "沒事的，我在這。", ("有我在，沒人能欺負你。", fond)),
     "side": _g("你夠了吧！", "有必要這樣嗎？", "你說話客氣一點。", ("人家是我朋友，你說話小心點。", knows_well)),
 }
 ACCUSE = {"self": _g("是你{act}吧？", "你是不是{act}？", ("我早就知道是你{act}！", bitter), ("我不想這樣想你……可是，是你{act}，對不對？", fond)),
           "other": _g("{text}，你敢說你不知道？", ("{text}。我說得沒錯吧？", hot))}
-CONFRONT = _g("你說過「{text}」，是真的嗎？", "我聽說了：{text}。你要不要解釋一下？",
-              ("你說過「{text}」。我想聽你親口說。", fond), ("「{text}」，你還有什麼話要說？", bitter))
-TELL = _g("你知道嗎？{text}。", "跟你說喔，{text}。", "我聽說{text}。", ("別告訴別人，{text}。", knows_well), ("你相信嗎？{text}。", fond))
+CONFRONT = {
+    "other": _g("你說過{c}，是真的嗎？", "我聽說了：{c}。你要不要解釋一下？", ("你說過{c}。我想聽你親口說。", fond), ("{c}，你還有什麼話要說？", bitter)),
+    "self": _g("你說過{c}，是真的嗎？", "有人告訴我，{c}。這是你說的嗎？", ("我不信你會這樣說我。{c}，是真的嗎？", fond), ("{c}，你敢當著我的面再說一次？", bitter)),
+    "you": _g("有人說{c}，是真的嗎？", "我聽說了：{c}。你要不要解釋一下？", ("外頭說{c}。我想聽你親口說。", fond), ("{c}，你還有什麼話要說？", bitter)),
+}
+# What is passed on is a *claim*: somebody did something. It is told in the person's own terms: a thing about the speaker is said in the first
+# person ("我弄丟了戒指"), a thing about the listener is "大家都在說你……" (never news about themselves in a stranger's voice), a thing about
+# a third person names them. A *tone* claim (a cold word, a hard one) is not news: what is passed on is only that two people are on bad
+# (or good) terms, never the system's caption of the event.
+TELL = {
+    "other": _g("你知道嗎？{c}。", "跟你說喔，{c}。", "我聽說{c}。", ("別告訴別人，{c}。", knows_well), ("你相信嗎？{c}。", fond),
+                "聽說了嗎？{c}。", "外頭都在傳，{c}。", ("這話我只跟你說：{c}。", knows_well)),
+    "you": _g("大家都在說，{c}。", "有件事你該知道：外頭都在傳，{c}。", ("我不想瞞你，有人說{c}。", fond), "你可能還不知道，有人在說{c}。",
+              ("我覺得你應該知道：{c}。", knows_well)),
+    "self": _g("我跟你說，{c}。", "有件事我想讓你知道：{c}。", ("這事別往外說，{c}。", knows_well), "{c}，我只告訴你。", ("我只跟你一個人說：{c}。", fond)),
+}
+TONE_ACTS = ("speak_warm", "speak_neutral", "speak_cold", "speak_hostile")
+TONE_GIST = {"speak_cold": ("最近不太對勁", "之間好像隔著什麼", "最近很生分"), "speak_hostile": ("鬧得不愉快", "最近不和", "彼此看不順眼"),
+             "speak_warm": ("走得很近", "處得不錯"), "speak_neutral": ("常在一起說話", "時常往來")}
+
+
+def _ref(pid: str, speaker: str, listener: str, names: dict) -> str:
+    return "我" if pid == speaker else "你" if pid == listener else names.get(pid, pid)
+
+
+def _claim_view(c: "Ctx", t: dict, speaker: str, listener: str, names: dict) -> tuple[str, str]:
+    """(the claim as the speaker would put it to the listener, whose business it is: "self" | "you" | "other"). Pronouns for the two of them."""
+    claim = t.get("asserted_claim") or t.get("claim") or {}
+    subj, act, obj = claim.get("subject", ""), claim.get("act", ""), claim.get("object", "")
+    text = t.get("text") or ""
+    sname = names.get(subj, "")
+    if act in TONE_ACTS and subj and obj:
+        gist = TONE_GIST[act][(c.event_id + c.variant) % len(TONE_GIST[act])]
+        whose = "you" if listener in (subj, obj) else "self" if speaker in (subj, obj) else "other"
+        return f"{_ref(subj, speaker, listener, names)}和{_ref(obj, speaker, listener, names)}{gist}", whose
+    if not (sname and text.startswith(sname)):
+        return text, "other"
+    phrase = text[len(sname):]
+    oname = names.get(obj, "")
+    if oname and obj in (speaker, listener) and obj != subj:
+        phrase = phrase.replace(oname, "我" if obj == speaker else "你")
+    return _ref(subj, speaker, listener, names) + phrase, ("self" if subj == speaker else "you" if subj == listener else "other")
+
+
 OUTCOME = {
     "caught": _g("……好，是我拿的。", ("是又怎樣？", hot), ("對不起……我一時糊塗。", honest)),
     "denied": _g("我沒有拿！", ("你有證據嗎？", liar), ("你怎麼可以這樣懷疑我！", hot)),
@@ -252,8 +321,10 @@ CHALLENGE = _g("來吧，一決高下！", "接招！",
                ("上次的事，今天了斷！", bitter), ("你比我強，我知道。但我要試試。", weaker), ("我等這一天很久了。", hot))
 DUEL_WON = _g("承讓了。", ("你也不錯，再練練吧。", generous), ("這就是你的本事？", scorns), ("好險……", None))
 DUEL_LOST = _g("……我輸了。", ("再來一次！", hot), ("我服了。", honest), ("今天算你贏。", bitter))
-GASP_SNEERER = _g("怎麼可能……", "這……不可能。", "他什麼時候變得這麼強？", "我看錯他了……")
-GASP_OTHER = _g("好身手！", "他竟然贏了！", "沒想到……", "太精彩了。", "原來他一直藏著。")
+GASP_SNEERER = _g("怎麼可能……", "這……不可能。", "他什麼時候變得這麼強？", "我看錯他了……", "這不是真的吧？", "我竟然小看了他。",
+                  "剛才那一招，我連看都沒看清。", "是我眼拙……", "他藏得真深。", "難道這些年都是我們錯了？")
+GASP_OTHER = _g("好身手！", "他竟然贏了！", "沒想到……", "太精彩了。", "原來他一直藏著。", "這一手漂亮！", "今天可開了眼界。",
+                "果然不簡單。", "這下子，大家要重新認識他了。", "好！痛快！")
 
 # -- romance (within what a public channel shows) -------------------------------------------------------------------------
 FLIRT = _g("今天……有空嗎？", "你笑起來很好看。", "我請你喝一杯？",
@@ -281,7 +352,7 @@ SELF = {
     "notice_missing": _g("我的{object}呢？", "{object}不見了……"),
     "regret": _g("我剛才……不該那樣。", "我怎麼會說出那種話。"),
     "smash": _g("夠了！", "我受夠了！"), "break_down": _g("我受不了了……", "為什麼都是我……"),
-    "goal_change": _g("{goal}。"),
+    "goal_change": _g("{goal}。", "我決定了：{goal}。", "從今天起，{goal}。", "{goal}，我說到做到。"),
 }
 SELF_STANCE = {"train": "self", "breakthrough": "warm", "take": "self", "steal": "self", "misplace": "self", "find": "warm", "notice_missing": "cool",
                "regret": "cool", "smash": "hot", "break_down": "cool", "goal_change": "self"}
@@ -305,18 +376,39 @@ def _who(truth: dict, key: str) -> str:
     return truth.get(key) or ""
 
 
-def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str, names: dict | None = None, ts: int = 0, place: str = "") -> dict | None:
-    """{"say", "stance", and where there are: "answer", "subtext", "reactions": [{"who", "say"}]} or None for what nobody says aloud."""
+def _after_duel(c: Ctx, a: str, b: str) -> str:
+    """"won" or "lost" when `a` has just fought a duel with `b` (within DUEL_WINDOW events and half an hour before this talk), else ""."""
+    if c.conn is None or not a or not b or ("duel", a, b) in c._cache:
+        return c._cache.get(("duel", a, b), "")
+    got = ""
+    for ts, truth in c.conn.execute("SELECT timestamp, truth FROM events WHERE type = 'duel' AND event_id < ? AND event_id >= ? ORDER BY event_id DESC",
+                                    (c.event_id, c.event_id - DUEL_WINDOW)):
+        d = json.loads(truth)
+        if {d.get("winner"), d.get("loser")} == {a, b} and (not c.ts or c.ts - ts <= 30):
+            got = "won" if d.get("winner") == a else "lost"
+            break
+    c._cache[("duel", a, b)] = got
+    return got
+
+
+def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str, names: dict | None = None, ts: int = 0, place: str = "",
+          variant: int = 0) -> dict | None:
+    """{"say", "stance", and where there are: "answer", "subtext", "reactions": [{"who", "say"}]} or None for what nobody says aloud.
+    `variant`: another reading of the same event (the control room asks for one when a line has already been said in the episode)."""
     t = json.loads(truth) if isinstance(truth, str) else truth
     names = names or {}
     c = Ctx(conn, event_id, t, ts, place, names)
+    c.variant = variant
     a, b = _who(t, "actor"), _who(t, "target") or _who(t, "victim") or _who(t, "suspect")
     reason = t.get("reason") or ""
     kind, _, stance = reason.partition(":")
     out: dict | None = None
 
     if etype == "talk":
-        if kind == "reply" and stance in REPLY:
+        after = _after_duel(c, a, b)
+        if after:                                           # just after their bout, the two speak as the one who lost and the one who won
+            out = {"say": _pick(AFTER_DUEL[after], c, a, b, after), "stance": stance if kind == "reply" else (t.get("tone") or "neutral")}
+        elif kind == "reply" and stance in REPLY:
             out = {"say": _pick(REPLY[stance], c, a, b, stance), "stance": stance}
         elif kind == "intervene" and stance in INTERVENE:
             out = {"say": _pick(INTERVENE[stance], c, a, b, stance), "stance": stance}
@@ -330,17 +422,15 @@ def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str
     elif etype == "move" and reason == "reply:storm_off":
         out = {"say": _pick(REPLY["storm_off"], c, a, b), "stance": "storm_off"}
     elif etype == "accuse":
-        text = t.get("text") or ""
-        subject = (t.get("claim") or {}).get("subject")
-        name = names.get(subject, "")
-        key, act = "other", text
-        if subject == t.get("target") and name and text.startswith(name):
-            key, act = "self", text[len(name):]
-        out = {"say": _fill(_pick(ACCUSE[key], c, a, b) or "", text=text, act=act), "stance": "accuse"}
+        view, whose = _claim_view(c, t, a, b, names)       # in the two people's own terms: "你拿走了…", never the accused's or the accuser's name
+        key, act = ("self", view[1:]) if whose == "you" else ("other", view)
+        out = {"say": _fill(_pick(ACCUSE[key], c, a, b) or "", text=view, act=act), "stance": "accuse"}
     elif etype == "confront":
-        out = {"say": _fill(_pick(CONFRONT, c, a, b) or "", text=t.get("text") or ""), "stance": "confront"}
+        view, whose = _claim_view(c, t, a, b, names)
+        out = {"say": _fill(_pick(CONFRONT[whose], c, a, b) or "", c=view), "stance": "confront"}
     elif etype == "tell":
-        out = {"say": _fill(_pick(TELL, c, a, b) or "", text=t.get("text") or ""), "stance": "tell"}
+        view, whose = _claim_view(c, t, a, b, names)
+        out = {"say": _fill(_pick(TELL[whose], c, a, b) or "", c=view), "stance": "tell"}
     elif etype in ("lend", "repay"):
         out = {"say": "這些你先拿去用。" if etype == "lend" else "上次借的，還你。", "stance": etype}
     elif etype == "duel":
@@ -381,7 +471,7 @@ def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str
         _with_inner(c, out, etype, a, b)
     if out is None:
         from narrative.lines import line
-        return line(event_id, etype, t, names)         # a domain's event says what the domain gives it
+        return line(event_id + variant, etype, t, names)         # a domain's event says what the domain gives it (a later reading takes the next line)
     if t.get("outcome") in OUTCOME and etype in ("accuse", "confront"):
         out["answer"] = _pick(OUTCOME[t["outcome"]], c, b, a, "ans")
     return out
@@ -421,7 +511,14 @@ def _duel(c: Ctx, t: dict, a: str, b: str, names: dict) -> dict:
             continue
         pool = GASP_SNEERER if pid in sneered else GASP_OTHER
         if slap or pid in sneered:
-            reactions.append({"who": pid, "say": _pick(_g(*pool), c, pid, winner or a, "react")})
+            base, line = c.variant, _pick(_g(*pool), c, pid, winner or a, "react")
+            for _ in range(len(pool)):                    # two watchers do not gasp the same words
+                if line not in {r["say"] for r in reactions}:
+                    break
+                c.variant += 1
+                line = _pick(_g(*pool), c, pid, winner or a, "react")
+            c.variant = base
+            reactions.append({"who": pid, "say": line})
     if reactions:
         out["reactions"] = reactions
     return out

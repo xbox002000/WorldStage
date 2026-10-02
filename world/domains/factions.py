@@ -20,6 +20,11 @@ for whom they rate most), the leader counts double, and the one with most holds 
 losing side holds it against the winner.
 
 Nothing here knows a genre. The jianghu calls it a sect and a chief disciple; a town would call it a clique and a promotion.
+
+A recipe that also switches on `social.succession_process` gives the vote a night before it (`_eve`): the night before a seat is decided, each of
+those standing says what they stand for (a pledge), asks the others for their support (the ordinary campaign, by the ordinary rule), and the
+sect's elders meet and say whom they favour (a council). Each has its cost and none decides: the vote at dawn counts the votes, and its result
+names the council as its cause. The rules are in world/succession.py (this pack stays small); a recipe without the primitive runs as before.
 """
 from __future__ import annotations
 
@@ -43,6 +48,7 @@ SAME_CIRCLE = 0.15       # ... one of our circle
 RIVAL_FACTION = -0.10    # ... one of a rival faction
 LEADER_VOTES = 2.0       # the leader's vote counts this much
 EXTEND_DAYS = 2          # a seat nobody stands for is put off by this many days
+
 
 
 def humans(conn: sqlite3.Connection) -> list[str]:
@@ -315,7 +321,10 @@ class Factions(Domain):
     id = "factions"
     title = "圈子與派系"
     primitives = (P("social.factions", "social", "circles that form from how people stand with each other, factions that are founded "
-                    "and split, and the fight for a seat that falls vacant", ["social.depth"], cost=0),)
+                    "and split, and the fight for a seat that falls vacant", ["social.depth"], cost=0),
+                  P("social.succession_process", "social", "the night before a seat is decided: pledges, a round of asking for support and the "
+                    "elders' council, each with its cost; the vote still decides, and its result names the council as its cause",
+                    ["social.factions"], cost=0))
     situation_kinds = {"power_struggle": "權力之爭", "faction_rivalry": "派系對立", "defection": "倒戈"}
     acts = {"member_of": ClaimAct("faction", "topic", "是{o}的人", "不是{o}的人")}
     actions = {
@@ -334,9 +343,15 @@ class Factions(Domain):
                              functions=("escalate", "turn"), first_time=True, heat=2),
         "campaign": EventStyle(caption="向{t}拉票", lines=("這次，請支持我。", "我需要你的一票。"), social=True, say=3.0,
                                beat=("talk", "listen", "focused", "calm", "medium", "static", 4), describe="{a} 向 {b} 拉票", heat=0),
-        "succession": EventStyle(caption="位子有了新主人", lines=("從今天起，由他來擔任。",), say=0.0,
-                                 describe="{a}接下了位子", functions=("payoff", "turn"), first_time=True, heat=1),
-        "found_faction": EventStyle(caption="成立派系", describe="{a}拉起了自己的一派", functions=("escalate",), heat=0),
+        "succession": EventStyle(caption="接下了這個位子", lines=("從今天起，由他來擔任。",), say=0.0,
+                                 describe="{a}接下了這個位子", functions=("payoff", "turn"), first_time=True, heat=1),
+        "found_faction": EventStyle(caption="另立了一派", describe="{a}另立一派", functions=("escalate",), heat=0),
+        "succession_pledge": EventStyle(caption="站出來表態，要爭這個位子", lines=("我也想爭這個位子，請各位看我的作為。",), social=True, say=3.0,
+                                        beat=("talk", "listen", "focused", "calm", "medium", "static", 4),
+                                        describe="{a}站出來表態，要爭這個位子", heat=0),
+        "succession_council": EventStyle(caption="長老議事，商量誰來接這個位子", say=0.0,
+                                         beat=("talk", "listen", "calm", "uneasy", "wide", "static", 5),
+                                         describe="長老議事，商量誰來接這個位子", functions=("escalate",), heat=1),
         "circles": EventStyle(caption="", describe="", heat=0),
     }
 
@@ -405,6 +420,9 @@ class Factions(Domain):
         if change:
             out.append(EventSpec(timestamp=now, type="circles", trigger_type="rule", importance=0.15,
                                  truth={"circles": [list(g) for g in groups]}, changes=change))
+        from world import succession
+        if succession.process_on(conn):
+            out += succession.eve(conn, day, now)
         return out
 
     def dawn(self, conn: sqlite3.Connection, day: int, now: int) -> list[EventSpec]:
@@ -454,10 +472,16 @@ class Factions(Domain):
         for v, pick in votes.items():
             if pick != winner and v != winner:
                 d.add(v, winner, "resentment", 0.04)
+        truth = {"seat": seat["seat_id"], "title": seat["title"], "faction": fid, "winner": winner, "actor": winner, "candidates": candidates,
+                 "votes": votes, "tally": tally, "previous": seat["holder_id"], "text": text}
+        from world import succession
+        eve = succession.eve_events(conn, seat["seat_id"], day) if succession.process_on(conn) else []
+        if eve:  # the night before it: the result names what led up to it as its cause
+            truth["eve"] = [e[0] for e in eve]
+        council = next((e[0] for e in reversed(eve) if e[1] == "succession_council"), None)
         return EventSpec(
-            timestamp=now, type="succession", trigger_type="rule", importance=0.85,
-            truth={"seat": seat["seat_id"], "title": seat["title"], "faction": fid, "winner": winner, "actor": winner, "candidates": candidates,
-                   "votes": votes, "tally": tally, "previous": seat["holder_id"], "text": text},
+            timestamp=now, type="succession", trigger_type="rule", importance=0.85, parent_event_id=council,
+            truth=truth,
             participants=[(winner, "actor")] + [(c, "rival") for c in candidates if c != winner],
             changes=changes + d.changes(conn), memories=[MemorySpec(p, text, 1.0) for p in voters])
 

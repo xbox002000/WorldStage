@@ -221,5 +221,116 @@ class Words(unittest.TestCase):
         self.assertEqual(got, line(1, "spell", {"actor": "x"}, {}))
 
 
+NAMES = {"ming": "阿明", "kai": "阿凱", "mei": "小美", "hao": "阿豪", "tao": "阿濤", "ring": "戒指", "purse": "錢袋"}
+
+
+def tell(speaker, listener, subject, act, obj, text, etype="tell", polarity="affirm", eid=100):
+    truth = {"actor": speaker, "target": listener, "text": text, "asserted_claim": {"subject": subject, "act": act, "object": obj, "polarity": polarity}}
+    if etype != "tell":
+        truth["claim"] = truth.pop("asserted_claim")
+    return S.speak(None, eid, etype, truth, NAMES)["say"]
+
+
+class Telling(unittest.TestCase):
+    """What is passed on is a claim, told in the speaker's and the listener's own terms (L1, L2 of narrative/lint.py)."""
+
+    def test_somebody_who_tells_of_themselves_says_i(self):
+        for eid in range(100, 140):
+            say = tell("ming", "kai", "ming", "lose", "purse", "阿明弄丟了錢袋", eid=eid)
+            self.assertNotIn("阿明", say)
+            self.assertIn("我弄丟了錢袋", say)
+
+    def test_a_thing_about_the_listener_is_told_as_what_people_say_not_as_news_in_a_strangers_voice(self):
+        for eid in range(100, 140):
+            say = tell("ming", "kai", "kai", "take", "ring", "阿凱拿走了戒指", eid=eid)
+            self.assertNotIn("阿凱", say)
+            self.assertIn("你拿走了戒指", say)
+
+    def test_a_thing_about_somebody_else_names_them(self):
+        say = tell("ming", "kai", "mei", "lose", "ring", "小美弄丟了戒指")
+        self.assertIn("小美弄丟了戒指", say)
+        self.assertNotIn("阿明", say)
+
+    def test_a_denial_keeps_its_denial_in_every_voice(self):
+        self.assertIn("你沒有拿走戒指", tell("ming", "kai", "kai", "take", "ring", "阿凱沒有拿走戒指", polarity="deny"))
+        self.assertIn("我沒有拿走戒指", tell("ming", "kai", "ming", "take", "ring", "阿明沒有拿走戒指", polarity="deny"))
+
+    def test_a_tone_is_never_passed_on_word_for_word(self):
+        for act, word in (("speak_cold", "冷淡地"), ("speak_hostile", "敵意地"), ("speak_warm", "親切地")):
+            for eid in range(100, 112):
+                for who in (("ming", "kai", "tao", "hao"), ("ming", "kai", "kai", "hao"), ("ming", "kai", "ming", "hao"), ("ming", "kai", "mei", "kai")):
+                    say = tell(who[0], who[1], who[2], act, who[3], f"{NAMES[who[2]]}{word}對{NAMES[who[3]]}說話", eid=eid)
+                    for bad in ("冷淡地", "敵意地", "親切地", "質問", "閒聊"):
+                        self.assertNotIn(bad, say)
+                    self.assertNotIn(NAMES[who[0]], say)
+                    if who[1] in (who[2], who[3]):
+                        self.assertNotIn(NAMES[who[1]], say)
+
+    def test_a_confrontation_is_put_in_the_confronters_terms_too(self):
+        say = tell("tao", "mei", "tao", "speak_hostile", "hao", "阿濤敵意地質問阿豪", etype="confront")
+        self.assertNotIn("阿濤", say)
+        self.assertNotIn("敵意地", say)
+        self.assertIn("我", say)
+        say = tell("tao", "mei", "ming", "take", "ring", "阿明拿走了戒指", etype="confront")
+        self.assertIn("阿明拿走了戒指", say)
+
+    def test_the_same_event_always_says_the_same_and_another_variant_can_say_another_line(self):
+        truth = {"actor": "ming", "target": "kai", "text": "小美弄丟了戒指", "asserted_claim": {"subject": "mei", "act": "lose", "object": "ring", "polarity": "affirm"}}
+        a = S.speak(None, 100, "tell", truth, NAMES)["say"]
+        self.assertEqual(a, S.speak(None, 100, "tell", truth, NAMES)["say"])
+        self.assertTrue({S.speak(None, 100, "tell", truth, NAMES, variant=v)["say"] for v in range(9)} - {a})
+
+
+class Replies(unittest.TestCase):
+    def test_every_reply_pool_has_at_least_twelve_lines_and_none_is_from_our_own_time(self):
+        from narrative.lint import MODERN_WORDS
+        for name, pool in S.REPLY.items():
+            self.assertGreaterEqual(len(pool), 12, name)
+            self.assertEqual(len({t for t, _ in pool}), len(pool), name)
+            for text, _ in pool:
+                self.assertFalse(any(w in text for w in MODERN_WORDS), (name, text))
+
+    def test_no_pool_of_the_martial_world_has_a_modern_word(self):
+        from narrative.lint import MODERN_WORDS
+        for pool in (*S.AFTER_DUEL.values(), *S.TELL.values(), *S.CONFRONT.values(), S.CHALLENGE, S.DUEL_WON, S.DUEL_LOST):
+            for text, _ in pool:
+                self.assertFalse(any(w in text for w in MODERN_WORDS), text)
+
+
+class AfterTheDuel(unittest.TestCase):
+    """The talk of two people who have just fought is about the fight: whoever lost does not talk like the one who won (L8)."""
+
+    @classmethod
+    def setUpClass(cls):
+        from world.events import EventSpec, apply_event
+        cls.c = connect()
+        init_db(cls.c, 1)
+        build_world(cls.c, 1, "jianghu_story_v1")
+        cls.duel = apply_event(cls.c, EventSpec(timestamp=1000, type="duel", trigger_type="decision", importance=0.5,
+                                                truth={"actor": "hao", "target": "tao", "winner": "hao", "loser": "tao"}, participants=[("hao", "actor"), ("tao", "target")]))
+
+    def say(self, speaker, listener, eid=None, reason="reply:retort", ts=1001):
+        truth = {"actor": speaker, "target": listener, "tone": "hostile", "reason": reason}
+        return S.speak(self.c, self.duel + (eid or 2), "talk", truth, NAMES, ts)["say"]
+
+    def test_the_loser_and_the_winner_each_have_their_own_pool(self):
+        lost = {t for t, _ in S.AFTER_DUEL["lost"]}
+        won = {t for t, _ in S.AFTER_DUEL["won"]}
+        for eid in range(1, 13):
+            self.assertIn(self.say("tao", "hao", eid), lost)
+            self.assertIn(self.say("hao", "tao", eid), won)
+        self.assertNotIn("你才是！", {self.say("tao", "hao", eid) for eid in range(1, 13)})
+
+    def test_it_holds_for_a_plain_word_between_the_two_too_but_not_for_others_or_for_later(self):
+        lost = {t for t, _ in S.AFTER_DUEL["lost"]}
+        self.assertIn(self.say("tao", "hao", 3, reason="volition"), lost)
+        self.assertNotIn(self.say("mei", "kai", 3), lost)                       # somebody else's quarrel
+        self.assertNotIn(self.say("tao", "hao", S.DUEL_WINDOW + 1), lost)       # long after
+        self.assertNotIn(self.say("tao", "hao", 3, ts=1000 + 31), lost)         # half an hour on, it is not about the bout
+
+    def test_without_a_world_nothing_is_after_a_duel(self):
+        self.assertEqual(S._after_duel(stub(), "tao", "hao"), "")
+
+
 if __name__ == "__main__":
     unittest.main()

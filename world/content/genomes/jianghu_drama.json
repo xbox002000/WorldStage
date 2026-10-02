@@ -1,0 +1,54 @@
+{
+  "people": {
+    "ming": {
+      "appearance": {"face": "方臉，眉毛濃，笑起來有點用力", "hair": "黑髮高束，一絲不亂", "build": "中等偏壯", "marks": ["腰間佩一把磨得發亮的舊劍"], "presence": "站得很直，一開口就像在議事"},
+      "voice": {"timbre": "低沉偏亮", "pace": "快，愛搶話", "catchphrases": ["這件事我來擔", "你信我"]},
+      "charm": 0.70, "attracted_to": ["female"], "attachment": "avoidant"
+    },
+    "mei": {
+      "appearance": {"face": "鵝蛋臉，眼神冷靜，很少笑", "hair": "及肩長髮，用一根木簪鬆鬆綰住", "build": "高瘦", "marks": ["總是背著一個舊行囊"], "presence": "不說話的時候最吸引人，像隨時會離開"},
+      "voice": {"timbre": "清冷", "pace": "慢，句子很短", "catchphrases": ["再說吧", "我不一定會留多久"]},
+      "charm": 0.85, "attracted_to": ["male"], "attachment": "secure"
+    },
+    "jun": {
+      "appearance": {"face": "圓臉，眼下有倦色", "hair": "短髮，有點亂", "build": "微胖", "marks": ["衣襟的盤扣常常扣錯"], "presence": "讓人想幫他一把"},
+      "voice": {"timbre": "沙啞", "pace": "不穩，常常停頓", "catchphrases": ["我晚些還你", "對不住啊"]},
+      "charm": 0.45, "attracted_to": ["female"], "attachment": "anxious"
+    },
+    "lan": {
+      "appearance": {"face": "柔和的圓眼睛，容易紅眼眶", "hair": "中長捲髮，鬆鬆挽在腦後", "build": "中等", "marks": ["手腕上有一條舊的結義紅繩"], "presence": "溫柔，卻讓人覺得她很容易受傷"},
+      "voice": {"timbre": "柔軟", "pace": "中等，說到在意的事會放慢", "catchphrases": ["你還記得嗎", "我只是想跟你好好說幾句話"]},
+      "charm": 0.60, "attracted_to": ["male"], "attachment": "anxious"
+    },
+    "hao": {
+      "appearance": {"face": "笑臉，有酒窩", "hair": "短髮，總是翹著", "build": "高大", "marks": ["袖口永遠捲到手肘"], "presence": "走進來就像把燈點亮"},
+      "voice": {"timbre": "洪亮", "pace": "快，愛插話", "catchphrases": ["欸你可聽說了", "來來來，我請"]},
+      "charm": 0.75, "attracted_to": ["female"], "attachment": "secure"
+    },
+    "yun": {
+      "appearance": {"face": "小臉，低著眼睛", "hair": "紮成低馬尾", "build": "嬌小", "marks": ["常把手藏在斗篷裡"], "presence": "安靜，讓人忍不住想問她在想什麼"},
+      "voice": {"timbre": "細輕", "pace": "慢，被問到會突然變冷", "catchphrases": ["沒什麼", "你想多了"]},
+      "charm": 0.55, "attracted_to": ["male"], "attachment": "avoidant"
+    },
+    "kai": {
+      "appearance": {"face": "窄臉，眼神銳利", "hair": "整齊的側髻", "build": "瘦而挺", "marks": ["腰帶上總掛著一支小毛筆"], "presence": "整潔得讓人不敢隨便"},
+      "voice": {"timbre": "清晰偏尖", "pace": "有條理，帶刺", "catchphrases": ["按規矩來", "這是我的功勞吧"]},
+      "charm": 0.50, "attracted_to": ["female"], "attachment": "secure"
+    },
+    "ning": {
+      "appearance": {"face": "瘦長臉，眉眼清淡", "hair": "俐落的短髮，只用布巾束住", "build": "瘦", "marks": ["手上總抱著一本線裝小冊子"], "presence": "內向，像一本不隨便翻開的書"},
+      "voice": {"timbre": "平穩", "pace": "慢，一個字一個字", "catchphrases": ["那是我的", "請不要碰"]},
+      "charm": 0.65, "attracted_to": ["male", "female"], "attachment": "avoidant"
+    },
+    "tao": {
+      "appearance": {"face": "寬臉，鬍渣", "hair": "平頭", "build": "結實", "marks": ["掌心磨出一層厚繭"], "presence": "樸實，講話不拐彎讓人安心"},
+      "voice": {"timbre": "粗", "pace": "直，不修飾", "catchphrases": ["不借", "說重點"]},
+      "charm": 0.40, "attracted_to": ["female"], "attachment": "secure"
+    },
+    "rui": {
+      "appearance": {"face": "娃娃臉，眼睛很大", "hair": "栗色短髮，兩側各編一小股辮", "build": "嬌小", "marks": ["總帶著一包點心分給大家"], "presence": "讓場面自然變得和氣"},
+      "voice": {"timbre": "明亮", "pace": "輕快，常常打圓場", "catchphrases": ["大家別這樣嘛", "我們和好吧"]},
+      "charm": 0.70, "attracted_to": ["male"], "attachment": "secure"
+    }
+  }
+}

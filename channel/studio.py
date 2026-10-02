@@ -34,6 +34,7 @@ from pathlib import Path
 from agent.volition import VolitionDecider
 from contracts.base import canonical_json, to_dict
 from narrative import debt, episode_planner, pacing, payoff
+from narrative import lint as LINT
 from narrative.dramaturgy import analyse
 from narrative.speech import speak
 from narrative.state import compile_state
@@ -105,7 +106,8 @@ def mind_info(root: Path) -> dict:
     if last_end is None or not models:
         raise MindReplayError(f"{root} has no whole day or no recorded answer")
     return {"db": db, "cache": cache, "log": root / "decisions.jsonl", "seed": int(meta["world_seed"]), "recipe": meta["recipe"],
-            "days": last_end // 1440 + 1, "models": models, "answers": answers}
+            "days": last_end // 1440 + 1, "models": models, "answers": answers,
+            "prompt_version": int(meta.get("prompt_version", 1))}   # a world asked with prompt v2 says so; it must be replayed with the same prompt
 
 
 class ReplayMind:
@@ -192,6 +194,9 @@ class Studio:
         self.shown: set[int] = set()
         self.recent: tuple = ()
         self.days: list[dict] = []
+        self.ledger = episode_planner.Ledger()                   # what the season has asked (narrative/episode_planner.py): a question is not asked again
+        self.lint_days: list[dict] = []                          # each day's hard events and what the world had settled about each thing (the lint's input, beside the days)
+        self.episodes: list[dict | None] = []                    # each day's episode as the page reads it (None: a quiet day), for the script lint's ledgers
         self.tl = {"places": {}, "events": {}, "people": {}}   # the character timeline, filled one day at a time (a read model, never written back)
         self._emo: dict[str, str] = {}                           # a person's emotion at the start of the next day
         self._side: dict[tuple, int] = {}                        # (who feels, about whom, field) -> the side of zero they were last on
@@ -223,7 +228,8 @@ class Studio:
         build_world(self.conn, self.seed, self.recipe)
         self.client = ReplayMind(info["cache"], info["models"])
         self.agent = CharacterAgent(VolitionDecider(self.seed), self.client, budget=MIND_SETTINGS["budget"], tier=MIND_SETTINGS["tier"],
-                                    pause_on_quota=True, per_person_day=MIND_SETTINGS["per_person_day"], shuffle=soul_lab.recorded_order)
+                                    pause_on_quota=True, per_person_day=MIND_SETTINGS["per_person_day"], shuffle=soul_lab.recorded_order,
+                                    prompt_version=info["prompt_version"])
         self.director = None
         self.sim = Simulation(self.conn, self.agent, self.agent, set())
         self.mind = {"info": info, "name": root.name, "log": []}
@@ -249,13 +255,18 @@ class Studio:
         if self.mind:
             self._take_minds(day, names)
         sit = analyse(self.conn)["situations"]
-        plan = episode_planner.plan_day(self.conn, day, self.shown, sit, self.recent, episode_planner.AB)
+        plan = episode_planner.plan_day(self.conn, day, self.shown, sit, self.recent, episode_planner.SHOW, self.ledger)
         episode = None
+        lint_facts = LINT.object_facts(self.conn, day)
         if plan is not None:
             for b in plan.beats:
                 self.shown |= set(b.event_ids)
             self.recent = (frozenset(plan.people),) + self.recent[:1]
             episode = self._episode(plan, names)
+            episode["cold_open"] = episode_planner.cold_open(self.conn, plan, names, LINT.MODERN_WORDS if "jianghu" in str(self.recipe) else ())
+            self._lint(episode, lint_facts, names)
+        self.episodes.append(episode)
+        self.lint_days.append({"day": day, "hard": LINT.hard_events(self.conn, day), "facts": lint_facts})
         if self.mind:
             self._place_minds(day, episode)
         led = self.director.ledger if self.director is not None else None
@@ -421,29 +432,58 @@ class Studio:
         names.update({r[0]: r[1] for r in self.conn.execute("SELECT seat_id, title FROM seats")})   # a seat is spoken of by its title
         return names
 
+    def _speak(self, eid: int, r, truth: dict, names: dict, said: set) -> dict | None:
+        """What is said at an event, in the page's shape; a line already said in this episode is read again (another line of the same pool)."""
+        for variant in range(9):
+            spoken = speak(self.conn, eid, r["type"], truth, names, r["timestamp"], r["location_id"] or "", variant)
+            if not spoken or not ({spoken.get("say", ""), spoken.get("answer", ""), *(x["say"] for x in spoken.get("reactions", []))} - {""}) & said:
+                break
+        if not spoken:
+            return None
+        said.update({spoken.get("say", ""), spoken.get("answer", ""), *(x["say"] for x in spoken.get("reactions", []))} - {""})
+        return {"say": spoken.get("say", ""), "answer": spoken.get("answer", ""), "subtext": spoken.get("subtext", ""),
+                "speaker": names.get(truth.get("actor", ""), ""), "listener": names.get(truth.get("target") or truth.get("victim") or "", ""),
+                "reactions": [{"who": names.get(x["who"], x["who"]), "say": x["say"]} for x in spoken.get("reactions", [])]}
+
     def _episode(self, plan, names: dict) -> dict:
         d = to_dict(plan)
         ev = {}
+        said: set[str] = set()
         for b in d["beats"]:
-            for eid in b["event_ids"]:
+            montage = len(b["event_ids"]) > 1 and b["reason"].startswith("montage")
+            for n, eid in enumerate(b["event_ids"]):
                 if eid not in ev:
                     r = self.conn.execute("SELECT type, timestamp, location_id, truth FROM events WHERE event_id = ?", (eid,)).fetchone()
+                    truth = json.loads(r["truth"])
                     ev[eid] = {"id": eid, "type": r["type"], "clock": f"{(r['timestamp'] % 1440) // 60:02d}:{(r['timestamp'] % 1440) % 60:02d}",
                                "day": r["timestamp"] // 1440, "place": names.get(r["location_id"] or "", ""), "place_id": r["location_id"] or "",
-                               "t": r["timestamp"] * 60, "caption": caption(r["type"], json.loads(r["truth"]), r["location_id"] or "", names)}
+                               "t": r["timestamp"] * 60, "caption": caption(r["type"], truth, r["location_id"] or "", names),
+                               "facts": LINT.event_facts(r["type"], truth, names)}
                     if eid in self.mind_by_event:
                         ev[eid]["mind"] = self.mind_by_event[eid]
-                    truth = json.loads(r["truth"])
-                    spoken = speak(self.conn, eid, r["type"], truth, names, r["timestamp"], r["location_id"] or "")
-                    if spoken:
-                        ev[eid]["speech"] = {"say": spoken.get("say", ""), "answer": spoken.get("answer", ""), "subtext": spoken.get("subtext", ""),
-                                             "speaker": names.get(truth.get("actor", ""), ""), "listener": names.get(truth.get("target") or truth.get("victim") or "", ""),
-                                             "reactions": [{"who": names.get(x["who"], x["who"]), "say": x["say"]} for x in spoken.get("reactions", [])]}
-            b["events"] = [ev[i] for i in b["event_ids"]]
+                    if not b["derived"] and not (montage and n):       # a montage beat shows the first round's words; a reaction beat shows only the reactions
+                        speech = self._speak(eid, r, truth, names, said)
+                        if speech:
+                            ev[eid]["speech"] = speech
+            events = [ev[i] for i in b["event_ids"]]
+            if b["derived"]:      # the room's reaction to an event already shown: the watchers' words, not the event's own line again
+                events = [{**e, "speech": {**(e.get("speech") or {"speaker": "", "listener": ""}), "say": "", "answer": "", "subtext": ""}} for e in events]
+                for e in events:
+                    e["speech"]["reactions"] = (ev[e["id"]].get("speech") or {}).get("reactions", [])
+            b["events"] = events
+            if any(e["day"] != d["day"] for e in events) and all(e["day"] != d["day"] for e in events):
+                b["recap"] = True        # what came before, told again as the background of today's story
         for g in d["grammar"]:
             g["events"] = [ev[i] if i in ev else self._event(i, names) for i in g["event_ids"]]
         d["people_names"] = [names.get(p, p) for p in d["people"]]
         return d
+
+    def _lint(self, episode: dict, facts: dict, names: dict) -> None:
+        """Hang the script lint (narrative/lint.py) on the episode: what is wrong with it as writing, each judged against the season so far."""
+        from world.domains import factions as F
+        issues = LINT.lint_episode(episode, prior=[e for e in self.episodes if e], names=[names.get(p, p) for p in F.humans(self.conn)], facts=facts,
+                                   jianghu="jianghu" in str(self.recipe))
+        episode["lint"] = {"version": LINT.LINT_VERSION, "count": len(issues), "items": [i.as_dict() for i in issues], "metrics": LINT.metrics(episode)}
 
     def _event(self, eid: int, names: dict) -> dict:
         r = self.conn.execute("SELECT type, timestamp, location_id, truth FROM events WHERE event_id = ?", (eid,)).fetchone()
@@ -563,6 +603,8 @@ class Studio:
                                                      "week_budget": led.week_budget if led else 0},
                "days": self.days, "people": self.people(), "world3d": self._world3d(),
                "totals": payoff.summary(self.conn), "timeline": self.timeline()}
+        doc["lint_days"] = self.lint_days
+        doc["lint"] = LINT.season_report(doc)
         if self.mind:   # only a world with minds has these keys: the page of any other world has no trace of them
             rp = self.mind["report"]
             doc["meta"]["mind"] = {"model": ", ".join(self.mind["info"]["models"]), "minds": rp["minds"], "with_event": rp["with_event"], "idle": rp["idle"],
@@ -577,6 +619,7 @@ class Studio:
 PRESETS = {
     "jianghu": {"title": "江湖故事（有製作人）", "recipe": "jianghu_story_spatial_v1", "strategy": "greedy", "seed": 501},
     "town": {"title": "小鎮日常", "recipe": "town_spatial_v1", "strategy": "off", "seed": 7},
+    "drama": {"title": "江湖劇情（有名有姓）", "recipe": "jianghu_drama_spatial_v1", "strategy": "greedy", "seed": 701},
 }
 
 

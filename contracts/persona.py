@@ -36,6 +36,8 @@ BeliefKind = Literal["world", "causal", "people"]
 Attachment = Literal["secure", "anxious", "avoidant"]  # how they hold on to people: calmly, clingingly, at arm's length
 # the traits that make up a temperament (world/seed.py TRAITS): what the rule agents read from personas.traits
 TEMPERAMENT_KEYS = ("honesty", "temper", "gossip", "generosity", "absent_minded", "curiosity")
+# the first-impression numbers of a genome: outside its hash (see CharacterGenome)
+IMPRESSION_FIELDS = ("looks", "warmth", "talkativeness")
 
 
 @dataclass(frozen=True)
@@ -135,9 +137,17 @@ class CharacterGenome:
     attracted_to: list[str] = field(default_factory=list)  # genders (profile.gender values) they can fall for; empty = nobody
     attachment: Attachment = "secure"
     version: int = PERSONA_VERSION
+    # The first impression (primitive social.impression, world/domains/impression.py): how one looks, how warm one is to be
+    # with, how much one speaks, each 0..1. Optional: when None the world derives them (looks = charm; warmth and talk from the
+    # temperament and the social style). They are NOT part of the genome's hash, so a genome keeps its id whether or not they
+    # are set (and the cast of every world made before them keeps the id it had): they are a presentation layer on top of the
+    # same person, written into a world's genome row only by a recipe that switches the primitive on.
+    looks: float | None = None
+    warmth: float | None = None
+    talkativeness: float | None = None
 
     def hash(self) -> str:
-        return hash_without(self)
+        return hash_without(self, *IMPRESSION_FIELDS)
 
     @property
     def genome_id(self) -> str:

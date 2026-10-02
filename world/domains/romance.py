@@ -64,7 +64,13 @@ def adult(conn: sqlite3.Connection, pid: str) -> bool:
 
 
 def charm(conn: sqlite3.Connection, pid: str) -> float:
+    """How easily somebody draws others in: the genome's charm; in a world with social.impression, how they look (the genome's
+    `looks`, which is the charm when it does not say), kept apart from how warm they are."""
     from world.personas import genome
+    from world.recipes import enabled
+    if enabled(conn, "social.impression"):
+        from world.domains.impression import looks
+        return looks(conn, pid)
     g = genome(conn, pid)
     return g.charm if g is not None else 0.5
 

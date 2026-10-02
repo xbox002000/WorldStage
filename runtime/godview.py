@@ -26,7 +26,21 @@ VERBS = {"talk": "和{t}聊天", "tell": "告訴{t}一件事", "confront": "質�
          "repay": "還錢給{t}", "take": "拿走了{o}", "find": "找回了{o}", "misplace": "弄丟了{o}", "give": "把{o}交給{t}",
          "notice_missing": "發現{o}不見了", "steal": "偷走{t}的{o}", "bark": "對{t}吠", "move": "走到{p}", "eat": "吃東西",
          "work": "工作", "sleep": "睡覺", "upkeep": "回家過夜", "goal_change": "改變了目標", "reflection": "想了想自己",
-         "parrot_speaks": "鸚鵡學舌", "feed_pet": "餵了寵物", "breakthrough": "的功力有了突破"}  # domain packs caption their own events
+         "parrot_speaks": "鸚鵡學舌", "feed_pet": "餵了寵物", "breakthrough": "的功力有了突破", "cash_prize": "得了一筆意外之財",
+         "seed": "（世界在這一刻有了新的設定）", "seed_wears_off": "（那個設定淡去了）", "circles": "（各門各派的往來）", "day_end": "（一天結束）"}  # domain packs caption their own events
+# events whose caption is not "who + a verb": the whole sentence comes from what the event says (never the event's type: that is the system's word)
+SECRET = "（暗中安排）"
+
+
+def _whole(etype: str, truth: dict, who: str, o: str) -> str | None:
+    if etype == "intervention":
+        text = truth.get("text") or ""
+        if not text:
+            return SECRET                 # a role cast in secret: nobody in the world is told, and the page says only that it was arranged
+        return ("掌門宣布：" + text) if truth.get("kind") == "announce_gathering" else text
+    if etype == "backstory":
+        return "（前情）" + (truth.get("text") or f"{who}和{o}有一段舊事")
+    return None
 
 
 def _names(conn) -> dict:
@@ -40,6 +54,9 @@ def caption(etype: str, truth: dict, place: str, names: dict) -> str:
     who = names.get(truth.get("actor", ""), truth.get("actor", ""))
     t = names.get(truth.get("target") or truth.get("victim") or truth.get("suspect") or "", "")
     o = names.get(truth.get("object", ""), truth.get("object", ""))
+    whole = _whole(etype, truth, who, o)
+    if whole is not None:
+        return whole
     from world.domains import style
     st = style(etype)
     verb = (st.caption if st is not None and st.caption else VERBS.get(etype, etype)).format(

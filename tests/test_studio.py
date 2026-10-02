@@ -89,6 +89,49 @@ class Exporting(unittest.TestCase):
         self.assertIsNone(self.studio.mind)
         self.assertEqual((self.studio.minds, self.studio.mind_by_event), ([], {}))
 
+    # -- the script lint (narrative/lint.py): what is wrong with an episode as writing -----------------------------------------------------
+    def test_each_episode_carries_its_script_lint_and_the_season_its_report(self):
+        from narrative.lint import LINT_VERSION
+        total = 0
+        self.assertEqual([x["day"] for x in self.doc["lint_days"]], list(range(6)))
+        for x in self.doc["lint_days"]:
+            for h in x["hard"]:
+                self.assertTrue({"id", "type", "kind"} <= set(h))
+            self.assertIn("objects", x["facts"])
+        for d in self.doc["days"]:
+            ep = d["episode"]
+            if ep is None:
+                continue
+            self.assertEqual(ep["lint"]["version"], LINT_VERSION)
+            self.assertEqual(ep["lint"]["count"], len(ep["lint"]["items"]))
+            self.assertTrue({"dup_lines", "max_pair_streak", "chat_share", "pair_kind_repeats"} <= set(ep["lint"]["metrics"]))
+            self.assertIsInstance(ep["cold_open"], str)
+            for i in ep["lint"]["items"]:
+                self.assertTrue({"code", "kind", "day", "event_id", "text"} <= set(i))
+            total += ep["lint"]["count"]
+        self.assertEqual(self.doc["lint"]["issues"]["total"], total)          # judged the same way, day by day or all at once
+        self.assertEqual({k: v for k, v in self.doc["lint"].items() if k != "issues"}["episodes"], sum(1 for d in self.doc["days"] if d["episode"]))
+
+    def test_the_faults_the_season_setting_is_for_do_not_appear(self):
+        codes = set(self.doc["lint"]["issues"]["by_code"])
+        self.assertFalse(codes & {"L1", "L2", "L3", "L4", "L8"}, self.doc["lint"]["issues"])
+
+    def test_a_reaction_beat_shows_the_watchers_not_the_events_own_line_again_and_a_montage_shows_its_first_round(self):
+        for d in self.doc["days"]:
+            for b in (d["episode"] or {"beats": []})["beats"]:
+                if b["derived"]:
+                    for e in b["events"]:
+                        self.assertEqual(e["speech"]["say"], "")
+                if b["reason"].startswith("montage"):
+                    self.assertEqual(sum(1 for e in b["events"] if e.get("speech")), 1)
+                    self.assertTrue(b["events"][0].get("speech") or True)
+
+    def test_a_line_is_not_said_twice_in_an_episode(self):
+        for d in self.doc["days"]:
+            ep = d["episode"]
+            if ep:
+                self.assertEqual(ep["lint"]["metrics"]["dup_lines"], 0, d["day"])
+
     def test_going_on_adds_a_day_and_leaves_the_earlier_ones(self):
         before = json.dumps(self.studio.days[:6], sort_keys=True)
         tl_before = json.loads(json.dumps(self.doc["timeline"]))

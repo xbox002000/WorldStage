@@ -355,6 +355,150 @@ class DailyJob(unittest.TestCase):
                 self.assertTrue(os.path.exists(os.path.join(folder, "episode_plan.json")))
 
 
+class ScriptSeason(unittest.TestCase):
+    """The season ledgers (Options.script; narrative/lint.py is the ruler): today events, a hard event taken in, montage, questions not asked again."""
+
+    DAYS = 10
+
+    @classmethod
+    def setUpClass(cls):
+        from narrative import lint as LN
+        cls.LN = LN
+        cls.c = produced(17, cls.DAYS)
+        cls.before = fingerprint(cls.c)
+        cls.sit = analyse(cls.c)["situations"]
+        cls.ledger = P.Ledger()
+        cls.shown: set[int] = set()
+        cls.plans: dict[int, ep.EpisodePlan] = {}
+        cls.resolved: dict[int, dict] = {}
+        recent: tuple = ()
+        for day in range(cls.DAYS):
+            plan = P.plan_day(cls.c, day, cls.shown, cls.sit, recent, P.SHOW, cls.ledger)
+            if plan is None:
+                continue
+            cls.plans[day] = plan
+            cls.shown |= {i for b in plan.beats for i in b.event_ids}
+            recent = (frozenset(plan.people),) + recent[:1]
+            cls.resolved[day] = LN.resolve(cls.c, plan)
+
+    def test_it_only_reads(self):
+        self.assertEqual(fingerprint(self.c), self.before)
+
+    def test_the_option_is_off_unless_asked_and_then_a_plan_is_what_it_was(self):
+        self.assertFalse(P.DEFAULT.script or P.AB.script or P.V1.script)
+        self.assertTrue(P.SHOW.script and P.SHOW.ab_story)
+        shown: set[int] = set()
+        for day in range(self.DAYS):
+            plan = P.plan_day(self.c, day, shown, self.sit, (), P.AB)
+            if plan is not None:
+                self.assertFalse(any(b.reason.startswith("montage") for b in plan.beats))
+                shown |= {i for b in plan.beats for i in b.event_ids}
+
+    def test_an_episode_is_of_its_own_day_and_an_older_event_is_only_a_recent_recap(self):
+        events = load_events(self.c)
+        for day, plan in self.plans.items():
+            for b in plan.beats:
+                for i in b.event_ids:
+                    self.assertLessEqual(events[i].day, day)
+                    self.assertGreaterEqual(events[i].day, day - P.RECAP_DAYS, (day, i))
+            self.assertTrue(any(events[i].day == day for b in plan.beats for i in b.event_ids), day)
+
+    def test_nothing_is_filmed_twice_in_a_season(self):
+        seen: dict[int, int] = {}
+        for day, plan in self.plans.items():
+            for b in plan.beats:
+                if b.derived:
+                    continue
+                for i in b.event_ids:
+                    self.assertNotIn(i, seen, f"event {i} on day {day} and on day {seen.get(i)}")
+                    seen[i] = day
+
+    def test_a_day_with_a_hard_event_takes_one_in_as_the_a_storys(self):
+        for day, plan in self.plans.items():
+            hard = {h["id"] for h in self.LN.hard_events(self.c, day)}
+            fresh = hard - {i for d, p in self.plans.items() if d < day for b in p.beats for i in b.event_ids}
+            if fresh:
+                on = {i for b in plan.beats if b.shoot for i in b.event_ids}
+                self.assertTrue(fresh & on, f"day {day}: hard events {sorted(fresh)} and none of them is filmed")
+
+    def test_the_same_two_people_doing_the_same_kind_of_back_and_forth_is_one_beat(self):
+        events = load_events(self.c)
+        for day, plan in self.plans.items():
+            seen = set()
+            for b in plan.beats:
+                if b.derived or not b.shoot or events[b.event_ids[0]].type not in ("talk", "tell", "confront") or len(events[b.event_ids[0]].people) < 2:
+                    continue
+                e = events[b.event_ids[0]]
+                kind = ("quarrel" if e.truth.get("tone") in ("cold", "hostile") else "chat") if e.type == "talk" else e.type
+                key = (b.story, e.day, frozenset(e.people[:2]), kind)
+                self.assertNotIn(key, seen, (day, key))
+                seen.add(key)
+
+    def test_a_montage_beat_says_so_and_holds_events_of_one_day_and_one_pair(self):
+        events = load_events(self.c)
+        folded = [b for p in self.plans.values() for b in p.beats if len(b.event_ids) > 1]
+        for b in folded:
+            self.assertTrue(b.reason.startswith("montage"), b.reason)
+            self.assertEqual(len({events[i].day for i in b.event_ids}), 1)
+            self.assertEqual(len({frozenset(events[i].people[:2]) for i in b.event_ids}), 1)
+
+    def test_a_question_is_not_asked_again_within_a_week_and_an_ending_always_names_somebody_in_the_episode(self):
+        plans = [self.plans[d] for d in sorted(self.plans)]
+        for i, p in enumerate(plans):
+            for q in plans[:i]:
+                self.assertFalse(q.core_question == p.core_question and 0 < p.day - q.day < P.QUESTION_DAYS, (q.day, p.day, p.core_question))
+            self.assertTrue(p.ending_question, p.day)
+            self.assertNotIn(p.ending_question, [q.ending_question for q in plans[max(0, i - P.ENDING_EPISODES):i]], p.day)
+            names = self.resolved[p.day]["people_names"]
+            self.assertTrue(any(n in p.ending_question for n in names), (p.day, p.ending_question, names))
+
+    def test_the_lint_finds_none_of_the_faults_the_season_option_is_for(self):
+        prior = []
+        bad = []
+        names = sorted({n for e in self.resolved.values() for n in e["people_names"]})
+        for day in sorted(self.plans):
+            for i in self.LN.lint_episode(self.resolved[day], prior=prior, names=names, facts=self.LN.object_facts(self.c, day)):
+                bad.append((day, i.code, i.kind, i.text))
+            prior.append(self.resolved[day])
+        self.assertEqual([b for b in bad if b[1] in ("L1", "L2", "L3", "L4", "L5", "L8")], [])
+
+    def test_the_premise_of_who_took_a_thing_must_hold(self):
+        facts = {"objects": {"戒指": {"owner": "小美", "other_takes": 0, "found_day": None, "retaken": False}}}
+        self.assertTrue(P._false_premise("誰拿了戒指？", facts))
+        self.assertFalse(P._false_premise("誰拿了鑰匙？", facts))
+        facts["objects"]["戒指"]["other_takes"] = 1
+        self.assertFalse(P._false_premise("誰拿了戒指？", facts, 3))
+        facts["objects"]["戒指"]["found_day"] = 1
+        self.assertTrue(P._false_premise("誰拿了戒指？", facts, 3))
+        self.assertFalse(P._false_premise("誰拿了戒指？", facts, 1))        # found today: not yet answered when the day began
+
+    def test_the_ledger_blocks_by_days_and_by_episodes(self):
+        led = P.Ledger()
+        led.cores.append((2, "誰拿了戒指？"))
+        self.assertTrue(led.blocked_core("誰拿了戒指？", 8))
+        self.assertFalse(led.blocked_core("誰拿了戒指？", 9))
+        self.assertFalse(led.blocked_core("別的問題", 4))
+        for d, q in enumerate(("a", "b", "c", "d")):
+            led.endings.append((d, q))
+        self.assertTrue(led.blocked_ending("d") and led.blocked_ending("b"))
+        self.assertFalse(led.blocked_ending("a"))
+
+    def test_a_bare_pronoun_in_an_ending_is_given_the_name_it_is_about(self):
+        class A:       # an arc stub: its peak is a person act
+            peak = type("E", (), {"truth": {"actor": "ming"}, "people": ("ming",)})()
+        q = P._ending(["他的實力什麼時候會被看見？"], {"ming": "阿明"}, {"ming"}, "核心", None, None, 0, A, [])
+        self.assertEqual(q, "阿明的實力什麼時候會被看見？")
+
+    def test_a_cold_open_comes_from_the_character_card_or_is_not_written(self):
+        for plan in self.plans.values():
+            line = P.cold_open(self.c, plan)
+            self.assertIsInstance(line, str)
+            if line:
+                self.assertIn("想要「", line)
+        plan = next(iter(self.plans.values()))
+        self.assertEqual(P.cold_open(self.c, plan, modern=("",)), "")        # every sentence of a card that has a word of our time is left out
+
+
 class QuietDay(unittest.TestCase):
     def test_a_world_where_nothing_has_happened_has_no_episode(self):
         c = connect()

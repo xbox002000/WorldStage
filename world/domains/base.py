@@ -144,6 +144,11 @@ class Domain:
         """How short-fused someone is right now (tired, hungry, worked up): adds to the heat of their words."""
         return 0.0
 
+    def reticence(self, conn: sqlite3.Connection, pid: str, other: str, now: int) -> float:
+        """How much `pid` leans to saying nothing when `other` has spoken to them (+: holds back, -: answers readily), as a
+        score on the "say nothing" answer (agent/reply.py)."""
+        return 0.0
+
     def solidarity(self, conn: sqlite3.Connection, a: str, b: str) -> float:
         """How much `a` takes `b` for one of their own (the same circle, the same faction): -1..1. It tilts whom a bystander
         takes the side of and how readily one believes what one is told."""

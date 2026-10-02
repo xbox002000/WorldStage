@@ -42,6 +42,20 @@ const REL = { trust: ["信任", 1], affection: ["好感", 1], respect: ["尊重"
 const PAYOFF = { face_slap: "打臉", chosen: "被選中", succession: "奪得位子" };
 const DEBT = { humiliation: "受挫", betrayal: "背叛與敵意", gap: "被低估", longing: "單戀", grudge: "怨恨" };
 const PHASE = { calm: "平靜", warm: "升溫中", peak: "高峰" };
+/* the script lint (narrative/lint.py): what is wrong with an episode as writing. code -> [short name, what it means] */
+const LINT = {
+  L1: ["人稱不對", "自己用名字講自己的事，或把別人的事當新聞告訴當事人"], L2: ["把語氣當八卦", "冷淡、敵意只是語氣，不是可以傳的消息"],
+  L3: ["日期／重播", "別天的事沒有標前情，或同一件事已經播過"], L4: ["順序／系統詞", "爽文步驟顛倒，或字幕還是系統的詞"],
+  L5: ["問題有毛病", "核心問題重複、結尾問題缺／重複／不是這一集的人、前提不成立"], L6: ["現代詞", "江湖的世界出現我們這個時代的詞"],
+  L8: ["台詞與勝負不符", "比武輸的人說贏家的話，或相反"],
+};
+const LINT_KIND = {
+  self_third: "自稱第三人稱", told_about_self: "對當事人說他自己的事", tone_gossip: "傳語氣", stale_event: "沒標前情的舊事", replayed_event: "重播",
+  step_out_of_order: "步驟順序倒了", untranslated_caption: "字幕沒翻譯", core_repeated: "核心問題重複", ending_repeated: "結尾問題重複",
+  ending_not_here: "結尾問題的人不在這集", ending_unnamed: "結尾問題沒說是誰", no_ending: "沒有結尾問題", false_premise: "問題前提不成立",
+  already_answered: "問題已經有答案", modern_word: "現代詞", loser_sounds_like_winner: "輸家說贏的話", winner_sounds_like_loser: "贏家說輸的話",
+  duel_answer_mismatch: "比武的回應不符",
+};
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -52,7 +66,7 @@ const hue = (name) => { let h = 0; for (const c of String(name)) h = (h * 31 + c
 const avatar = (name) => `<span class="av" style="background:hsl(${hue(name)} 45% 42%)" title="${esc(name)}">${esc(String(name).slice(-2))}</span>`;
 
 let D = null;
-const S = { day: 0, filter: "all", tab: "producer", person: null, scene: null, step: null, view: "story", frameReady: false, pending: null, tlPerson: null, tlHide: new Set() };
+const S = { lint: false, day: 0, filter: "all", tab: "producer", person: null, scene: null, step: null, view: "story", frameReady: false, pending: null, tlPerson: null, tlHide: new Set() };
 
 /* ---------- loading ---------- */
 async function load() {
@@ -98,6 +112,7 @@ function renderHeader() {
     ["爽點", `${t.count ?? 0} 個`], ["自己掙來", t.earned_share != null ? `${pct(t.earned_share)}%` : "—"],
   ];
   if (m.mind) chips.splice(2, 0, ["心智", `LLM ・ ${m.mind.model}`]);
+  if (D.lint && D.lint.issues) chips.push(["劇本問題", `${D.lint.issues.total}（全季）`]);
   $("#chips").innerHTML = chips.map(([k, v]) => `<span class="chip"><span class="dim">${k}</span><b>${esc(v)}</b></span>`).join("");
   mindNote();
 }
@@ -118,10 +133,10 @@ function renderStrip() {
   el.innerHTML = D.days.map((d) => {
     const k = kindOf(d); const dim = S.filter !== "all" && S.filter !== k;
     const h = Math.round(6 + peak(d) * 56);
-    return `<button class="day${dim ? " dim" : ""}" role="option" data-d="${d.day}" aria-selected="${d.day === S.day}" title="第 ${d.day + 1} 天：${esc(d.episode ? d.episode.core_question : "沒有集")}">
+    return `<button class="day${dim ? " dim" : ""}" role="option" data-d="${d.day}" aria-selected="${d.day === S.day}" title="第 ${d.day + 1} 天：${esc(d.episode ? d.episode.core_question : "沒有集")}${d.episode && d.episode.lint ? `（劇本問題 ${d.episode.lint.count}）` : ""}">
       <span class="col"><i class="${k}" style="height:${h}px"></i></span>
       <span class="n">${d.day + 1}</span>
-      <span class="marks">${acted(d) ? '<span class="mk act" title="製作人出手"></span>' : kept(d) ? '<span class="mk still" title="製作人刻意不動"></span>' : ""}${d.payoffs.length ? '<span class="star" title="這天有爽點">★</span>' : ""}</span>
+      <span class="marks">${acted(d) ? '<span class="mk act" title="製作人出手"></span>' : kept(d) ? '<span class="mk still" title="製作人刻意不動"></span>' : ""}${d.payoffs.length ? '<span class="star" title="這天有爽點">★</span>' : ""}${d.episode && d.episode.lint && d.episode.lint.count ? '<span class="lm" title="這集有劇本問題">!</span>' : ""}</span>
     </button>`;
   }).join("");
   const sel = $(`.day[data-d="${S.day}"]`, el);
@@ -149,9 +164,11 @@ function renderEpisode() {
   root.innerHTML = `
   <div class="card ephead ${ep.kind}">
     <div class="kicker"><span class="badge ${ep.kind}">${KIND[ep.kind]}</span><span>第 ${d.day + 1} 天</span><span class="who">${people}</span>${D.world3d ? `<button class="seek" data-play="1" title="在 3D 世界裡，依序看這一集的每一場">▶ 在現場播放這一集</button>` : ""}</div>
+    ${ep.cold_open ? `<div class="coldopen" title="冷開場：這一集誰想要什麼，輸了會失去什麼（取自角色卡）">${esc(ep.cold_open)}</div>` : ""}
     <div class="question">${esc(ep.core_question)}</div>
     ${ep.ending_question ? `<div class="ending"><b>結尾留下</b>${esc(ep.ending_question)}</div>` : `<div class="ending"><b>結尾</b><span class="dim">這集把事情都收掉了，沒有留下問題</span></div>`}
-    <div class="facts">${facts.filter(([t]) => t).map(([t, c, tip]) => `<span class="fact ${c}" title="${esc(tip)}">${esc(t)}</span>`).join("")}</div>
+    <div class="facts">${facts.filter(([t]) => t).map(([t, c, tip]) => `<span class="fact ${c}" title="${esc(tip)}">${esc(t)}</span>`).join("")}${lintChip(ep)}</div>
+    ${lintBox(ep)}
   </div>
   ${dayMinds(d)}
   ${ep.grammar.length ? `<div class="card block"><h3>爽文六步</h3><p class="note">亮起來的，是世界真的產生了的；虛線的，是世界沒有產生，這裡不會替它編。</p>
@@ -164,6 +181,23 @@ function renderEpisode() {
     ${dropped.length ? `<details class="dropped"><summary>沒拍的 ${dropped.length} 場（什麼都沒改變，或沒人在場）</summary><ul>${dropped.map((b) => `<li>${esc((b.events[0] || {}).caption || "（沒有人在場的事）")}：${b.reason === "nothing changed" ? "什麼都沒改變" : b.reason === "no one on stage" ? "沒人在場" : esc(b.reason)}</li>`).join("")}</ul></details>` : ""}
   </div>`;
   if (S.step != null) showStep(S.step);
+}
+
+/* the script lint: a chip in the episode's head, and a box that opens to say what each problem is */
+function lintChip(ep) {
+  const l = ep.lint; if (!l) return "";
+  return `<button class="fact lintchip ${l.count ? "bad" : "good"}" data-lint="1" aria-expanded="${S.lint}" aria-controls="lintbox" title="劇本檢查器：這一集作為一份劇本，哪裡有毛病">劇本問題 ${l.count}</button>`;
+}
+function lintBox(ep) {
+  const l = ep.lint; if (!l) return "";
+  const beatOf = (id) => { const b = ep.beats.find((x) => x.shoot && x.event_ids.includes(id)); return b ? b.index : null; };
+  const by = {}; l.items.forEach((i) => (by[i.code] = by[i.code] || []).push(i));
+  const m = l.metrics || {};
+  const rows = Object.keys(by).sort().map((c) => `<div class="lgroup"><h4><span class="lcode">${c}</span>${esc((LINT[c] || [c])[0])}<span class="dim">（${by[c].length}）</span></h4>
+    <p class="dim">${esc((LINT[c] || ["", ""])[1])}</p><ul>${by[c].map((i) => { const bi = i.event_id != null ? beatOf(i.event_id) : null;
+      return `<li><span class="lk">${esc(LINT_KIND[i.kind] || i.kind)}</span>${esc(i.text)}${bi != null ? ` <button class="cg" data-scene="${bi}">到那場戲</button>` : ""}</li>`; }).join("")}</ul></div>`).join("");
+  const stats = `<p class="dim lstat">重複度：同一句台詞重複 ${m.dup_lines ?? 0} 次・同一組人連拍最多 ${m.max_pair_streak ?? 0} 拍・聊天／傳話／質問佔 ${Math.round((m.chat_share || 0) * 100)}% 的拍</p>`;
+  return `<div id="lintbox" class="lintbox"${S.lint ? "" : " hidden"}>${l.count ? rows : `<p class="pos">這一集沒有檢查到劇本問題。</p>`}${stats}</div>`;
 }
 
 function chart(beats) {
@@ -213,7 +247,8 @@ function focusMind(n) {   // a mind from the people page: the scene that shows i
 function sceneCard(b, n) {
   const [name, tip] = INTENT[b.intent] || [b.intent, ""]; const [stageName] = STAGE[b.stage];
   const c = b.checklist; const ev = b.events[0] || {};
-  const caps = b.derived ? "在場的人看見了剛才的事，各有各的反應" : b.events.map((e) => e.caption).join("；");
+  const montage = b.reason && b.reason.startsWith("montage");
+  const caps = b.derived ? "在場的人看見了剛才的事，各有各的反應" : montage ? `${(b.events[0] || {}).caption}（又來回了 ${b.event_ids.length} 回）` : b.events.map((e) => e.caption).join("；");
   const changes = [
     ...Object.entries(c.emotion).map(([who, [a, z]]) => `<span class="cg feel">${esc(who)} ${emo(a)}→${emo(z)}</span>`),
     ...c.relationship.map(relChip), ...c.state.map(stateChip),
@@ -222,6 +257,8 @@ function sceneCard(b, n) {
   if (c.audience_only) tags.push(`<span class="tag ao" title="觀眾看到了，台上的人不知道">只有觀眾知道</span>`);
   if (b.reason.startsWith("set-up")) tags.push(`<span class="tag">鋪陳：還沒有改變</span>`);
   if (b.derived) tags.push(`<span class="tag">反應鏡頭</span>`);
+  if (b.recap) tags.push(`<span class="tag" title="這件事發生在前幾天，這裡只是交代背景">前情</span>`);
+  if (b.reason && b.reason.startsWith("montage")) tags.push(`<span class="tag" title="同兩個人同一種來回，併成一場">蒙太奇 ${b.event_ids.length} 回</span>`);
   if (b.story === "B") tags.push(`<span class="tag" title="同一時期另一條在動的故事">副線</span>`);
   if (b.story === "texture") tags.push(`<span class="tag" title="一個平常的時刻，讓高潮有東西可以對比">平常時刻</span>`);
   if (c.expectation) tags.push(`<span class="tag ao" title="${esc(c.expectation)}">觀眾領先</span>`);
@@ -241,11 +278,11 @@ function sceneCard(b, n) {
 }
 
 function speechHtml(b) {
-  const said = b.events.filter((e) => e.speech && e.speech.say);
+  const said = b.events.filter((e) => e.speech && (e.speech.say || (e.speech.reactions || []).length));
   if (!said.length) return "";
   return `<div class="said">${said.slice(0, 3).map((e) => {
     const s = e.speech;
-    return `<div class="line"><span class="sp">${esc(s.speaker || "")}</span>「${esc(s.say)}」${s.subtext ? `<span class="sub">（${esc(s.subtext)}）</span>` : ""}
+    return `<div class="line">${s.say ? `<span class="sp">${esc(s.speaker || "")}</span>「${esc(s.say)}」` : ""}${s.say && s.subtext ? `<span class="sub">（${esc(s.subtext)}）</span>` : ""}
       ${s.answer ? `<div class="line ans"><span class="sp">${esc(s.listener || "")}</span>「${esc(s.answer)}」</div>` : ""}
       ${(s.reactions || []).map((r) => `<div class="line ans"><span class="sp">${esc(r.who)}</span>「${esc(r.say)}」</div>`).join("")}</div>`;
   }).join("")}</div>`;
@@ -670,6 +707,7 @@ function bind() {
     setView(b.dataset.v);
   });
   $("#episode").addEventListener("click", (e) => {
+    const lk = e.target.closest("[data-lint]"); if (lk) { S.lint = !S.lint; const bx = $("#lintbox"); if (bx) bx.hidden = !S.lint; lk.setAttribute("aria-expanded", String(S.lint)); return; }
     const sc0 = e.target.closest("[data-scene]"); if (sc0) { focusScene(+sc0.dataset.scene); return; }
     const s = e.target.closest(".step"); if (s) { S.step = S.step === +s.dataset.s ? null : +s.dataset.s; showStep(S.step); return; }
     const pt = e.target.closest(".pt"); if (pt) { focusScene(+pt.dataset.b); return; }

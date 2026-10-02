@@ -92,3 +92,29 @@ Said at every line instead of once, it would be 441 lines (306 traced): the "sai
   somebody hurt; calm and most happy moments have nothing.
 - Not done: the observatory and the episode plan do not read it yet (they can: `inner_state(conn, person, event_id, names)`); only the speech and
   its God View / control-room carriers do. Its sentences are the first writing, like the pools.
+
+## What is passed on, and to whom (the script lint's L1, L2, L8; `speech_v0.1` still, the pools and the rules changed)
+
+The script lint (`narrative/lint.py`, docs/episode_planner.md "劇本檢查器") found that what people *tell* was the system's own caption pasted
+into a template ("我聽說阿明弄丟了錢袋" said by 阿明; "你知道嗎？阿濤冷淡地對阿豪說話" six times). A tell, an accusation or a confrontation
+carries a *claim* (`asserted_claim` / `claim`: who, what they did, to what). `speak()` now says it in the speaker's and the listener's terms
+(`_claim_view`):
+
+| whose business the claim is | how it is put | example |
+|---|---|---|
+| the speaker's own | first person | "有件事我想讓你知道：我弄丟了錢袋。" |
+| the listener's | "大家都在說，你……" (never news about themselves in a stranger's voice); the other person of the claim also becomes 你 or 我 | "大家都在說，你拿走了戒指。" |
+| somebody else's | their name; 你 / 我 for the two of them where they are the other side of the claim | "聽說了嗎？小美弄丟了戒指。" |
+| a *tone* (`speak_cold`, `speak_hostile`, ...) | **not news**: only that two people are on good or bad terms, never the caption of the event | "大家都在說，你和阿豪最近不太對勁。" |
+
+Confrontation and accusation follow the same terms ("你說過我和阿豪最近不和，是真的嗎？"; "是你拿走了鑰匙吧？"). Three pools (`TELL`: other, you,
+self) and three for `CONFRONT`; `TONE_GIST` has the words for a tone. The relationship noun ("你師兄") is not used: no table says who is whose
+senior (needs the world; see the report of this work).
+
+**After a duel** (`AFTER_DUEL`, `_after_duel`): the talk between the two who fought, within 12 events and half an hour of it, is said from the
+loser's pool or the winner's ("技不如人，我認了。" / "承讓。"), whatever the tone or reply stance was; the loser no longer answers "你才是！".
+**REPLY pools** have at least 12 lines each (chat, soothe, apologize, explain, deny, rebuff, retort, storm_off), none with a word of our own time
+(tests/test_speech.py checks it against `narrative/lint.py MODERN_WORDS`); the duel watchers' pools (`GASP_*`) have 10 each.
+`speak(..., variant=n)` reads an event again and takes another line of the same pool (for a domain's event, the next of its lines): the control room
+asks for one when a line has already been said in the episode, so the same sentence is not said twice in one. Deterministic: the same episode
+always reads the same.

@@ -80,11 +80,20 @@ def run_world(a, root: Path, client, days: int, *, mind: bool = True, announce=p
     db = root / "world.db"
     fresh = not db.exists()
     conn = connect(db)
+    version = int(getattr(a, "prompt_version", 1))
     if fresh:
         init_db(conn, a.seed)
         build_world(conn, a.seed, a.recipe)
+        if version != 1:  # a world made with a later prompt says so (the control room replays it with the same one); a v1 world says nothing, as before
+            conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('prompt_version', ?)", (str(version),))
+    else:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'prompt_version'").fetchone()
+        if int(row[0] if row else 1) != version:
+            raise SystemExit(f"this world was made with prompt v{row[0] if row else 1}: its answers are cached by that prompt, so it goes on with it "
+                             f"(--prompt-version {row[0] if row else 1}); a new world is made with v{version}")
     agent = CharacterAgent(VolitionDecider(a.seed), client if mind else None, budget=a.budget, tier=a.tier, pause_on_quota=True,
-                           per_person_day=getattr(a, "per_person_day", None), shuffle=recorded_order if getattr(a, "shuffle", False) else False)
+                           per_person_day=getattr(a, "per_person_day", None), shuffle=recorded_order if getattr(a, "shuffle", False) else False,
+                           prompt_version=version)
     sim = Simulation(conn, agent, agent, set())
     log = root / "decisions.jsonl"
     paused = None
@@ -164,6 +173,9 @@ def main() -> None:
     ap.add_argument("--max-calls", type=int, default=None, help="a hard cap on the calls of this run")
     ap.add_argument("--min-interval", type=float, default=4.0)
     ap.add_argument("--dry", action="store_true", help="a stub mind: no network, no quota")
+    ap.add_argument("--prompt-version", type=int, default=1, choices=(1, 2),
+                    help="1: the prompt the recorded worlds were asked (the default, so they can be gone on with); 2: era, who is he or she, a reason "
+                         "about the option chosen, and a checked answer (agent/cognition.py): for a new world, e.g. jianghu_drama_v1")
     ap.add_argument("--baseline", action="store_true", help="also run the same world with rules only, for a comparison of what is chosen")
     ap.add_argument("--out", default=str(OUT))
     a = ap.parse_args()
@@ -176,7 +188,7 @@ def main() -> None:
     cache_conn = open_cache(root.parent / f"{a.name}.llm_cache.db")
     client = make_client(a, cache_conn, ledger)
     model = a.model.split(",")[0]
-    print(f"world {a.recipe} seed {a.seed}, to day {a.days}, {'DRY (no network)' if a.dry else a.model}, tier {a.tier}, "
+    print(f"world {a.recipe} seed {a.seed}, prompt v{a.prompt_version}, to day {a.days}, {'DRY (no network)' if a.dry else a.model}, tier {a.tier}, "
           f"ledger today: {ledger.used(model)} used" + (f" of {a.daily_limit}" if a.daily_limit else ""))
     before = getattr(client, "calls", 0)
     res = run_world(a, root, client, a.days)

@@ -47,6 +47,14 @@ class Versions(unittest.TestCase):
         self.assertEqual(DEBT_VERSION, VERSIONS["debt_model"])
         from contracts.bible import BIBLE_VERSION
         self.assertEqual(BIBLE_VERSION, VERSIONS["bible_contract"])
+        from narrative.lint import LINT_VERSION
+        self.assertEqual(LINT_VERSION, VERSIONS["script_lint"])
+        from agent.cognition import PROMPT_V2_VERSION
+        from world.content.jianghu_drama import DRAMA_VERSION
+        self.assertEqual(DRAMA_VERSION, VERSIONS["jianghu_drama_content"])
+        self.assertEqual(PROMPT_V2_VERSION, VERSIONS["cognition_prompt"])
+        from world.domains.impression import IMPRESSION_VERSION
+        self.assertEqual(IMPRESSION_VERSION, VERSIONS["impression_model"])
 
     def test_the_payoff_metric_is_a_draft_until_it_is_frozen(self):
         self.assertTrue(VERSIONS["payoff_metric"].endswith("v0.1"))

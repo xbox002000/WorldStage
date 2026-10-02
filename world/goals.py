@@ -280,6 +280,8 @@ def overnight(conn: sqlite3.Connection, day: int, now: int) -> list[EventSpec]:
     if not has_goals(conn):
         return []
     w = GoalWriter(conn, now, None)
+    from world.recipes import enabled
+    earned = enabled(conn, "goals.earned")   # what reaches a goal comes after it was set, and the completion names it
     for g in conn.execute(f"SELECT * FROM goals WHERE status IN ({','.join('?' * len(OPEN))}) ORDER BY person_id, slot", OPEN).fetchall():
         pid, kind, age = g["person_id"], g["kind"], day - g["since_day"]
         traits = _traits(conn, pid)
@@ -315,7 +317,19 @@ def overnight(conn: sqlite3.Connection, day: int, now: int) -> list[EventSpec]:
             if age >= REVENGE_COOLS_DAYS:
                 w.status(g, "abandoned", "氣消了", day)
                 continue
-            if conn.execute("SELECT 1 FROM events WHERE timestamp >= ? AND json_extract(truth, '$.target') = ? "
+            if earned:
+                set_at = conn.execute("SELECT MAX(event_id) FROM events WHERE type = 'goal_change' AND json_extract(truth, '$.goal') = ? "
+                                      "AND json_extract(truth, '$.to') IN ('formed', 'transformed')",
+                                      (f"{pid}:{g['slot']}",)).fetchone()[0] or 0
+                hit = conn.execute("SELECT event_id FROM events WHERE event_id > ? AND json_extract(truth, '$.target') = ? "
+                                   "AND json_extract(truth, '$.outcome') IN ('caught', 'lie_exposed', 'distortion_exposed') "
+                                   "ORDER BY event_id LIMIT 1", (set_at, g["target"])).fetchone()
+                if hit:
+                    w.cause = hit[0]           # the completion names what did it
+                    w.status(g, "completed", "對方出糗了", day)
+                    w.cause = None
+                    continue
+            elif conn.execute("SELECT 1 FROM events WHERE timestamp >= ? AND json_extract(truth, '$.target') = ? "
                             "AND json_extract(truth, '$.outcome') IN ('caught', 'lie_exposed', 'distortion_exposed') LIMIT 1",
                             (g["since_day"] * 1440, g["target"])).fetchone():
                 w.status(g, "completed", "對方出糗了", day)

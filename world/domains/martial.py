@@ -44,6 +44,8 @@ class Martial(Domain):
         P("duel", "adventure", "a challenge settled by skill and luck, with stakes", ["reputation", "martial_arts"]),
         P("sect_factions", "social", "membership, rank and loyalty in groups", ["reputation"]),
         P("martial_arts", "power", "skills that training raises; a manual doubles it", ["schedule"], cost=2),
+        P("goals.earned", "social", "a goal is not reached on the day it was set, and what reaches it must come after it (and is named)",
+          ["goals"], cost=0),
     )
     actions = {
         "train": ActionSpec("train", _validate_train, jianghu.resolve_train, label="練功"),
@@ -110,6 +112,9 @@ class Martial(Domain):
 
     def review_goal(self, conn: sqlite3.Connection, goal: sqlite3.Row, day: int) -> tuple[str, str] | None:
         if goal["kind"] == "surpass" and conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'world_vars'").fetchone():
+            from world.recipes import enabled
+            if enabled(conn, "goals.earned") and day - goal["since_day"] < 1:
+                return None   # not on the evening it was set: losing a duel and being "already stronger" the same night reads as nothing happened
             if jianghu.skill(conn, goal["person_id"]) > jianghu.skill(conn, goal["target"]) + 0.05:
                 return "completed", "已經比他強了"
         return None

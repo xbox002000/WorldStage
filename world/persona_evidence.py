@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from contracts.persona import CharacterGenome, Evidence, EvidenceSource, PersonaClaim, PersonaEvidence
+from contracts.persona import IMPRESSION_FIELDS, CharacterGenome, Evidence, EvidenceSource, PersonaClaim, PersonaEvidence
 
 AUTHOR = EvidenceSource(id="author", title="作者設定")
 REDACTED = EvidenceSource(id="redacted", title="整理過的公開資料")
@@ -55,6 +55,7 @@ def fields(g: CharacterGenome) -> list[str]:
     out.extend(f"voice.{k}" for k in ("timbre", "pace") if getattr(g.voice, k))
     many("voice.catchphrases", g.voice.catchphrases)
     out.append("charm")
+    out.extend(k for k in IMPRESSION_FIELDS if getattr(g, k) is not None)  # looks, warmth, talkativeness: when set
     many("attracted_to", g.attracted_to)
     out.append("attachment")
     return out

@@ -23,13 +23,14 @@ from pathlib import Path
 
 from contracts.base import canonical_json, from_dict, to_dict
 from contracts.character import CharacterProfile
-from contracts.persona import (TEMPERAMENT_KEYS, Appearance, Belief, BranchOrigin, CharacterGenome, CharacterInstance,
-                               DecisionHabits, Expression, Formative, KnowledgeBoundary, Origin, SimulationBranch, Voice)
+from contracts.persona import (IMPRESSION_FIELDS, TEMPERAMENT_KEYS, Appearance, Belief, BranchOrigin, CharacterGenome,
+                               CharacterInstance, DecisionHabits, Expression, Formative, KnowledgeBoundary, Origin,
+                               SimulationBranch, Voice)
 
 EXTRAS = Path(__file__).parent / "content" / "genomes"
 EXTRA_TYPES = {"origin": Origin, "decisions": DecisionHabits, "expression": Expression, "knowledge": KnowledgeBoundary,
                "appearance": Appearance, "voice": Voice}
-EXTRA_PLAIN = ("charm", "attracted_to", "attachment")
+EXTRA_PLAIN = ("charm", "attracted_to", "attachment") + IMPRESSION_FIELDS
 
 
 class PersonaError(ValueError):
@@ -89,11 +90,26 @@ def lift(profile: CharacterProfile, traits: dict, persona_text: str, extras: dic
             changes[key] = [from_dict(Formative, v) for v in value]
         elif key == "beliefs":
             changes[key] = [from_dict(Belief, v) for v in value]
+        elif key in IMPRESSION_FIELDS:
+            if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0.0 <= float(value) <= 1.0:
+                raise PersonaError(f"{profile.id}: {key} must be a number in 0..1, not {value!r}")
+            changes[key] = float(value)
         elif key in EXTRA_PLAIN:
             changes[key] = value
         else:
             raise PersonaError(f"{profile.id}: unknown genome field {key!r}")
     return dataclasses.replace(g, **changes) if changes else g
+
+
+def stored(g: CharacterGenome, impression: bool) -> str:
+    """The genome as it is written into a world's genome row. The first-impression numbers go in only for a world whose
+    recipe switches `social.impression` on; for every other world the row is what it always was (they are outside the hash,
+    so the id is the same either way)."""
+    data = to_dict(g)
+    for key in IMPRESSION_FIELDS:
+        if not impression or data.get(key) is None:
+            data.pop(key, None)
+    return canonical_json(data)
 
 
 def _has_table(conn: sqlite3.Connection) -> bool:
@@ -105,6 +121,8 @@ def store(conn: sqlite3.Connection, content: str, people: list[str]) -> int:
     from world.profiles import profile
     if not _has_table(conn) or profile(conn, people[0]) is None:
         return 0
+    from world.recipes import enabled
+    impression = enabled(conn, "social.impression")
     extras = _extras(content)
     unknown = sorted(set(extras) - set(people))
     if unknown:
@@ -114,7 +132,7 @@ def store(conn: sqlite3.Connection, content: str, people: list[str]) -> int:
         text, traits = conn.execute("SELECT text, traits FROM personas WHERE person_id = ?", (pid,)).fetchone()
         g = lift(prof, json.loads(traits), text, extras.get(pid))
         conn.execute("INSERT INTO character_genomes(person_id, genome_id, genome, source_kind) VALUES (?,?,?,?)",
-                     (pid, g.genome_id, canonical_json(to_dict(g)), g.origin.kind))
+                     (pid, g.genome_id, stored(g, impression), g.origin.kind))
     return len(people)
 
 

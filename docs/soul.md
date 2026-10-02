@@ -104,3 +104,35 @@ difference in warm talk, goals formed, or tension (v1: -0.02, [-1.9, +1.8]). The
 它把這個世界用 `llm_cache.db` 裡已付費的答案重播一遍（`LLMClient(mode="replay")`：快取沒有的請求丟 `CacheMiss`，不會連網），並且要求重播出的事件和 `world.db` 逐筆相同、
 決定和 `decisions.jsonl` 相同，不同就不顯示。導播室裡，由心智決定的行動有小標「LLM」，展開看他說的話、心裡想的（`inner`）、為什麼醒來、規則最想做的是什麼；人物頁有「心聲」；
 3D 觀測台的氣泡下面有一行紫色的「心聲」。細節在 `docs/studio.md`「看有 LLM 的世界」。這一節沒有改前面的任何數字或結論。
+
+## 提示 v2（2026-10-02）：江湖世界的人不該說「想買新手機」
+
+審查在 soul-503 的 LLM 答案裡看到：江湖角色說「想買馬跟新手機」「那張新專輯」「這盆多肉」，選項是「聊音樂」「偷偷找別的工作」；理由與選擇矛盾（選「聊做菜」卻說「我真的沒拿日記」）；她／他混用。原因有兩層：江湖名冊沿用小鎮的人生（這個由新內容包 `jianghu_drama` 處理，見 `docs/jianghu_drama.md`），以及提示本身不知道時代、不知道性別、也不檢查答案。
+
+**v1 一個字都沒動。** `CharacterAgent(prompt_version=1)` 是預設，`PROMPT` 的 sha256 在 `tests/test_drama_content.py` 寫死（`38a88fe4…670422e`）；已記錄的世界（soul501..511）的答案以提示全文為鍵，`channel.studio --mind out/soul/soul503` 重播仍然 1102 個事件逐筆相同。v2 是**另一個提示**，快取鍵自然與 v1 分開，不會撿到 v1 的答案。
+
+v2（`CharacterAgent(prompt_version=2)`；`soul_lab.py --prompt-version 2`，預設 1）加了：
+
+| | |
+|---|---|
+| 時代一句 | 從配方的 `core` 讀（`martial_arts`）：「這裡是古代的江湖：沒有手機、咖啡、辦公室、電影，也沒有大學或公司；人們說的是師門、鏢局、客棧、銀兩，用的是劍、茶與酒。」沒有登記時代的世界不說。 |
+| 性別與代名詞 | 狀態的 `who` 多一格「性別：男（他）」；提示裡一行「人物的稱呼：林嘯＝他、沈青璃＝她…」（狀態裡出現名字的人）。 |
+| 選項用世界自己的詞 | 話題用名冊的標籤（「聊琴曲」，不是「聊音樂」）；工作的選項用此人的工作詞（「偷偷打聽別的門派」、「接受邀請，離開師門」）；`break_up` 在江湖寫「向X說清楚，從此不再往來」。 |
+| 理由要和所選項一致 | 提示要求 reason 講被選的那個人與那件事，不要提別的選項。 |
+
+**輸出檢查**（`check_answer`，只有 v2）：不合格就丟 `AnswerRejected`，由規則決定這一次（記為 `agent_failed`，同時 `agent_rejected`；`decisions.jsonl` 寫 `error: AnswerRejected` 與原因，不算答案）。這是 provider 有回答的情況，所以**不**計入「連續 5 次失敗就停」。三項：
+
+1. reason 或 inner 含這個時代沒有的詞（`MODERN_WORDS`，46 個；只有世界有登記時代才查，小鎮不查）；
+2. reason 提到的人或東西只屬於別的選項、完全沒提所選項的人與東西（人與物名從世界讀；選「什麼都不做」不查）；
+3. 他／她不對：reason 與 inner 提到的人（加上所選項的對象）全是同一種性別，卻用了另一種的代名詞（「他們」「其他」「他人」不算代名詞）。
+
+這些是檢查**字**，不是檢查心思：誤殺的情形是理由提到了另一個選項的人但其實有道理（「看到林嘯我就煩，找個人聊天吧」選了別人），或提到未點名的第三人用了另一種代名詞；代價只是這一次換規則決定，花掉一個額度。誤殺率沒有量過（沒有真的 LLM 的 v2 答案）。
+
+用法與限制：
+
+    python soul_lab.py --name drama501 --recipe jianghu_drama_v1 --seed 501 --days 3 --prompt-version 2 --daily-limit 20     # 新世界，要額度
+    python soul_lab.py --name drama501 --recipe jianghu_drama_v1 --seed 501 --days 3 --prompt-version 2 --dry               # 假心智，$0
+
+- v2 世界在 `world.db` 的 `meta` 寫 `prompt_version=2`；接續時版本不同會拒絕（它的答案是以那個提示快取的）。v1 世界什麼都不寫，與以前一樣。
+- 導播室重播 v2 世界時，`channel/studio.py` 的 `mind_info`／`_init_mind` 要讀 `meta.prompt_version` 並傳給 `CharacterAgent`（那個檔案不在這一輪的範圍；沒傳會用 v1 提示、對不上快取）。
+- 這一輪**沒有呼叫任何真的 LLM**：v2 的提示用假心智（`--dry`）驗過內容與管線，答案的品質（現代詞是否真的消失、被擋掉的比例）要等有額度時才量得到。

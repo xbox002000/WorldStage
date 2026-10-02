@@ -87,6 +87,14 @@ def _pick(scored: list[tuple[float, Intent | None]], rng) -> Intent | None:
     return rng.choices(scored, weights)[0][1]
 
 
+def _reticence(conn: sqlite3.Connection, me: str, other: str, now: int) -> float:
+    """How much the domains of this world lean `me` to saying nothing back to `other` (0 when none of them has a view)."""
+    from world.domains import active
+    from world.domains.base import Domain
+    doms = [d for d in active(conn) if type(d).reticence is not Domain.reticence]
+    return sum(d.reticence(conn, me, other, now) for d in doms) if doms else 0.0
+
+
 def _grudge(conn: sqlite3.Connection, me: str, other: str) -> float:
     from world.goals import goals_of, has_goals
     if not has_goals(conn):
@@ -182,6 +190,9 @@ class Replier:
             if away:
                 scored.append((-0.1 + 0.9 * withdrawal + 0.5 * fear + 0.4 * wrong + 0.3 * wronged * (1 - t["temper"])
                                + 0.1 * turn, Intent(me, "move", away, reason="reply:storm_off")))
+        lean = _reticence(conn, me, other, now)  # a quiet person (social.impression) answers less, a talkative one more
+        if lean:
+            scored[0] = (scored[0][0] + lean, None)  # the first answer is always the one that says nothing
         return scored
 
     def intervene(self, conn: sqlite3.Connection, row: sqlite3.Row, now: int) -> Intent | None:

@@ -231,6 +231,29 @@ class Minds(unittest.TestCase):
         self.assertEqual(agent.stats["agent"], 0)                         # no answer was taken, however many woke
         self.assertGreater(agent.stats["agent_failed"], 0)
 
+    def test_a_world_says_which_prompt_it_was_asked_with_and_goes_on_with_it(self):
+        def meta(root: Path) -> dict:
+            c = sqlite3.connect(root / "world.db")
+            try:
+                return dict(c.execute("SELECT key, value FROM meta").fetchall())
+            finally:
+                c.close()
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
+            d = Path(d)
+            v1 = argparse.Namespace(seed=501, recipe="jianghu_story_v1", budget=20, tier="A")          # no flag: prompt v1, as before, and it says nothing
+            soul_lab.run_world(v1, d / "v1", soul_lab.DryMind(), 1, announce=lambda *_: None)
+            self.assertNotIn("prompt_version", meta(d / "v1"))
+            v2 = argparse.Namespace(seed=501, recipe="jianghu_drama_v1", budget=20, tier="A", prompt_version=2)
+            soul_lab.run_world(v2, d / "v2", soul_lab.DryMind(), 1, announce=lambda *_: None)
+            self.assertEqual(meta(d / "v2")["prompt_version"], "2")
+            with self.assertRaises(SystemExit):                                                      # a v2 world is not gone on with v1 (its answers are cached by the prompt)
+                soul_lab.run_world(argparse.Namespace(seed=501, recipe="jianghu_drama_v1", budget=20, tier="A"), d / "v2", soul_lab.DryMind(), 2,
+                                   announce=lambda *_: None)
+            with self.assertRaises(SystemExit):                                                      # nor a v1 world with v2
+                soul_lab.run_world(argparse.Namespace(seed=501, recipe="jianghu_story_v1", budget=20, tier="A", prompt_version=2), d / "v1",
+                                   soul_lab.DryMind(), 2, announce=lambda *_: None)
+            soul_lab.run_world(v2, d / "v2", soul_lab.DryMind(), 2, announce=lambda *_: None)          # the same version goes on
+
 
 if __name__ == "__main__":
     unittest.main()

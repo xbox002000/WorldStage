@@ -23,6 +23,7 @@ BUILTIN = {
     "factions": "world.domains.factions:Factions",
     "roles": "world.domains.roles:Roles",
     "gatherings": "world.domains.gatherings:Gatherings",
+    "impression": "world.domains.impression:Impression",
 }
 _EXTRA: dict[str, type[Domain]] = {}
 

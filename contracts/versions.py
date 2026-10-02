@@ -26,4 +26,8 @@ VERSIONS = {
     "novelty_model": "novelty_v0.1",                # narrative/novelty.py NOVELTY_VERSION (a draft)
     "debt_model": "debt_model_v0.1",                # narrative/debt.py DEBT_VERSION (a draft; a read model, not used by the director)
     "bible_contract": "bible_v0.1",                 # contracts/bible.py BIBLE_VERSION (a draft; the cast and places a provider is told about)
+    "script_lint": "script_lint_v0.1",              # narrative/lint.py LINT_VERSION (a draft; a read model: the ruler for an episode as writing)
+    "impression_model": "impression_v0.1",          # world/domains/impression.py IMPRESSION_VERSION (a draft; primitive social.impression)
+    "jianghu_drama_content": "jianghu_drama_content_v0.1",  # world/content/jianghu_drama.py DRAMA_VERSION (a draft; the jianghu pack with names and a jianghu past)
+    "cognition_prompt": "cognition_prompt_v2",     # agent/cognition.py PROMPT_V2_VERSION (v1, the default, is the prompt the recorded worlds were asked)
 }

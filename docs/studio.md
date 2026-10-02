@@ -126,3 +126,22 @@ Tests: tests/test_studio.py.
 - 大小：seed 503 的 `studio-data.js` 是 125,763 B，其中心聲相關的資料約 16,300 B（+14.9%）；3D 存檔多約 5,800 B。
 
 測試：`tests/test_mind_view.py`（用小世界和 stub 答案：重播與原世界逐筆相同、配對不錯位、沒有心智的事件沒有 `mind`、快取沒有的請求丟錯而不是連網、少一筆答案就停下來；有 `out/soul/soul503` 時再用真的跑一次）。
+
+## 劇本問題（每集的檢查，`narrative/lint.py`）
+
+每一集的頭部，在那一排小標籤的最後，有一顆「劇本問題 N」。N 是劇本檢查器（唯讀，`script_lint_v0.1`）對這一集作為一份文字的檢查結果；0 是綠色，大於 0 是紅色。
+點它展開，依代碼分組列出每一項（L1 人稱不對、L2 把語氣當八卦、L3 日期／重播、L4 順序／系統詞、L5 問題有毛病、L6 現代詞、L8 台詞與勝負不符），
+每項寫明是哪一種毛病、哪一句話，並有「到那場戲」跳到那個場景。底下一行是重複度：同一句台詞重複幾次、同一組人連拍最多幾拍、聊天／傳話／質問佔幾成的拍。
+季節條上有問題的那一天，數字下面有一個紅色驚嘆號；頁首晶片「劇本問題」是整季的總數。規則世界和 LLM 世界一樣（`--mind` 的世界也有）；舊的 `studio.json`（沒有 `lint`）看不到這些，頁面不會壞。
+
+`studio.json` 多出的欄位：
+- `lint_days[]`（和 `days` 同序，不放進 days 裡）：`hard` 是那天的硬事件（比武、推人、離開師門、揭穿、告白、繼位…，`{id, type, kind}`），`facts` 是世界對每件東西已經定下來的事（誰的、有沒有別人拿過、哪天找回來），用來檢查「誰拿了X」的前提。
+- `days[].episode.lint = {version, count, items: [{code, kind, day, event_id, text}], metrics: {beats, chat_share, dup_lines, max_pair_streak, pair_kind_repeats}}`、`episode.cold_open`（見下）。
+- `meta` 同層的 `lint`：整季報告（`narrative/lint.py season_report`：各種毛病的數量、聊天佔比、硬事件入集率）。
+- 每個事件多一個 `facts`（比武誰贏誰輸、talk 的語氣、傳話的 claim 種類）；每個場景可能有 `recap: true`（這件事發生在前幾天，這裡只是交代背景，頁面標「前情」）；
+  蒙太奇的一拍有好幾個 `event_ids`，`reason` 以 `montage` 開頭，頁面標「蒙太奇 N 回」，只演第一回的台詞。
+
+**冷開場**（`episode.cold_open`，B11）：每集標題下面一句「誰想要什麼、輸了會失去什麼」，取自角色卡的 `core.want`／`core.fear`（最高張力那一場的主角，對手也有就加一句）。卡片沒有就不寫；江湖世界裡卡片的句子若有現代詞（例如「存錢買新手機」）就整句略過，不改寫。
+
+劇本問題是讀模型：導播室用 `episode_planner.SHOW`（A/B 故事加上「全季的帳」）規劃每一天，帳（已播事件、問的問題）在 `Studio` 裡，不寫進世界。
+測試：`tests/test_lint.py`（每一項都有手造的小集證明偵測得到、乾淨的集不誤報、只讀）、`tests/test_studio.py`。

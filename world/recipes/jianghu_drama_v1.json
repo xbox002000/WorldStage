@@ -1,0 +1,46 @@
+{
+  "recipe_id": "jianghu_drama_v1",
+  "title": "江湖劇情：有名有姓的江湖人，繼位要有拉票、議事與表態，才算一件事",
+  "content": "jianghu_drama",
+  "core": "martial_arts",
+  "pillars": [
+    "reputation",
+    "duel",
+    "sect_factions"
+  ],
+  "accents": [
+    "gossip.drift"
+  ],
+  "narrative": [],
+  "style": "suspense",
+  "signature_hook": "有人比大家以為的強，有人愛著不敢說，有人想要那個位子",
+  "director_prefers": {
+    "feud": 0.08,
+    "item": 0.04
+  },
+  "base": [
+    "events",
+    "claims",
+    "attention",
+    "schedule",
+    "volition",
+    "goals",
+    "goals.earned",
+    "psyche",
+    "items.ownership",
+    "items.accusation",
+    "social.exchange",
+    "social.topics",
+    "life.work",
+    "character.values",
+    "body.arousal",
+    "social.depth",
+    "growth.progression",
+    "romance.attraction",
+    "social.impression",
+    "social.factions",
+    "social.succession_process",
+    "production.roles",
+    "event.gatherings"
+  ]
+}
