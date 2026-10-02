@@ -464,7 +464,10 @@ class Studio:
                     if not b["derived"] and not (montage and n):       # a montage beat shows the first round's words; a reaction beat shows only the reactions
                         speech = self._speak(eid, r, truth, names, said)
                         if eid in self.mind_by_event:   # a mind decided it: heard in its own words (narrative/speech.in_own_words)
-                            speech = in_own_words(speech, self.mind_by_event[eid], LINT.MODERN_WORDS if "jianghu" in str(self.recipe) else (), r["type"])
+                            speech = in_own_words(speech, self.mind_by_event[eid], LINT.MODERN_WORDS if "jianghu" in str(self.recipe) else (), r["type"],
+                                                  conn=self.conn, speaker=str(truth.get("actor") or ""),
+                                                  listener=str(truth.get("target") or truth.get("victim") or truth.get("suspect") or ""),
+                                                  names=names)
                             if speech is not None:
                                 speech.setdefault("speaker", names.get(truth.get("actor", ""), ""))
                                 speech.setdefault("listener", names.get(truth.get("target") or "", ""))

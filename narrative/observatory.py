@@ -118,7 +118,7 @@ def thread_views(conn: sqlite3.Connection, names: dict | None = None) -> list[di
                     "('formed', 'active', 'blocked')", (p,)):
                 if target in primary or obj in [x["thing"] for e in events for x in e["hands"]]:
                     from world.goals import text_of
-                    what = text_of(kind).format(t=names.get(target, target), o=names.get(obj, obj))
+                    what = text_of(kind, conn).format(t=names.get(target, target), o=names.get(obj, obj))
                     pressure.append(f"{names.get(p, p)}想{what}")
         out.append({
             "id": t.thread_id, "kind": t.kind, "question": t.central_question, "status": status,

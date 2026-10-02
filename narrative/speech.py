@@ -471,9 +471,11 @@ def speak(conn: sqlite3.Connection, event_id: int, etype: str, truth: dict | str
         _with_inner(c, out, etype, a, b)
     if out is None:
         from narrative.lines import line
-        return line(event_id + variant, etype, t, names)         # a domain's event says what the domain gives it (a later reading takes the next line)
-    if t.get("outcome") in OUTCOME and etype in ("accuse", "confront"):
+        out = line(event_id + variant, etype, t, names)         # a domain's event says what the domain gives it (a later reading takes the next line)
+    elif t.get("outcome") in OUTCOME and etype in ("accuse", "confront"):
         out["answer"] = _pick(OUTCOME[t["outcome"]], c, b, a, "ans")
+    if out is not None:
+        _apply_kinship(conn, out, a, b, names)
     return out
 
 
@@ -539,7 +541,47 @@ def _succession(c: Ctx, t: dict, a: str) -> dict:
 OUTCOME_EVENTS = ("duel", "challenge", "confront", "accuse")   # their line reads the result; a mind's reason was written before it
 
 
-def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, ...] = (), etype: str = "") -> dict | None:
+def _listener_name(conn: sqlite3.Connection | None, listener: str, names: dict | None) -> str:
+    if names and names.get(listener):
+        return str(names[listener])
+    if conn is None or not listener:
+        return ""
+    row = conn.execute("SELECT name FROM people WHERE id = ?", (listener,)).fetchone()
+    return row[0] if row else ""
+
+
+def _open_as_kin(conn: sqlite3.Connection | None, speaker: str, listener: str, text: str, names: dict | None) -> str:
+    """A line said *to* the listener that opens with their name ("林嘯，……") uses the kinship term ("林師兄，……").
+
+    The surname is the first character of the name. A line that does not open that way — gossip that names somebody else,
+    a subtitle, a thought — is returned unchanged. No term (another sect, not a jianghu world) leaves the name as it is.
+    """
+    if not isinstance(text, str) or not text or conn is None or not speaker or not listener or speaker == listener:
+        return text
+    name = _listener_name(conn, listener, names)
+    if not name or not text.startswith(name + "，"):
+        return text
+    from narrative.address import address
+    term = address(conn, speaker, listener)
+    if not term:
+        return text
+    return name[0] + term + text[len(name):]
+
+
+def _apply_kinship(conn: sqlite3.Connection | None, out: dict, speaker: str, listener: str, names: dict | None) -> dict:
+    """Direct speech only: what the speaker says to the listener, and the listener's answer back. Not reactions or subtext."""
+    if out.get("say"):
+        out["say"] = _open_as_kin(conn, speaker, listener, out["say"], names)
+    if out.get("answer"):
+        out["answer"] = _open_as_kin(conn, listener, speaker, out["answer"], names)
+    if out.get("opening"):
+        out["opening"] = _open_as_kin(conn, speaker, listener, out["opening"], names)
+    return out
+
+
+def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, ...] = (), etype: str = "",
+                 *, conn: sqlite3.Connection | None = None, speaker: str = "", listener: str = "",
+                 names: dict | None = None) -> dict | None:
     """When a character's mind decided the event, let them be heard in their own words (a read model, like everything here).
 
     A mind's `reason` is either a line said to somebody ("阿豪，你少在那邊假好心打聽我的事。") or the person explaining to themselves
@@ -547,6 +589,7 @@ def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, .
     is what they say (the template line is kept as `template`); anything else is a `monologue`, heard as a thought, never said to the other.
     A reason with a word out of its era (`era_words`) is not used at all: the template stays. In an event whose line reads its result (a duel
     won or lost), the reason was written before the result: it is said first (`opening`), and the line that reads the result stays.
+    A line that opens by naming the listener ("林嘯，……") is said with the kinship term ("林師兄，……") when `conn` names the two of them.
     """
     if not mind or not str(mind.get("reason", "")).strip():
         return spoken
@@ -560,7 +603,7 @@ def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, .
         out["monologue"] = str(mind.get("reason", "")).strip()
         if out["monologue"].startswith("agent:"):
             out["monologue"] = out["monologue"][len("agent:"):].strip()
-        return out
+        return _apply_kinship(conn, out, speaker, listener, names)
     reason = str(mind["reason"]).strip()
     if reason.startswith("agent:"):
         reason = reason[len("agent:"):].strip()
@@ -574,4 +617,4 @@ def in_own_words(spoken: dict | None, mind: dict | None, era_words: tuple[str, .
         out["subtext"] = ""       # what they think underneath is the mind's own `inner`, shown beside it
     else:
         out["monologue"] = reason
-    return out
+    return _apply_kinship(conn, out, speaker, listener, names)

@@ -27,6 +27,9 @@ TEXT = {
     "make_amends": "彌補{t}", "repay": "還清欠{t}的錢", "save": "存到{o}元", "reconcile": "和{t}和好",
     "befriend": "和{t}成為朋友", "keep_secret": "守住秘密", "outshine": "壓過{t}",
 }  # domain packs add their own kinds (world/domains): see text_of
+# Only a recipe that turns on goals.earned says this. TEXT["save"] stays "存到{o}元" for every older world,
+# because that string is copied into goal_change truth.
+SAVE_EARNED = "攢下{o}文錢"
 # initial goals from the personas: person -> (kind, target, object, priority)
 INITIAL = {
     "ming": ("outshine", "kai", "", 0.5), "mei": ("save", "", "500", 0.6), "jun": ("repay", "tao", "", 0.7),
@@ -56,11 +59,15 @@ def initial_rows(people: list[str], initial: dict | None = None) -> list[tuple]:
 def describe(conn: sqlite3.Connection, g: sqlite3.Row | dict) -> str:
     names = {r[0]: r[1] for r in conn.execute("SELECT id, name FROM people UNION ALL SELECT id, name FROM objects "
                                                "UNION ALL SELECT id, name FROM locations")}
-    return text_of(g["kind"]).format(t=names.get(g["target"], g["target"]), o=names.get(g["object"], g["object"]))
+    return text_of(g["kind"], conn).format(t=names.get(g["target"], g["target"]), o=names.get(g["object"], g["object"]))
 
 
-def text_of(kind: str) -> str:
+def text_of(kind: str, conn: sqlite3.Connection | None = None) -> str:
     from world.domains import goal_text
+    if kind == "save" and conn is not None:
+        from world.recipes import enabled
+        if enabled(conn, "goals.earned"):
+            return SAVE_EARNED
     return TEXT.get(kind) or goal_text().get(kind, kind)
 
 
