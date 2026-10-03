@@ -18,6 +18,18 @@ def content_module(name: str):
     return importlib.import_module(f"world.content.{name}")
 
 
+def open_content(name: str):
+    """A content module, or a forged cast folder that holds profiles.json and relations.json.
+
+    Shipped recipe names (jianghu_drama, town_v1, ...) are not directories, so they still load as modules.
+    """
+    path = Path(name)
+    if path.is_dir() and (path / "profiles.json").is_file() and (path / "relations.json").is_file():
+        from world.content.forged import load_pack
+        return load_pack(path)
+    return content_module(name)
+
+
 def home_of(conn: sqlite3.Connection, pid: str) -> str:
     """Where someone sleeps: their own home if the content gives one, else the first place tagged home."""
     row = conn.execute("SELECT json_extract(traits, '$.home') FROM personas WHERE person_id = ?", (pid,)).fetchone()
@@ -90,9 +102,14 @@ def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, 
         variables[f"arrears.{pid}"] = 0.0
     variables.update({f"missing.{o[0]}": 0.0 for o in c.OBJECTS})
     variables.update({f"revert.{k}": -1.0 for k in ("price_food", "visibility", "job_security")})
-    from world.seed import _profiles_and_domains
-    content = c.__name__.rsplit(".", 1)[1]
-    variables.update(_profiles_and_domains(conn, content, ids))
+    roster = getattr(c, "ROSTER", None)
+    if roster is not None:
+        from world.content.forged import apply_roster
+        variables.update(apply_roster(conn, c, ids))
+    else:
+        from world.seed import _profiles_and_domains
+        content = c.__name__.rsplit(".", 1)[1]
+        variables.update(_profiles_and_domains(conn, content, ids))
     for key, value in sorted(variables.items()):
         conn.execute("INSERT INTO world_vars(key, value) VALUES (?,?)", (key, value))
     for row in initial_rows(ids, c.INITIAL_GOALS):
@@ -101,4 +118,8 @@ def build_content_world(conn: sqlite3.Connection, world_seed: int, recipe: str, 
     from world.seed import _groups, _persona_layer
     _groups(conn, ids, c)  # before the first event: these tables change only by events afterwards
     c.backstory(conn)
+    cast_dir = getattr(c, "CAST_DIR", None)
+    if cast_dir:
+        conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('cast_dir', ?)", (cast_dir,))
+        conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('cast_hash', ?)", (getattr(c, "CAST_HASH", ""),))
     _persona_layer(conn, recipe, world_seed)

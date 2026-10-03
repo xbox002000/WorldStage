@@ -98,8 +98,8 @@ def build_world(conn: sqlite3.Connection, world_seed: int, recipe: str = "town_v
     compiled(recipe)  # refuses a recipe that does not compile
     content = load_recipe(recipe).content
     if content != "town_v1":
-        from world.content import build_content_world, content_module
-        return build_content_world(conn, world_seed, recipe, content_module(content))
+        from world.content import build_content_world, open_content
+        return build_content_world(conn, world_seed, recipe, open_content(content))
     conn.execute("INSERT OR REPLACE INTO meta(key, value) VALUES ('recipe', ?)", (recipe,))
     rng = make_rng(world_seed, 0, "world", "seed_world")
     for lid, name, x, y, cap, tags in LOCATIONS:

@@ -436,7 +436,9 @@ function setView(v) {
   document.querySelectorAll("#views button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.v === v)));
   $("#worldView").hidden = v !== "world";
   $("#timelineView").hidden = v !== "timeline";
+  const forge = $("#forgeView"); if (forge) forge.hidden = v !== "forge";
   if (v === "timeline") { renderTimeline(); window.scrollTo({ top: 0 }); }
+  if (v === "forge") { if (!F.ready) forgePreview(); else renderForge(); window.scrollTo({ top: 0 }); }
   if (v === "world") {
     const f = $("#worldFrame");
     if (!f.getAttribute("src")) { S.frameReady = false; f.src = "world/index.html?embed=1"; }
@@ -720,6 +722,7 @@ function bind() {
     if (e.key === "ArrowRight") { e.preventDefault(); select(S.day + 1, false); }
   });
   $("#go1").addEventListener("click", () => go(1)); $("#go7").addEventListener("click", () => go(7));
+  bindForge();
   $("#helpBtn").addEventListener("click", (e) => { const h = $("#help"); h.hidden = !h.hidden; e.currentTarget.setAttribute("aria-expanded", String(!h.hidden)); });
   $("#theme").addEventListener("click", () => {
     const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -729,13 +732,170 @@ function bind() {
   try { const t = localStorage.getItem("studio-theme"); if (t) document.documentElement.dataset.theme = t; } catch (_) { /* not available */ }
 }
 
+/* ---------- 角色工坊 ---------- */
+const F = { seed: 7, size: 8, era: "jianghu", days: 7, people: [], relations: {}, locked: {}, busy: false, ready: false };
+const FORGE_WHOLE = ["name", "age", "gender", "archetype", "blurb", "looks", "warmth", "talkativeness", "charm", "attachment", "conflict", "temperament", "values", "attracted_to"];
+
+function forgeGender(g) { return g === "female" ? "女" : g === "male" ? "男" : (g || ""); }
+function forgeLockOn(index, field) {
+  const box = F.locked[String(index)];
+  return !!(box && Object.prototype.hasOwnProperty.call(box, field));
+}
+function forgeLockBtn(p, field) {
+  const on = forgeLockOn(p.index, field);
+  return `<button type="button" class="forge-lock${on ? " on" : ""}" data-flock="${field}" data-i="${p.index}" aria-pressed="${on ? "true" : "false"}" title="鎖住，重骰時不變">🔒</button>`;
+}
+function wholePerson(p) {
+  const o = {};
+  FORGE_WHOLE.forEach((k) => { if (p[k] !== undefined) o[k] = p[k]; });
+  return o;
+}
+function renderForge() {
+  const note = $("#forgeNote");
+  if (note) note.textContent = F.busy ? "正在生成…" : (F.ready ? `共 ${F.people.length} 人` : "");
+  const seed = $("#forgeSeed");
+  if (seed && document.activeElement !== seed) seed.value = String(F.seed);
+  const cards = $("#forgeCards");
+  if (cards) {
+    cards.innerHTML = F.people.map((p) => `<article class="card forge-card">
+      <h3><span class="nm">${esc(p.name)}</span>${forgeLockBtn(p, "name")}</h3>
+      <div class="forge-field"><span class="k">原型</span><span class="v">${esc(p.archetype)}</span>${forgeLockBtn(p, "archetype")}</div>
+      <div class="forge-field"><span class="forge-blurb">${esc(p.blurb)}</span>${forgeLockBtn(p, "blurb")}</div>
+      <div class="forge-field"><span class="k">年齡</span><span class="v">${esc(p.age)}</span>${forgeLockBtn(p, "age")}</div>
+      <div class="forge-field"><span class="k">性別</span><span class="v">${esc(forgeGender(p.gender))}</span>${forgeLockBtn(p, "gender")}</div>
+      ${["looks", "外貌", "warmth", "親和", "talkativeness", "話量"].reduce((html, item, i, arr) => i % 2 ? html : html + `<label class="forge-slide"><span class="k">${arr[i + 1]}</span><input type="range" min="0" max="1" step="0.01" value="${p[item]}" data-fslide="${item}" data-i="${p.index}" aria-label="${arr[i + 1]}"><span data-fval>${Number(p[item]).toFixed(2)}</span>${forgeLockBtn(p, item)}</label>`, "")}
+      <button type="button" class="reroll" data-freroll="${p.index}">🎲 只重骰這個人</button>
+    </article>`).join("") || `<p class="dim">尚無角色</p>`;
+  }
+  const rel = $("#forgeRelations");
+  if (rel) rel.innerHTML = renderForgeRelations();
+  const start = $("#forgeStart"), reroll = $("#forgeReroll");
+  if (start) start.disabled = F.busy || !F.ready;
+  if (reroll) reroll.disabled = F.busy;
+}
+function nameOfId(id) {
+  const p = F.people.find((x) => x.id === id);
+  return p ? p.name : id;
+}
+function renderForgeRelations() {
+  const r = F.relations || {};
+  const block = (title, items) => `<div class="forge-rel"><h3>${title}</h3>${items.length ? `<ul>${items.join("")}</ul>` : `<p class="dim">沒有</p>`}</div>`;
+  const nem = (r.nemeses || []).map((x) => `<li>${esc(nameOfId(x.a))}與${esc(nameOfId(x.b))}。${esc(x.why || "")}</li>`);
+  const sec = (r.secrets || []).map((x) => `<li>${esc(nameOfId(x.holder))}背著${esc(nameOfId(x.kept_from))}。${esc(x.secret || "")}</li>`);
+  const cru = (r.crushes || []).map((x) => `<li>${esc(nameOfId(x.from))}對${esc(nameOfId(x.to))}。${esc(x.note || "")}</li>`);
+  const und = (r.underestimated || []).map((x) => `<li>${esc(nameOfId(x.id))}。${esc(x.why || "")}</li>`);
+  return `<div class="forge-rels">${block("宿敵", nem)}${block("秘密", sec)}${block("暗戀", cru)}${block("被低估", und)}</div>`;
+}
+function forgeToggle(index, field) {
+  const p = F.people.find((x) => x.index === index);
+  if (!p) return;
+  const key = String(index);
+  const cur = Object.assign({}, F.locked[key] || {});
+  if (Object.prototype.hasOwnProperty.call(cur, field)) delete cur[field];
+  else cur[field] = p[field];
+  if (Object.keys(cur).length) F.locked[key] = cur; else delete F.locked[key];
+  renderForge();
+}
+function forgeSlide(index, field, value, input) {
+  const p = F.people.find((x) => x.index === index);
+  if (!p) return;
+  const n = Math.round(Number(value) * 100) / 100;
+  p[field] = n;
+  if (field === "looks") p.charm = n;
+  const box = F.locked[String(index)];
+  if (box && Object.prototype.hasOwnProperty.call(box, field)) box[field] = n;
+  if (field === "looks" && box && Object.prototype.hasOwnProperty.call(box, "charm")) box.charm = n;
+  const span = input.parentElement && input.parentElement.querySelector("[data-fval]");
+  if (span) span.textContent = n.toFixed(2);
+}
+async function forgePreview(locks) {
+  if (F.busy) return;
+  F.busy = true; renderForge();
+  const body = locks || F.locked;
+  try {
+    const q = new URLSearchParams({ seed: String(F.seed), size: String(F.size), era: F.era });
+    const r = await fetch(`../../forge/preview?${q}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    F.people = j.people || []; F.relations = j.relations || {}; F.seed = j.seed; F.ready = true;
+  } catch (err) {
+    toast("生成失敗：" + err.message);
+  } finally {
+    F.busy = false; renderForge();
+  }
+}
+function forgeReroll() {
+  F.seed = Math.floor(Math.random() * 900000) + 1;
+  F.ready = false;
+  forgePreview();
+}
+function forgeRerollOne(index) {
+  const locks = {};
+  F.people.forEach((p) => {
+    const user = F.locked[String(p.index)] || {};
+    if (p.index === index) { if (Object.keys(user).length) locks[p.index] = Object.assign({}, user); }
+    else locks[p.index] = Object.assign(wholePerson(p), user);
+  });
+  F.seed = Math.floor(Math.random() * 900000) + 1;
+  F.ready = false;
+  forgePreview(locks);
+}
+async function forgeStart() {
+  if (F.busy || !F.ready) return;
+  const locks = {};
+  F.people.forEach((p) => { locks[p.index] = wholePerson(p); });
+  const btn = $("#forgeStart");
+  F.busy = true;
+  if (btn) { btn.disabled = true; btn.textContent = "建造中…"; }
+  try {
+    const q = new URLSearchParams({ seed: String(F.seed), size: String(F.size), era: F.era, days: String(F.days || 7) });
+    const r = await fetch(`../../forge/start?${q}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(locks) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    location.href = `../../${j.key}/site/index.html`;
+  } catch (err) {
+    F.busy = false;
+    if (btn) { btn.disabled = false; btn.textContent = "開始這個世界"; }
+    toast("建造失敗：" + err.message);
+  }
+}
+function forgeSetSize(n) {
+  F.size = n;
+  const next = {};
+  Object.entries(F.locked).forEach(([k, v]) => { if (+k < n) next[k] = v; });
+  F.locked = next;
+  F.ready = false;
+  forgePreview();
+}
+function bindForge() {
+  const root = $("#forgeView");
+  if (!root || root.dataset.wired) return;
+  root.dataset.wired = "1";
+  root.addEventListener("click", (e) => {
+    const lock = e.target.closest("[data-flock]");
+    if (lock) { forgeToggle(+lock.dataset.i, lock.dataset.flock); return; }
+    const one = e.target.closest("[data-freroll]");
+    if (one) forgeRerollOne(+one.dataset.freroll);
+  });
+  root.addEventListener("input", (e) => {
+    const s = e.target.closest("[data-fslide]");
+    if (s) forgeSlide(+s.dataset.i, s.dataset.fslide, s.value, s);
+  });
+  $("#forgeReroll").addEventListener("click", () => forgeReroll());
+  $("#forgeStart").addEventListener("click", () => forgeStart());
+  $("#forgeSeed").addEventListener("change", () => { F.seed = +$("#forgeSeed").value || 1; F.ready = false; forgePreview(); });
+  $("#forgeSize").addEventListener("change", () => forgeSetSize(+$("#forgeSize").value));
+  $("#forgeEra").addEventListener("change", () => { F.era = $("#forgeEra").value; F.locked = {}; F.ready = false; forgePreview(); });
+  $("#forgeDays").addEventListener("change", () => { F.days = +$("#forgeDays").value || 7; });
+}
+
 (async () => {
   try { D = await load(); } catch (e) { $("#episode").innerHTML = `<div class="card ephead"><div class="question">讀不到資料</div><p class="dim">用 python -m channel.studio --new 17 --days 14 產生，再開這一頁。</p></div>`; return; }
   const m = /#d=(\d+)/.exec(location.hash); S.day = m ? Math.min(D.days.length - 1, Math.max(0, +m[1] - 1)) : D.days.length - 1;
   bind(); renderHeader(); renderStrip(); renderEpisode(); renderSide(); worldPicker();
   // a link can open another view: #v=timeline&p=<person id> or #v=world
-  const v = /[#&]v=(timeline|world)/.exec(location.hash), p = /[#&]p=([\w-]+)/.exec(location.hash);
+  const v = /[#&]v=(timeline|world|forge)/.exec(location.hash), p = /[#&]p=([\w-]+)/.exec(location.hash);
   if (p) S.tlPerson = p[1];
-  if (v && (v[1] === "timeline" || D.world3d)) setView(v[1]);
+  if (v && (v[1] === "timeline" || v[1] === "forge" || D.world3d)) setView(v[1]);
 })();
 })();

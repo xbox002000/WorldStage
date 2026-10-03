@@ -286,9 +286,11 @@ class Page(unittest.TestCase):
 
     def test_the_page_only_reads(self):
         js = (HERE / "studio.js").read_text(encoding="utf-8")
-        self.assertEqual(js.count("method: \"POST\""), 2)            # the two things it can ask: go on, and make another world
+        self.assertEqual(js.count("method: \"POST\""), 4)            # go on, make another world, preview a cast, start that world
         self.assertIn("advance?n=", js)
         self.assertIn("/new?", js)
+        self.assertIn("/forge/preview", js)
+        self.assertIn("/forge/start", js)
         self.assertNotIn("XMLHttpRequest", js)
 
     def test_the_page_has_the_timeline_and_every_kind_of_moment_has_its_word(self):
@@ -329,6 +331,75 @@ class Page(unittest.TestCase):
         for word in (*INTENTS, *STAGES, *GRAMMAR_STEPS):
             self.assertIn(word, js, word)
 
+    def test_the_page_has_the_workshop(self):
+        html = (HERE / "index.html").read_text(encoding="utf-8")
+        js = (HERE / "studio.js").read_text(encoding="utf-8")
+        self.assertIn("角色工坊", html)
+        self.assertIn('data-v="forge"', html)
+        self.assertIn('id="forgeView"', html)
+        self.assertIn("🎲 整組重骰", html)
+        self.assertIn("開始這個世界", html)
+        self.assertNotIn("LLM", html)
+        for name in ("renderForge", "forgePreview", "forgeStart", "forgeReroll", "forgeRerollOne"):
+            self.assertIn(f"function {name}", js)
+        self.assertIn("只重骰這個人", js)
+        self.assertIn("🔒", js)
+
+
+class ForgeApi(unittest.TestCase):
+    def test_preview_shape_and_locked_fields_survive_a_reroll(self):
+        from channel.studio import Hub, handle_post
+        tmp = Path(tempfile.mkdtemp(prefix="forge_api_"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        hub = Hub(tmp)
+        code, body = handle_post(hub, "/forge/preview", b"{}", "seed=7&size=8&era=jianghu")
+        self.assertEqual(code, 200)
+        self.assertEqual(body["seed"], 7)
+        self.assertEqual(body["size"], 8)
+        self.assertEqual(body["era"], "jianghu")
+        self.assertEqual(len(body["people"]), 8)
+        for person in body["people"]:
+            for key in ("index", "id", "name", "archetype", "blurb", "age", "gender", "looks", "warmth", "talkativeness", "romance_eligible"):
+                self.assertIn(key, person)
+            self.assertTrue(person["blurb"])
+        for key in ("nemeses", "secrets", "crushes", "underestimated", "not_romance"):
+            self.assertIsInstance(body["relations"][key], list)
+        locked = body["people"][3]
+        locks = json.dumps({"3": {"name": locked["name"], "looks": locked["looks"], "warmth": locked["warmth"]}}).encode()
+        code, again = handle_post(hub, "/forge/preview", locks, "seed=99&size=8&era=jianghu")
+        self.assertEqual(code, 200)
+        self.assertEqual(again["people"][3]["name"], locked["name"])
+        self.assertEqual(again["people"][3]["looks"], locked["looks"])
+        self.assertEqual(again["people"][3]["warmth"], locked["warmth"])
+        self.assertNotEqual(again["people"][0]["name"], body["people"][0]["name"])
+        code, err = handle_post(hub, "/forge/preview", b"{}", "seed=7&size=3&era=jianghu")
+        self.assertEqual(code, 400)
+        code, err = handle_post(hub, "/forge/preview", b"[]", "seed=7&size=8&era=jianghu")
+        self.assertEqual(code, 400)
+        code, missing = handle_post(hub, "/forge/missing", b"{}", "")
+        self.assertEqual(code, 404)
+        self.assertIsNone(missing)
+
+    def test_start_installs_a_world_and_returns_its_key(self):
+        from channel.studio import Hub, handle_post
+        from world.content.forged import identity_name
+        from world.recipes import unregister_recipe
+        tmp = Path(tempfile.mkdtemp(prefix="forge_start_"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        name = f"{identity_name(5, 6, 'town', None)}_d1"
+        folder = Path("out/forge") / name
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        self.addCleanup(unregister_recipe, f"forged_{name}")
+        hub = Hub(tmp)
+        code, body = handle_post(hub, "/forge/start", b"{}", "seed=5&size=6&era=town&days=1")
+        self.assertEqual(code, 200)
+        self.assertEqual(body["key"], f"forge-{name}")
+        self.assertTrue((tmp / body["key"] / "site" / "index.html").is_file())
+        self.assertIn("角色工坊", (tmp / body["key"] / "site" / "index.html").read_text(encoding="utf-8"))
+        again = hub.forge_start(5, 6, "town", 1)
+        self.assertEqual(again, body["key"])
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -20,6 +20,7 @@
     <button data-v="story" role="tab" aria-selected="true">導播室</button>
     <button data-v="timeline" role="tab" aria-selected="false" title="選一個人，看他在整段世界裡的每一天">角色時間軸</button>
     <button data-v="world" role="tab" aria-selected="false" title="同一個世界，3D 的現場">世界現場（3D）</button>
+    <button data-v="forge" role="tab" aria-selected="false" title="生成一組人，再開始他們的世界">角色工坊</button>
   </nav>
   <div id="chips" class="chips" aria-label="這個世界"></div>
   <div class="actions">
@@ -90,6 +91,37 @@
   <p id="worldNote" class="hint" hidden></p>
   <iframe id="worldFrame" title="世界現場（3D）" loading="lazy"></iframe>
   <p class="hint">這裡是同一個世界。在導播室點「在現場看」，會停在那一幕發生的時間和地點；按「回導播室」回到那一天的集。</p>
+</section>
+
+<section id="forgeView" hidden aria-label="角色工坊">
+  <div class="card forge-bar">
+    <h2>角色工坊</h2>
+    <p class="dim forge-lead">先看這一組人。鎖住不想改的欄位，重骰其餘的，再開始他們的世界。</p>
+    <div class="forge-controls">
+      <label>種子<input id="forgeSeed" type="number" min="1" value="7"></label>
+      <label>人數
+        <select id="forgeSize" aria-label="人數">
+          <option>6</option><option>7</option><option selected>8</option><option>9</option><option>10</option><option>11</option><option>12</option>
+        </select>
+      </label>
+      <label>時代
+        <select id="forgeEra" aria-label="時代">
+          <option value="jianghu">江湖</option>
+          <option value="town">小鎮</option>
+        </select>
+      </label>
+      <label>先過幾天
+        <select id="forgeDays" aria-label="先過幾天">
+          <option>1</option><option>3</option><option selected>7</option><option>14</option>
+        </select>
+      </label>
+      <button type="button" id="forgeReroll">🎲 整組重骰</button>
+      <button type="button" class="primary" id="forgeStart">開始這個世界</button>
+    </div>
+    <p id="forgeNote" class="dim"></p>
+  </div>
+  <div id="forgeCards" class="forge-grid"></div>
+  <div id="forgeRelations" class="card forge-relations"></div>
 </section>
 
 <footer>這一頁只讀：它不能改變世界。「再走一天」是請這個程式替世界多過一天（世界的唯一寫入者），然後重新產生這一頁。</footer>

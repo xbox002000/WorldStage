@@ -652,6 +652,38 @@ class Hub:
         self.catalog()
         return key
 
+    def forge_preview(self, seed, size, era, locks=None) -> dict:
+        """Generated cast for the workshop page. No world is built."""
+        size_i, era_s = int(size), str(era)
+        if era_s not in ("jianghu", "town"):
+            raise ValueError("era must be 'jianghu' or 'town'")
+        if not 6 <= size_i <= 12:
+            raise ValueError("size must be between 6 and 12")
+        from world.content.forged import cast_payload
+        from world.forge import forge_cast
+        return cast_payload(forge_cast(int(seed), size_i, era_s, locks=locks or None))
+
+    def forge_start(self, seed, size, era, days=7, locks=None) -> str:
+        """Install this cast, build a non-spatial world, run it, and add it to the menu."""
+        size_i, era_s = int(size), str(era)
+        if era_s not in ("jianghu", "town"):
+            raise ValueError("era must be 'jianghu' or 'town'")
+        if not 6 <= size_i <= 12:
+            raise ValueError("size must be between 6 and 12")
+        days_i = max(1, min(30, int(days)))
+        from world.content.forged import identity_name, install_cast
+        from world.forge import forge_cast
+        use = locks or None
+        cast = forge_cast(int(seed), size_i, era_s, locks=use)
+        name = f"{identity_name(int(seed), size_i, era_s, use)}_d{days_i}"
+        install_cast(name, cast)
+        key = f"forge-{name}"
+        if key not in self.worlds:
+            title = "角色工坊・江湖" if era_s == "jianghu" else "角色工坊・小鎮"
+            self.worlds[key] = Studio(self.root / key, int(seed), days_i, f"forged_{name}", "off", title)
+        self.catalog()
+        return key
+
     def make_mind(self, root: Path) -> str:
         """Open a soul_lab world (out/soul/<name>) to be looked at: replayed from its recorded answers, never asked anything, never run on."""
         info = mind_info(root)
@@ -682,6 +714,46 @@ class Hub:
                                               f'<a href="{key}/site/index.html">導播室</a>', encoding="utf-8")
 
 
+def _locks_body(body: bytes):
+    """JSON object of locks, or None when the body is empty. A bad body is a ValueError."""
+    if not body or not body.strip():
+        return None
+    try:
+        data = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("locks body is not json") from exc
+    if data is None:
+        return None
+    if not isinstance(data, dict):
+        raise ValueError("locks body must be an object")
+    return data
+
+
+def handle_post(hub: Hub, path: str, body: bytes, query: str) -> tuple[int, dict | None]:
+    """One POST. 404 means there is no JSON body for the handler to write."""
+    from urllib.parse import parse_qs
+    q = {k: v[0] for k, v in parse_qs(query).items()}
+    parts = [x for x in path.split("/") if x]
+    try:
+        if parts[-1:] == ["advance"] and parts:
+            world = hub.worlds.get(parts[0])
+            if parts[0] in hub.readonly:
+                return 409, {"error": "a world with minds is replayed from the answers already paid for: going on would ask new questions (quota). It can be read, not continued"}
+            if world is None:
+                return 409, {"error": "this world was left by an earlier run: it can be read, not continued"}
+            return 200, {"last_day": world.advance(7 if q.get("n") == "7" else 1)}
+        if parts == ["new"]:
+            return 200, {"key": hub.make(q.get("preset", "jianghu"), int(q["seed"]) if q.get("seed") else None, int(q.get("days", 14)))}
+        if parts == ["forge", "preview"]:
+            return 200, hub.forge_preview(q["seed"], q["size"], q["era"], _locks_body(body))
+        if parts == ["forge", "start"]:
+            days = int(q["days"]) if q.get("days") else 7
+            return 200, {"key": hub.forge_start(q["seed"], q["size"], q["era"], days, _locks_body(body))}
+        return 404, None
+    except (ValueError, KeyError) as exc:
+        return 400, {"error": str(exc)}
+
+
 class Handler(SimpleHTTPRequestHandler):
     hub: Hub
 
@@ -694,26 +766,15 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self) -> None:  # noqa: N802
-        from urllib.parse import parse_qs, urlparse
+        from urllib.parse import urlparse
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length) if length else b""
         u = urlparse(self.path)
-        q = {k: v[0] for k, v in parse_qs(u.query).items()}
-        parts = [x for x in u.path.split("/") if x]
-        try:
-            if parts[-1:] == ["advance"] and parts:
-                world = self.hub.worlds.get(parts[0])
-                if parts[0] in self.hub.readonly:
-                    self._json(409, {"error": "a world with minds is replayed from the answers already paid for: going on would ask new questions (quota). It can be read, not continued"})
-                    return
-                if world is None:
-                    self._json(409, {"error": "this world was left by an earlier run: it can be read, not continued"})
-                    return
-                self._json(200, {"last_day": world.advance(7 if q.get("n") == "7" else 1)})
-            elif parts == ["new"]:
-                self._json(200, {"key": self.hub.make(q.get("preset", "jianghu"), int(q["seed"]) if q.get("seed") else None, int(q.get("days", 14)))})
-            else:
-                self.send_error(404)
-        except (ValueError, KeyError) as e:
-            self._json(400, {"error": str(e)})
+        code, obj = handle_post(self.hub, u.path, raw, u.query)
+        if code == 404 or obj is None:
+            self.send_error(404)
+            return
+        self._json(code, obj)
 
     def end_headers(self) -> None:
         # the page is rebuilt whenever the code changes: a browser that kept an old script next to a new page shows buttons that do nothing
