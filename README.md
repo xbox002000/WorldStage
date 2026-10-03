@@ -174,7 +174,7 @@ flowchart LR
 - [ ] First real video model behind the conformance suite
 - [ ] Publishing pipeline
 
-New contributor or AI agent? Start with **[docs/HANDOFF.md](docs/HANDOFF.md)**.
+New contributor or AI agent? Start with **[docs/HANDOFF.md](docs/HANDOFF.md)**, then **[docs/NEXT.md](docs/NEXT.md)** — where to go next (the first real video).
 
 ---
 
