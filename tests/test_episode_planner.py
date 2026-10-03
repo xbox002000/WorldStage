@@ -1,19 +1,22 @@
 """Episode planner: the shape of one episode, read from what happened. It adds nothing and decides nothing."""
 from __future__ import annotations
 
+import hashlib
+import json
 import unittest
 from typing import get_args
 
 from agent.volition import VolitionDecider
 from contracts import director as cd
 from contracts import episode_plan as ep
+from contracts.base import canonical_json, to_dict
 from narrative import episode_planner as P
-from narrative.arcs import load_events
+from narrative.arcs import Ev, load_events
 from narrative.dramaturgy import analyse
 from producer.director import Director
 from tests.test_opportunity import fingerprint
 from world.db import connect, init_db
-from world.events import EventSpec, apply_event
+from world.events import Change, EventSpec, apply_event
 from world.seed import build_world
 from world.simulation import Simulation
 
@@ -505,6 +508,137 @@ class QuietDay(unittest.TestCase):
         init_db(c, 5)
         build_world(c, 5, "jianghu_story_v1")
         self.assertIsNone(P.plan_day(c, 0, set()))
+
+
+def _talk(i: int, reason: str) -> Ev:
+    return Ev(i, 100, "talk", None, None, 0.4,
+              {"actor": "hao", "target": "tao", "tone": "neutral", "reason": reason},
+              (("hao", "actor"), ("tao", "target")), 0.0, False)
+
+
+class MindPriority(unittest.TestCase):
+    """Mind-decided events (truth.reason starts with ``agent:``) are preferred while script is on.
+    A world with none of them keeps the plan that was hashed before this preference existed."""
+
+    RULE_HASH = "3add2b96a5cd6bbf9724c166fa83b8623b5dee8a1e2546c6c4f1c33119076aa1"
+
+    def test_slices_without_a_mind_are_the_old_slices(self):
+        evs = [_talk(1, "a"), _talk(2, "b"), _talk(3, "c")]
+        self.assertEqual([e.id for e in P._take(evs, 2)], [2, 3])
+        self.assertEqual([e.id for e in P._first(evs)], [1])
+        self.assertEqual(P._take([], 2), [])
+
+    def test_a_montage_keeps_the_mind_round_and_a_template_group_keeps_its_head(self):
+        template, mind, other = _talk(1, "規矩"), _talk(2, "agent:想把話說開"), _talk(3, "也是規矩")
+        out, members = P._montage([(template, "A"), (mind, "A")], 1)
+        self.assertEqual([e.id for e, _ in out], [2])
+        self.assertEqual([m.id for m in members[2]], [1])
+        out, members = P._montage([(template, "A"), (other, "A")], 1)
+        self.assertEqual([e.id for e, _ in out], [1])
+        self.assertEqual([m.id for m in members[1]], [3])
+        out, _ = P._montage([(template, "A"), (other, "A")], 99)
+        self.assertEqual(out[0][0].id, 1)
+
+    def test_a_rule_world_is_planned_byte_for_byte_as_before(self):
+        c = connect()
+        init_db(c, 701)
+        build_world(c, 701, "jianghu_drama_v1")
+        d = VolitionDecider(701)
+        Simulation(c, d, d, set()).run(5)
+        reasons = [json.loads(r[0]).get("reason") for r in c.execute("SELECT truth FROM events")]
+        self.assertFalse(any(str(x or "").startswith("agent:") for x in reasons))
+        sit = analyse(c)["situations"]
+        ledger, shown, recent = P.Ledger(), set(), ()
+        parts = []
+        for day in range(5):
+            plan = P.plan_day(c, day, shown, sit, recent, P.SHOW, ledger)
+            parts.append(canonical_json(to_dict(plan)) if plan is not None else "null")
+            if plan is not None:
+                shown |= {i for b in plan.beats for i in b.event_ids}
+                recent = (frozenset(plan.people),) + recent[:1]
+        blob = "\n".join(parts).encode("utf-8")
+        self.assertEqual(hashlib.sha256(blob).hexdigest(), self.RULE_HASH)
+
+    def test_a_mind_event_is_filmed_and_the_hard_event_stays(self):
+        c = connect()
+        init_db(c, 3)
+        build_world(c, 3, "jianghu_story_v1")
+        last = c.execute("SELECT COALESCE(MAX(timestamp), 0) FROM events").fetchone()[0]
+        day = last // 1440 + 1
+        base = day * 1440 + 30
+
+        def emotion(pid: str, want: str) -> str:
+            cur = c.execute("SELECT emotion FROM people WHERE id = ?", (pid,)).fetchone()[0]
+            return want if cur != want else ("hurt" if want != "hurt" else "angry")
+
+        template = apply_event(c, EventSpec(
+            timestamp=base, type="talk", trigger_type="rule", importance=0.4,
+            truth={"actor": "hao", "target": "tao", "tone": "neutral", "reason": "規矩"},
+            participants=[("hao", "actor"), ("tao", "target")],
+            changes=[Change("person", "tao", "emotion", value=emotion("tao", "uneasy"))]))
+        mind = apply_event(c, EventSpec(
+            timestamp=base + 1, type="talk", trigger_type="decision", importance=0.45,
+            truth={"actor": "hao", "target": "tao", "tone": "neutral", "reason": "agent:想把話說開"},
+            participants=[("hao", "actor"), ("tao", "target")],
+            changes=[Change("person", "hao", "emotion", value=emotion("hao", "angry"))]))
+        duel = apply_event(c, EventSpec(
+            timestamp=base + 2, type="duel", trigger_type="decision", importance=0.9,
+            truth={"actor": "hao", "target": "tao", "winner": "hao", "loser": "tao"},
+            participants=[("hao", "actor"), ("tao", "target")],
+            changes=[Change("person", "tao", "emotion", value=emotion("tao", "hurt"))]))
+        sit = analyse(c)["situations"]
+        plan = P.plan_day(c, day, set(), sit, (), P.SHOW, P.Ledger())
+        self.assertIsNotNone(plan)
+        shot = [b for b in plan.beats if b.shoot and not b.derived]
+        on = {i for b in shot for i in b.event_ids}
+        self.assertIn(mind, on)
+        self.assertIn(duel, on)
+        mind_beat = next(b for b in shot if mind in b.event_ids)
+        self.assertEqual(mind_beat.event_ids[0], mind)
+        self.assertIn(template, mind_beat.event_ids)
+        self.assertTrue(any(duel in b.event_ids and mind not in b.event_ids for b in shot))
+
+    def test_a_mind_folded_onto_an_unshot_talk_does_not_add_a_chat_beat(self):
+        """The mind stays the montage's representative, but a template talk that changed nothing is not filmed to hold it."""
+        c = connect()
+        init_db(c, 3)
+        build_world(c, 3, "jianghu_story_v1")
+        last = c.execute("SELECT COALESCE(MAX(timestamp), 0) FROM events").fetchone()[0]
+        day = last // 1440 + 1
+        base = day * 1440 + 30
+
+        def emotion(pid: str, want: str) -> str:
+            cur = c.execute("SELECT emotion FROM people WHERE id = ?", (pid,)).fetchone()[0]
+            return want if cur != want else ("hurt" if want != "hurt" else "angry")
+
+        duel = apply_event(c, EventSpec(
+            timestamp=base, type="duel", trigger_type="decision", importance=0.9,
+            truth={"actor": "hao", "target": "tao", "winner": "hao", "loser": "tao"},
+            participants=[("hao", "actor"), ("tao", "target")],
+            changes=[Change("person", "tao", "emotion", value=emotion("tao", "hurt"))]))
+        template = apply_event(c, EventSpec(
+            timestamp=base + 1, type="talk", trigger_type="rule", importance=0.4,
+            truth={"actor": "hao", "target": "tao", "tone": "neutral", "reason": "規矩"},
+            participants=[("hao", "actor"), ("tao", "target")]))
+        mind = apply_event(c, EventSpec(
+            timestamp=base + 2, type="talk", trigger_type="decision", importance=0.45,
+            truth={"actor": "hao", "target": "tao", "tone": "neutral", "reason": "agent:想把話說開"},
+            participants=[("hao", "actor"), ("tao", "target")],
+            changes=[Change("person", "hao", "emotion", value=emotion("hao", "angry"))]))
+        events = load_events(c)
+        from narrative.arcs import Arc
+        arc = Arc((events[duel], events[template]), events[duel], "hard")
+        sit = analyse(c)["situations"]
+        plan = P.plan_episode(c, arc, shown=set(), day=day, kind="hard", situations=sit, options=P.SHOW, ledger=P.Ledger())
+        shot = [b for b in plan.beats if b.shoot and not b.derived]
+        on = {i for b in shot for i in b.event_ids}
+        self.assertIn(duel, on)
+        self.assertNotIn(mind, on)
+        held = next(b for b in plan.beats if mind in b.event_ids)
+        self.assertFalse(held.shoot)
+        self.assertEqual(held.event_ids[0], mind)
+        self.assertIn(template, held.event_ids)
+        self.assertEqual(held.reason, "nothing changed")
 
 
 if __name__ == "__main__":

@@ -145,3 +145,44 @@ Tests: tests/test_studio.py.
 
 劇本問題是讀模型：導播室用 `episode_planner.SHOW`（A/B 故事加上「全季的帳」）規劃每一天，帳（已播事件、問的問題）在 `Studio` 裡，不寫進世界。
 測試：`tests/test_lint.py`（每一項都有手造的小集證明偵測得到、乾淨的集不誤報、只讀）、`tests/test_studio.py`。
+
+## 角色工坊
+
+頁首第三個分頁「角色工坊」（網址 `#v=forge`）。打開時若這一組人還沒生成，頁面自己打 `POST /forge/preview`。這裡不呼叫 LLM：同一組種子、人數、時代、鎖定，出來的人逐次相同（`world/forge.py`，亂數只來自 `world/rng.py`）。預覽不建世界；按「開始這個世界」才建。
+
+**怎麼用**（`render/studio/index.html` 的 `forgeView`，行為在 `studio.js`）：
+
+| 控制 | 預設 | 做什麼 |
+|---|---|---|
+| 種子 | 7 | 改了就用新種子再預覽 |
+| 人數 | 8（可選 6–12） | 改人數會丟掉序號已經超出的鎖定，再預覽 |
+| 時代 | 江湖 `jianghu`（另一個是小鎮 `town`） | 換時代會清掉全部鎖定，再預覽 |
+| 先過幾天 | 7（可選 1、3、7、14） | 只在開始世界時送出；伺服器把天數夾在 1–30，沒給就是 7 |
+| 🔒 | 每個欄位一顆 | 鎖住的欄位重骰時留下；再按一次解開 |
+| 🎲 整組重骰 | | 換一個新種子（1–900000），**已經鎖住的欄位留下**，其餘重骰 |
+| 🎲 只重骰這個人 | 每張卡一顆 | 換新種子；**其他人整個人鎖住**（畫面上的欄位全部鎖定），這個人只留他自己鎖住的欄位 |
+| 開始這個世界 | | 把畫面上每個人的欄位整份鎖住送出，所以造出來的世界就是這一組人；完成後跳到那個世界的導播室 |
+
+每張卡顯示名字、原型、一句話、年齡、性別，以及三條滑桿：外貌、親和、話量（0–1，步進 0.01）。拖外貌時魅力（`charm`）跟著變，兩者是同一個數，除非兩邊都鎖成不同的值。卡的下面是這一組人的關係：宿敵、秘密、暗戀、被低估。
+
+命令列是同一套生成器，不經過導播室：`python character_forge.py --seed 7 --size 10 --era jianghu --out out/forge/cast_7`（`--lock locks.json` 鎖定，`--install NAME` 安裝成配方 `forged_NAME`）。
+
+**`POST /forge/preview?seed=&size=&era=`**
+
+Body 是鎖定：一個 JSON 物件，鍵是人的序號（`0` .. `size-1`），值是要留下的欄位。空 body、`{}`、`null` 都是不鎖；配方名稱上 `None` 和 `{}` 是同一組鎖。
+
+200 的內容（`cast_payload`）：`seed`、`size`、`era`、`people`、`relations`。每個人有 `index`、`id`、`name`、`archetype`、`blurb`、`age`、`gender`、`looks`、`warmth`、`talkativeness`、`charm`、`romance_eligible`、`attachment`、`conflict`、`temperament`、`values`、`attracted_to`。`relations` 有 `nemeses`、`secrets`、`crushes`、`underestimated`、`not_romance`（頁面畫出前四種）。
+
+**`POST /forge/start?seed=&size=&era=&days=`**
+
+Body 與預覽相同。200 是 `{key}`。`key` 是 `forge-<時代>_<種子>_<鎖定雜湊前 8 碼>_d<天數>`。伺服器安裝這一組人、註冊配方 `forged_<同一段名字>`、用製作人 `off` 跑完那些天，加進世界選單。這個世界沒有空間配方，所以沒有 3D。同一組參數再開始一次，回到同一個 key，不另開一個世界。
+
+**限制**
+
+- 時代只能是 `jianghu` 或 `town`，人數必須 6–12。不合、body 不是 JSON、body 不是物件、序號超出範圍、欄位不在可鎖清單：400，`{"error": "..."}`。沒有這條路徑：404。
+- 可鎖的欄位：`name`、`age`、`gender`、`archetype`、`blurb`、`looks`、`warmth`、`talkativeness`、`charm`、`attracted_to`、`attachment`、`conflict`、`temperament`、`values`，以及內心八項 `want`、`fear`、`wound`、`false_belief`、`need`、`life_question`、`life_goal`、`season_goal`。性情可以整份鎖，也可以單鎖 `honesty`、`temper`、`gossip`、`generosity`、`absent_minded`、`curiosity`；價值觀同理（`truth`、`loyalty`、`security`、`belonging`、`ambition`、`freedom`、`family`、`fairness`、`revenge`）。頁面上的 🔒 只用得到卡上那些欄位；滑桿改過的值若該欄位正鎖著，會一併寫進鎖定。
+- 年齡可以鎖在 18 歲以下。那樣的人 `romance_eligible` 為假，不對任何人產生吸引，除非 `attracted_to` 自己也被鎖住。
+- 人數至少 6 時，這一組裡至少有一對宿敵、一個秘密、一段單向暗戀（雙方都成年，且欣賞者的取向包含對方的性別）、一個被低估的人。
+- 沒有 LLM，也不花額度。
+
+測試：`tests/test_studio.py` 的 `ForgeApi`（預覽形狀、鎖定在換種子後還在、人數或 body 不對是 400、開始世界回 key），`tests/test_forge.py`。

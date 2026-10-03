@@ -24,17 +24,27 @@ same world can be compared (episode_lab.py).
     montage    the same two people doing the same kind of back and forth are one beat ("again, a few rounds"), not a beat each
     questions  a `Ledger` of what was asked: the same core question is not asked again within 7 days, an ending question is not repeated
                in three episodes, is about somebody in the episode and is always there; a question whose premise is false is not asked
+    mind       an event a mind decided (its truth `reason` starts with ``agent:``) is preferred to a template event where both
+               qualify the same way, and a day that has one keeps at least one, after the hard event (a mind event never pushes a
+               hard event out). A montage that includes one keeps that round as the beat. A mind's talk joins a beat the episode
+               was already going to film, or takes the place of one template talk: a new talk beat is not added, and folding a
+               mind onto a chat that changed nothing does not film that chat, so the season's chat share does not rise (and a
+               mind whose own words use a word of our time is left out). A world with no such event is planned exactly as it was
+               without this.
 """
 from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field, replace
 
 from contracts.episode_plan import (GRAMMAR_STEPS, STAGES, EpisodeBeat, EpisodePlan, GrammarStep, SceneChecklist, finalize)
 from narrative.arcs import Arc, Ev, load_events
 
 PLANNER_VERSION = "episode_planner_v0.2"      # (the script option is a setting of it, not a new version: with it off a plan is what it was)
+_MIND_TEXT: ContextVar = ContextVar("episode_mind_text", default=None)   # event id -> the thought and the words said, when the control room has them
 NOT_STORY = {"day_end", "upkeep", "circles", "role_ended", "sleep", "rest", "setup"}
 KNOWLEDGE = {"tell", "accuse", "confront", "notice_missing", "backstory", "find"}
 GROWTH = {"train", "breakthrough"}                         # what builds a gap between what somebody is and what they are taken for
@@ -59,7 +69,7 @@ class Options:
     grammar: str = "v2"            # "v1": next goal is an event; "v2": the new state is a consequence, bystanders include the voters
     questions: str = "typed"       # "typed": goal / choice / revelation; "free": whatever the analysis says
     ab_story: bool = False         # an episode is an A story, a B story that moves in the same days, and an ordinary moment to measure the peak from
-    script: bool = False           # the season's ledgers (see the module's note): today's events, a hard event in, montage, questions not asked again
+    script: bool = False           # the season's ledgers (see the module's note): today's events, a hard event in, montage, questions not asked again, mind events preferred
     relaxed: int = 0               # (set by plan_day, not by hand) a day with too little to film takes talk in, a step at a time: 1 as a B story, 2 as a recap (3: as an ordinary moment, not used by plan_day)
 
 
@@ -148,6 +158,87 @@ def _is_story(e: Ev) -> bool:
     if e.type == "reflection":
         return bool(e.truth.get("shifted") or e.truth.get("self_model") or e.truth.get("formed"))
     return True
+
+
+def _is_mind(e: Ev) -> bool:
+    """The world marks an event a mind decided: truth.reason starts with ``agent:`` (channel/studio.py pairs it)."""
+    return str(e.truth.get("reason") or "").startswith("agent:")
+
+
+def _montage_kind(e: Ev):
+    """The back-and-forth kind `_montage` groups on, or None when the event is not one."""
+    if e.type == "talk":
+        return "quarrel" if e.truth.get("tone") in ("cold", "hostile") else "chat"
+    return e.type if e.type in ("tell", "confront") else None
+
+
+def _take(events: list, n: int, mind=None) -> list:
+    """The last `n`, and when a mind decided any of them, those fill the slice before a template event does.
+    No mind in the list: exactly ``events[-n:]``. `mind` defaults to `_is_mind`."""
+    pred = mind or _is_mind
+    if n <= 0 or not events:
+        return []
+    if not any(pred(e) for e in events):
+        return events[-n:]
+    minds = [e for e in events if pred(e)]
+    rest = [e for e in events if not pred(e)]
+    if len(minds) >= n:
+        return minds[-n:]
+    return rest[-(n - len(minds)):] + minds
+
+
+def _first(events: list, mind=None) -> list:
+    """The first event, or the first a mind decided when any of them was. No mind: exactly ``events[:1]``."""
+    pred = mind or _is_mind
+    if not events:
+        return []
+    if not any(pred(e) for e in events):
+        return events[:1]
+    return [next(e for e in events if pred(e))]
+
+
+def _modern_words(conn: sqlite3.Connection) -> tuple:
+    """Words of our own time, in a world that has none (a jianghu recipe). Elsewhere nothing is out of its era."""
+    try:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'recipe'").fetchone()
+    except sqlite3.Error:
+        return ()
+    if row is None or "jianghu" not in str(row[0]):
+        return ()
+    from narrative.lint import MODERN_WORDS
+    return MODERN_WORDS
+
+
+@contextmanager
+def mind_words(text: dict | None):
+    """The thought and the words said for each mind event, so one that is out of its era is not preferred. The world
+    does not store them; the control room does, and only for the plan it is making."""
+    token = _MIND_TEXT.set(text)
+    try:
+        yield
+    finally:
+        _MIND_TEXT.reset(token)
+
+
+def _mind_text_ok(e: Ev, words: tuple, conn: sqlite3.Connection | None = None) -> bool:
+    """A mind's own words can be shown. A word of our own time cannot: the lint would mark it (the reason, and the
+    thought the control room passed in through `mind_words`)."""
+    del conn
+    if not words:
+        return True
+    chunks = [str(e.truth.get("reason") or "")]
+    extra = _MIND_TEXT.get()
+    if extra and e.id in extra:
+        chunks.append(str(extra[e.id]))
+    low = "\n".join(chunks).lower()
+    if low.startswith("agent:"):
+        low = low[len("agent:"):]
+    return not any(w in low for w in words)
+
+
+def _shown_mind(conn: sqlite3.Connection, e: Ev) -> bool:
+    """A mind event this episode may prefer. One whose words are out of their era is left to the ordinary rules."""
+    return _is_mind(e) and _mind_text_ok(e, _modern_words(conn), conn)
 
 
 def _goal(conn: sqlite3.Connection, pid: str) -> str:
@@ -290,9 +381,14 @@ def payoff_material(conn: sqlite3.Connection, events: dict[int, Ev], p: dict, op
     window = [e for e in events.values() if lo <= e.ts <= peak.ts and e.id != peak.id and (not options.script or e.id < peak.id)]
 
     belittled = [e for e in window if (e.type == "talk" and e.truth.get("tone") in ("cold", "hostile") and e.truth.get("target") == hero)
-                 or (e.type == "duel" and e.truth.get("loser") == hero)][-2:]
-    growth = [e for e in window if e.type in GROWTH and e.truth.get("actor") == hero][-2:]
-    gathering = [e for e in window if e.type == "intervention" and e.truth.get("kind") in ("announce_gathering", "open_seat")][-1:]
+                 or (e.type == "duel" and e.truth.get("loser") == hero)]
+    growth = [e for e in window if e.type in GROWTH and e.truth.get("actor") == hero]
+    gathering = [e for e in window if e.type == "intervention" and e.truth.get("kind") in ("announce_gathering", "open_seat")]
+    if options.script:     # a mind's round of the same set-up is kept ahead of a template one
+        keep = lambda e: _shown_mind(conn, e)  # noqa: E731
+        belittled, growth, gathering = _take(belittled, 2, keep), _take(growth, 2, keep), _take(gathering, 1, keep)
+    else:
+        belittled, growth, gathering = belittled[-2:], growth[-2:], gathering[-1:]
     after = [e for e in events.values() if peak.ts < e.ts <= peak.ts + 2 * 1440 and e.truth.get("actor") == hero and (e.type in ("goal_change", "regret", "breakthrough")
              or (e.type == "reflection" and e.truth.get("shifted")))][:1]
     seen = _audience(peak, options)
@@ -317,7 +413,10 @@ def inner_material(conn: sqlite3.Connection, events: dict[int, Ev], day: int, sh
         if r["event_id"] not in shown]
     if not rows:
         return None
-    _, eid = max(rows)
+    if script and any(_shown_mind(conn, events[i]) for _, i in rows if i in events):
+        _, eid = max(rows, key=lambda r: (r[0], _shown_mind(conn, events[r[1]]) if r[1] in events else False, r[1]))
+    else:
+        _, eid = max(rows)
     peak = events[eid]
     chain, cur = [], peak
     while cur.parent is not None and cur.parent in events and len(chain) < 3:
@@ -345,7 +444,11 @@ def hard_material(conn: sqlite3.Connection, events: dict[int, Ev], day: int, sho
     pool = [events[h["id"]] for h in hard_events(conn, day) if h["id"] in events and h["id"] not in shown and events[h["id"]].people and events[h["id"]].day == day]
     if not pool:
         return None
-    peak = max(pool, key=lambda e: (HARD_WEIGHT.get(_kind_of_hard(e), 2.0) + e.importance + 0.5 * float((e.truth.get("dilemma") or {}).get("tension", 0.0)), e.id))
+    def _hard_key(e: Ev):
+        return (HARD_WEIGHT.get(_kind_of_hard(e), 2.0) + e.importance + 0.5 * float((e.truth.get("dilemma") or {}).get("tension", 0.0)), e.id)
+    # a mind does not outrank a harder event; it wins only a tie, and only when the day actually has one
+    mind = lambda e: _shown_mind(conn, e)  # noqa: E731
+    peak = max(pool, key=lambda e: (_hard_key(e)[0], mind(e), e.id) if any(mind(x) for x in pool) else _hard_key(e))
     chain, cur = [], peak
     while cur.parent is not None and cur.parent in events and len(chain) < 3:
         cur = events[cur.parent]
@@ -354,12 +457,22 @@ def hard_material(conn: sqlite3.Connection, events: dict[int, Ev], day: int, sho
     pair = set(peak.people[:2])
     names = _names(conn)
     lead = [e for e in sorted(events.values(), key=lambda e: e.id) if e.day == day and e.id < peak.id and e.id not in shown and _is_story(e) and set(e.people[:2]) & pair
-            and (relaxed >= 2 or e.type not in CHAT) and e.id not in {c.id for c in chain} and real_progress(conn, e, names)][-2:]
-    chain += lead
-    after = [e for e in sorted(events.values(), key=lambda e: e.id) if peak.id < e.id <= peak.id + 12 and e.day == day and e.id not in shown and e.type == "talk"
-             and len(e.people) >= 2 and set(e.people[:2]) == pair][:1]
-    after += [e for e in events.values() if e.day == day and e.type in ("reflection", "regret", "goal_change") and e.id > peak.id and e.id not in shown
-              and (peak.id in (e.truth.get("cites") or []) or e.truth.get("cause_event") == peak.id)][:1]
+            and (relaxed >= 2 or e.type not in CHAT) and e.id not in {c.id for c in chain} and real_progress(conn, e, names)]
+    chain += _take(lead, 2, mind)
+    # the one talk just after: a later mind replaces the earliest only when that earliest talk would itself have been
+    # filmed. Replacing an unshot template with a mind that did change something would be a new chat beat.
+    after_talks = [e for e in sorted(events.values(), key=lambda e: e.id) if peak.id < e.id <= peak.id + 12 and e.day == day and e.id not in shown and e.type == "talk"
+                   and len(e.people) >= 2 and set(e.people[:2]) == pair]
+    if after_talks and any(mind(e) for e in after_talks):
+        picked = next(e for e in after_talks if mind(e))
+        earliest = after_talks[0]
+        if picked is not earliest and earliest.people and not checklist(conn, earliest, names, [], DEFAULT).changed:
+            picked = earliest
+        after = [picked]
+    else:
+        after = after_talks[:1]
+    after += _first([e for e in sorted(events.values(), key=lambda e: e.id) if e.day == day and e.type in ("reflection", "regret", "goal_change") and e.id > peak.id and e.id not in shown
+                     and (peak.id in (e.truth.get("cites") or []) or e.truth.get("cause_event") == peak.id)], mind)
     return Arc(tuple(sorted({e.id: e for e in [*chain, peak, *after]}.values(), key=lambda e: e.id)), peak, "hard")
 
 
@@ -408,6 +521,9 @@ def _threads(conn: sqlite3.Connection, day: int, shown, events: dict[int, Ev], n
         out.append((s, t, arc))
     if options.script:     # threads in which something besides talk happened first (each group in the director's own order)
         out.sort(key=lambda x: not _substance(conn, x[2], day, names))
+        if any(any(_shown_mind(conn, e) and e.day == day for e in arc.events) for _, _, arc in out):
+            # the same substance: a thread that holds a mind's event comes before one that does not
+            out.sort(key=lambda x: (not _substance(conn, x[2], day, names), not any(_shown_mind(conn, e) and e.day == day for e in x[2].events)))
     return out, skipped
 
 
@@ -424,13 +540,13 @@ def _secondary(conn, candidates, a_arc: Arc, a_thread, events, names, script: bo
         scenes = [e for e in arc.events if _is_story(e) and real_progress(conn, e, names)]
         if script:
             scenes = [e for e in scenes if e.day == day and (relaxed >= 1 or e.type not in CHAT)]     # a B story is something that happened, not more talk
-        scenes = scenes[-2:]
+        scenes = _take(scenes, 2, lambda e: _shown_mind(conn, e)) if script else scenes[-2:]
         if scenes:
             return Arc(tuple(scenes), scenes[-1], "thread")
     return None
 
 
-def _texture(a_arc: Arc, shown, events: dict[int, Ev], script: bool = False) -> Ev | None:
+def _texture(a_arc: Arc, shown, events: dict[int, Ev], script: bool = False, conn: sqlite3.Connection | None = None) -> Ev | None:
     """An ordinary moment of the A story's people on its day, before its peak: warm words, a meal. Something the peak can be measured from."""
     mine = _principals(a_arc)
     used = {e.id for e in a_arc.events} | set(shown)
@@ -438,6 +554,9 @@ def _texture(a_arc: Arc, shown, events: dict[int, Ev], script: bool = False) -> 
             and classify(e)[0] == "daily" and len(e.people) >= 2 and set(e.people[:2]) & mine]
     if script:
         pool = [e for e in pool if e.type not in CHAT]
+        minds = [e for e in pool if conn is not None and _shown_mind(conn, e)]
+        if minds:
+            return min(minds, key=lambda e: e.id)
     return min(pool, key=lambda e: e.id) if pool else None
 
 
@@ -480,7 +599,7 @@ def material(conn: sqlite3.Connection, day: int, shown: set[int] | frozenset[int
         return Material(arc, thread, kind, payoff, steps, skipped)
     if candidates is None:
         candidates, _ = _threads(conn, day, shown, events, names, options)
-    return Material(arc, thread, kind, payoff, steps, skipped, _secondary(conn, candidates, arc, thread, events, names, options.script, day, options.relaxed), _texture(arc, shown, events, options.script and options.relaxed < 3))
+    return Material(arc, thread, kind, payoff, steps, skipped, _secondary(conn, candidates, arc, thread, events, names, options.script, day, options.relaxed), _texture(arc, shown, events, options.script and options.relaxed < 3, conn))
 
 
 def choose_material(conn: sqlite3.Connection, day: int, shown: set[int] | frozenset[int] = frozenset(), recent: tuple = (),
@@ -666,9 +785,128 @@ def _montage(ordered: list, peak_id: int) -> tuple[list, dict]:
         g = [e for e in g if e.day == newest]
         if len(g) >= 2:
             head = next((e for e in g if e.id == peak_id), g[0])
+            minds = [e for e in g if _is_mind(e)]
+            if minds:      # the round a mind decided is the one the beat shows; the others stay folded into it
+                head = next((e for e in minds if e.id == peak_id), minds[0])
             members[head.id] = [e for e in g if e is not head]
             drop |= {e.id for e in members[head.id]}
     return [(e, st) for e, st in ordered if e.id not in drop], members
+
+
+def _fold_mind_rounds(conn: sqlite3.Connection, ordered: list, day: int, shown) -> tuple[list, set]:
+    """Mind rounds of a back-and-forth this episode already tells join that beat.
+    -> (events, ids that were not already in the episode). No mind today: the same list and an empty set."""
+    events = load_events(conn)
+    minds = [e for e in events.values() if e.day == day and e.id not in shown and _is_mind(e) and _is_story(e)]
+    if not minds:
+        return ordered, set()
+    have = {e.id for e, _ in ordered}
+    groups: set[tuple] = set()
+    for e, story in ordered:
+        k = _montage_kind(e)
+        if k and len(e.people) >= 2:
+            groups.add((story, frozenset(e.people[:2]), k))
+    extra = []
+    for e in sorted(minds, key=lambda e: e.id):
+        if e.id in have or not _shown_mind(conn, e):
+            continue
+        k = _montage_kind(e)
+        if not k or len(e.people) < 2:
+            continue
+        pair = frozenset(e.people[:2])
+        for story in ("A", "B", "texture"):
+            if (story, pair, k) in groups:
+                extra.append((e, story))
+                have.add(e.id)
+                break
+    if not extra:
+        return ordered, set()
+    return sorted([*ordered, *extra], key=lambda x: x[0].id), {e.id for e, _ in extra}
+
+
+def _append_mind_beat(conn, beats, e, names, situations, options) -> None:
+    stage, intent = classify(e)
+    cl = checklist(conn, e, names, situations, options)
+    beats.append(EpisodeBeat(len(beats), [e.id], stage, _tension(e, stage), intent, [names.get(p, p) for p in e.people], cl, True,
+                             "" if cl.changed else "mind: what they decided to do", story="A"))
+
+
+def _swap_mind_chat(conn, beats, events, mind, hard_ids, peak_id, names, situations, options) -> bool:
+    """Put this mind's talk in place of one template talk the episode already films.
+    The chat share does not move. A hard event is never the one replaced, even when it is the peak."""
+    del peak_id
+    for i, b in enumerate(beats):
+        if not b.shoot or b.derived or not b.event_ids:
+            continue
+        ev = events.get(b.event_ids[0])
+        if ev is None or _is_mind(ev) or ev.type not in CHAT or ev.id in hard_ids:
+            continue
+        if any(x in hard_ids for x in b.event_ids):
+            continue
+        cl = checklist(conn, mind, names, situations, options)
+        stage, intent = classify(mind)
+        reason = "" if cl.changed else "mind: what they decided to do"
+        beats[i] = replace(b, event_ids=[mind.id], stage=stage, tension=_tension(mind, stage), intent=intent,
+                           who=[names.get(p, p) for p in mind.people], checklist=cl, shoot=True, reason=reason)
+        for j, other in enumerate(beats):
+            if other.shoot or mind.id not in other.event_ids:
+                continue
+            rest = [x for x in other.event_ids if x != mind.id]
+            if rest:
+                beats[j] = replace(other, event_ids=rest)
+        return True
+    return False
+
+
+def _add_mind_beats(conn, beats, arc, day, shown, names, situations, options, hard_ids) -> list:
+    """Film mind events the episode does not yet have. Non-chat ones are added. A talk is not a new beat: that is what
+    pushed seasons of ordinary talk over 45%. It is folded into a beat already being filmed, or it takes the place of
+    one template talk. No mind today: the same list."""
+    events = load_events(conn)
+    minds_today = [e for e in events.values() if e.day == day and _is_mind(e) and _is_story(e) and e.people]
+    if not minds_today:
+        return beats
+    have: set[int] = set()
+    filmed: set[int] = set()
+    for b in beats:
+        have.update(b.event_ids)
+        if not b.shoot or b.derived or not b.event_ids:
+            continue
+        for i in b.event_ids:
+            ev = events.get(i)
+            if ev is not None and _is_mind(ev):
+                filmed.add(i)
+    # a non-chat mind already chosen, but not filmed because nothing in it changed: film it. A talk stays unshot;
+    # filming it would be a new chat beat.
+    if not any(events.get(i) is not None and events[i].type not in CHAT for i in filmed):
+        for i, b in enumerate(beats):
+            if b.shoot or b.derived or not b.event_ids:
+                continue
+            ev = events.get(b.event_ids[0])
+            if ev is None or ev.type in CHAT or not _shown_mind(conn, ev):
+                continue
+            reason = b.reason if b.reason.startswith("montage") else ("" if b.checklist.changed else "mind: what they decided to do")
+            beats[i] = replace(b, shoot=True, reason=reason)
+            filmed.add(ev.id)
+            break
+    # a mind folded onto a chat that is not filmed is still free: it may take the place of a talk that is filmed
+    parked = {i for b in beats if not b.shoot and not b.derived for i in b.event_ids
+              if (events.get(i) is not None and _shown_mind(conn, events[i]))}
+    pool = [e for e in minds_today if e.id not in shown and (e.id not in have or e.id in parked) and _shown_mind(conn, e)]
+    pool.sort(key=lambda e: (e.type in CHAT, -e.importance, e.id))
+    for e in pool:
+        if e.type in CHAT:
+            continue
+        _append_mind_beat(conn, beats, e, names, situations, options)
+        filmed.add(e.id)
+    if not filmed:
+        for e in pool:
+            if e.type not in CHAT:
+                continue
+            if _swap_mind_chat(conn, beats, events, e, hard_ids, arc.peak.id, names, situations, options):
+                break
+            break
+    return beats
 
 
 def plan_episode(conn: sqlite3.Connection, arc: Arc, thread=None, shown: set[int] | frozenset[int] = frozenset(), day: int | None = None,
@@ -687,15 +925,18 @@ def plan_episode(conn: sqlite3.Connection, arc: Arc, thread=None, shown: set[int
     ordered = sorted([(e, "A") for e in arc.events] + [(e, w) for e, w in extra if e.id not in in_a], key=lambda x: x[0].id)
     members: dict[int, list[Ev]] = {}
     hard_ids: set[int] = set()
+    folded_in: set[int] = set()
     if options.script:
         from narrative.lint import hard_events
-        ordered, members = _montage(ordered, arc.peak.id)
         hard_ids = {h["id"] for h in hard_events(conn, day)}
+        ordered, folded_in = _fold_mind_rounds(conn, ordered, day, shown)
+        ordered, members = _montage(ordered, arc.peak.id)
     for e, story in ordered:
         if not _is_story(e):
             continue
         stage, intent = classify(e)
         cl = checklist(conn, e, names, situations, options)
+        own_changed = cl.changed
         folded = members.get(e.id, [])
         if folded:           # a montage beat: it changed whatever any of its rounds changed
             more = [checklist(conn, m, names, situations, options) for m in folded]
@@ -706,8 +947,19 @@ def plan_episode(conn: sqlite3.Connection, arc: Arc, thread=None, shown: set[int
         on_stage = bool(e.people)
         setup = options.keep_setup and e.id in grammar_ids and e.id != arc.peak.id    # (v1) a step of the web-novel line, kept though it changed nothing
         ordinary = story == "texture"                                                  # an ordinary moment is not meant to change anything
-        forced = e.id in hard_ids and e.id == arc.peak.id                              # the day's hard event is filmed whatever the checklist says
+        in_beat = {e.id, *(m.id for m in folded)}
+        forced = bool(hard_ids) and arc.peak.id in hard_ids and arc.peak.id in in_beat  # the day's hard event is filmed whatever the checklist says, even folded into a mind's round
         shoot = on_stage and (cl.changed or setup or ordinary or forced)
+        # a mind folded onto a chat is not a reason to film that chat: only the rounds already in the episode can
+        if folded_in and folded and e.type in CHAT and any(_is_mind(x) for x in (e, *folded)):
+            orig = [x for x in (e, *folded) if x.id not in folded_in]
+            if orig:
+                old_changed = any(own_changed if x is e else checklist(conn, x, names, situations, options).changed for x in orig)
+                old_setup = any(options.keep_setup and x.id in grammar_ids and x.id != arc.peak.id for x in orig)
+                old_forced = bool(hard_ids) and arc.peak.id in hard_ids and any(x.id == arc.peak.id for x in orig)
+                shoot = any(x.people for x in orig) and (old_changed or old_setup or ordinary or old_forced)
+            else:
+                shoot = False
         reason = ("" if shoot and cl.changed else "texture: the ordinary, to measure the peak from" if shoot and ordinary else
                   "set-up of the line (changes nothing yet)" if shoot else "no one on stage" if not on_stage else "nothing changed")
         if folded and shoot:
@@ -719,6 +971,8 @@ def plan_episode(conn: sqlite3.Connection, arc: Arc, thread=None, shown: set[int
                                    relationship=[s for s in cl.relationship if "estimate" in s or "respect" in s][:3])
             beats.append(EpisodeBeat(len(beats), [e.id], stage, round(min(1.0, _tension(e, stage) * 0.9), 3), "bystander_shock",
                                      [names.get(p, p) for p in wit], react, True, "the room reacts to what it just saw", derived=True))
+    if options.script:
+        beats = _add_mind_beats(conn, beats, arc, day, shown, names, situations, options, hard_ids)
     filmed = [b for b in beats if b.shoot]
     curve = [b.tension for b in filmed]
     peak_i = max(range(len(curve)), key=lambda i: (curve[i], i)) if curve else 0

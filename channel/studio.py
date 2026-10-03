@@ -255,7 +255,10 @@ class Studio:
         if self.mind:
             self._take_minds(day, names)
         sit = analyse(self.conn)["situations"]
-        plan = episode_planner.plan_day(self.conn, day, self.shown, sit, self.recent, episode_planner.SHOW, self.ledger)
+        # the thought and the words said: a mind event whose own words are out of its era is not preferred (the lint reads them)
+        held = {i: "\n".join(str(m.get(k) or "") for k in ("reason", "inner", "say")) for i, m in self.mind_by_event.items()} if self.mind else None
+        with episode_planner.mind_words(held):
+            plan = episode_planner.plan_day(self.conn, day, self.shown, sit, self.recent, episode_planner.SHOW, self.ledger)
         episode = None
         lint_facts = LINT.object_facts(self.conn, day)
         if plan is not None:
