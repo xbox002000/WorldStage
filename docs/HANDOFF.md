@@ -75,6 +75,19 @@
 - Git Bash 的 heredoc 遇到引號容易壞：較長的修改用 Edit 工具或先寫成腳本檔再執行。
 - 平行派子代理時，**每個代理只改自己的檔案**，共用檔（`contracts/versions.py`）只准小範圍加一行。
 
+## 最後狀態（2026-10-03）
+- 全套 1069 個以上的測試通過；舊配方行為指紋 identical。GitHub：`xbox002000/WorldStage`（master 推到 main），MIT 授權。
+- 在下面「現況」之後又完成：江湖稱呼（師兄師姐）、角色接 LLM 的提示 v3（角色會開口說話）、心智場景優先入集（29 → 76）、
+  **角色工坊**（`character_forge.py` 生成、鎖定、重骰；導播室一鍵開世界）。這幾項由 Grok Build 實作、Claude 驗收。
+- **下一步請讀 [`docs/NEXT.md`](NEXT.md)**：最重要的是拍出第一支真正的影片（目前只有鏡頭單與 dry-run）。
+
+## 分工：用 Grok Build 省額度
+`C:/Users/xbox0/.grok/bin/grok.exe` 有無頭模式：
+1. `git worktree add ../wv_grokN -b grok/<名字>`，在裡面寫 `GROK_TASK.md`（目標、要讀的檔案、紅線、測試指令、報告格式）。
+2. `grok -p "請完成 GROK_TASK.md…" --cwd <worktree> --permission-mode bypassPermissions --deny "Bash(git push:*)" --deny "Bash(git commit:*)" --deny "Bash(rm:*)" --deny "Bash(mklink:*)" --disable-web-search --max-turns 120 --output-format plain`；步數用完用 `grok -c -p "繼續…"`。
+3. 自己驗收：重跑測試與 `refactor_baseline`、讀 diff、抽查輸出；不合格就寫 `GROK_TASK2.md` 退回。合格才在分支上 commit、merge、push。
+4. 清理前先確認 worktree 裡沒有 junction（曾指向主目錄的 `render/node_modules`，直接刪會連主目錄一起刪）。worktree 沒有 `render/node_modules`，3D 相關測試要合併後在主目錄跑。
+
 ## 現況（2026-10-02）
 - 全套 1069 個測試全過（2 個跳過，2026-10-02）；舊配方指紋 identical。
 - 已完成：製作人、爽點、Episode Planner v0.2、情境台詞與潛台詞、表面情緒與真正原因、A/B 故事進封包、資產冊與一致性套件、導播室（含角色時間軸、劇本問題、LLM 心聲）、角色接 LLM（11 種子實驗）、劇本檢查器（512 → 0）、`jianghu_drama` 內容包與繼位過程、第一印象、目標要掙來。
