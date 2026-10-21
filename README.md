@@ -1,23 +1,35 @@
 <div align="center">
 
-# 🎬 WorldStage
+<img src="assets/banner.webp" width="100%" alt="A misty martial-arts sect courtyard at dusk seen from above, tiny figures training under lanterns, linked by faint threads of light like a story network">
+
+# WorldStage
 
 ### A living world that writes its own drama.
 
 **Characters live their own lives. Nobody writes the plot. An AI showrunner finds the story — and cuts it into episodes.**
 
-*Emergent narrative engine · multi-agent simulation · LLM characters · AI storytelling · AI video pipeline*
+<sub>Emergent narrative engine · multi-agent simulation · LLM characters · AI storytelling · AI video pipeline</sub>
 
-![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-1069%20passing-2ea44f)
-![Budget](https://img.shields.io/badge/budget-%240%20(free%20tier)-f5a623)
-![LLM](https://img.shields.io/badge/LLM-optional%20%C2%B7%20cached%20%C2%B7%20replayable-8a63d2)
-![Deterministic](https://img.shields.io/badge/worlds-deterministic%20%26%20event--sourced-0b7285)
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+<br>
 
-[繁體中文簡介](#繁體中文簡介) · [Why it's different](#why-its-different) · [Quick start](#quick-start) · [How it works](#how-it-works) · [Roadmap](#roadmap)
+[![License: MIT](https://img.shields.io/github/license/xbox002000/WorldStage?color=0b7285)](LICENSE)
+![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![Node.js](https://img.shields.io/badge/node.js-3D%20God%20View-5FA04E?logo=nodedotjs&logoColor=white)
+![Top language](https://img.shields.io/github/languages/top/xbox002000/WorldStage?color=f5a623)
+
+[Demo](#demo) · [Features](#features) · [Architecture](#architecture) · [Quick start](#quick-start) · [Roadmap](#roadmap) · [Contributing](#contributing) · [繁體中文簡介](#繁體中文簡介)
+
+</div>
+
+---
+
+## Demo
+
+<div align="center">
 
 ![The control room: one day's episode with its core question, the six-step underdog arc and the tension curve](docs/images/control-room.png)
+
+<sub>The control room — one day's episode, its core question, the underdog arc and the tension curve.</sub>
 
 </div>
 
@@ -99,34 +111,40 @@ Most AI-story projects ask a language model to *write a story*. WorldStage does 
 
 ## Quick start
 
-Requires **Python 3.12** on Windows, macOS or Linux. No API key needed.
+Requires **Python 3.12** and **Node.js + npm** (for the 3D God View assets) on Windows, macOS or Linux. **No API key needed.**
 
 ```bash
+git clone https://github.com/xbox002000/WorldStage && cd WorldStage
 python -m venv .venv
-.venv/Scripts/pip install -r requirements.lock        # macOS/Linux: .venv/bin/pip
+.venv/bin/pip install -r requirements.lock            # Windows: .venv\Scripts\pip
+(cd render && npm ci)                                  # three.js etc. for the 3D God View
 
-# Open the control room on a 14-day wuxia drama world
-.venv/Scripts/python -m channel.studio --preset drama --days 14 --out out/studio_hub
-# → http://127.0.0.1:8795/
+# Build a 14-day wuxia drama world and open the control room
+.venv/bin/python -m channel.studio --preset drama --days 14 --out out/studio_hub
+# → http://127.0.0.1:8795/   (add --no-serve to only build the site)
 ```
 
-Give the characters a mind (optional, uses the free Gemini tier — key read from the `GEMINI_API_KEY` environment variable):
+Presets: `jianghu` (sect story with a showrunner), `town` (small-town everyday life), `drama` (named cast). Building a 14-day world takes about half a minute on a laptop-class CPU.
+
+Give the characters a mind (optional; the real mind uses the Gemini free tier and reads `GEMINI_API_KEY` from the environment):
 
 ```bash
-.venv/Scripts/python soul_lab.py --name trial --days 3 --dry          # stub mind: no network, no quota
-.venv/Scripts/python soul_lab.py --name trial --days 3 --tier A       # real mind, cached and quota-ledgered
-.venv/Scripts/python -m channel.studio --mind out/soul/trial          # watch it, replayed from the cache for free
+.venv/bin/python soul_lab.py --name trial --days 3 --dry          # stub mind: no network, no quota
+.venv/bin/python soul_lab.py --name trial --days 3 --tier A       # real mind, cached and quota-ledgered (needs GEMINI_API_KEY)
+.venv/bin/python -m channel.studio --mind out/soul/trial          # watch it, replayed from the cache for free
 ```
 
 Run the tests:
 
 ```bash
-.venv/Scripts/python -m unittest discover -s tests -t .
+.venv/bin/python -m unittest discover -s tests -t .
 ```
+
+> Some tests need optional tooling: `render/node_modules` (run `npm ci` first) and a local ffmpeg at `tools/ffmpeg/bin/ffmpeg`. Without them those tests error or skip.
 
 ---
 
-## How it works
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -158,7 +176,14 @@ flowchart LR
 | `narrative/` | reading the world: episode planner, script linter, speech, narrative state, payoffs |
 | `production/` · `contracts/` | model-neutral shooting plans, the asset bible, contracts and JSON schemas |
 | `channel/` · `render/` | the control room, the 3D God View, renderers |
+| `runtime/` | spatial runtime: navigation, perception, physics, camera, Godot/Blender exports |
 | `docs/` | design notes and every experiment, with what did and did not hold |
+
+<p align="center">
+  <img src="assets/world.webp" width="49%" alt="Illustration: a miniature wuxia sect diorama on a dark table, small figures linked by glowing threads">
+  <img src="assets/crew.webp" width="49%" alt="Illustration: a dim control room with monitors of glowing tension curves beside a miniature courtyard model">
+</p>
+<p align="center"><sub>Illustrations (generated) — the world as a diorama, and the crew's control room.</sub></p>
 
 ---
 
@@ -174,7 +199,18 @@ flowchart LR
 - [ ] First real video model behind the conformance suite
 - [ ] Publishing pipeline
 
+<sub>Unchecked items are plans, not shipped features. See [docs/NEXT.md](docs/NEXT.md).</sub>
+
+---
+
+## Contributing
+
 New contributor or AI agent? Start with **[docs/HANDOFF.md](docs/HANDOFF.md)**, then **[docs/NEXT.md](docs/NEXT.md)** — where to go next (the first real video).
+
+- Only `apply_event` writes to the world; keep other code read-only.
+- Respect the layer rules — `tests/test_layers.py` will tell you if an import crosses a boundary.
+- New behaviour arrives as a new recipe so old worlds replay unchanged.
+- Run the test suite before opening a pull request, and put measured results (with what did *not* work) in `docs/`.
 
 ---
 
