@@ -7,13 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from world.content.forged import install_cast, show_path
-from world.db import connect, init_db
-from world.forge import find_modern, forge_cast
-from world.recipes import load_recipe, unregister_recipe
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.content.forged import install_cast, show_path
+from worldstage.world.db import connect, init_db
+from worldstage.world.forge import find_modern, forge_cast
+from worldstage.world.recipes import load_recipe, unregister_recipe
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -73,7 +73,7 @@ class ForgedWorld(unittest.TestCase):
         self.assertGreater(len(_events(first)), 3)
         self.assertEqual(_events(first), _events(second))
         self.assertEqual(_deltas(first), _deltas(second))
-        from narrative.lint import MODERN_WORDS
+        from worldstage.narrative.lint import MODERN_WORDS
         text = " ".join(row[6] for row in _events(first) if row[2] == "backstory")
         self.assertEqual(find_modern(text, MODERN_WORDS), [])
 
@@ -87,7 +87,7 @@ class ForgedWorld(unittest.TestCase):
         self.assertNotEqual(a["cast_dir"], b["cast_dir"])
 
     def test_the_command_installs_and_a_minor_stays_out_of_romance(self):
-        from character_forge import main
+        from labs.character_forge import main
         name = "grok_cli_fw"
         folder = ROOT / "out" / "forge" / name
         self.addCleanup(shutil.rmtree, folder, ignore_errors=True)

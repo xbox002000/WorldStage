@@ -11,10 +11,10 @@ import os
 import unittest
 from pathlib import Path
 
-from contracts import bible as cb
-from contracts.base import from_dict
-from contracts.capability import Policy
-from render.mock_clip import MockClipBackend
+from worldstage.contracts import bible as cb
+from worldstage.contracts.base import from_dict
+from worldstage.contracts.capability import Policy
+from worldstage.render.mock_clip import MockClipBackend
 from tests.provider_conformance import runner as R
 from tests.provider_conformance.builder import KINDS
 
@@ -50,7 +50,7 @@ class Fixtures(unittest.TestCase):
         self.assertEqual(cb.check_bible(self.bible), [])
 
     def test_every_intent_is_in_the_closed_vocabulary_and_no_prompt_has_a_model_word(self):
-        from contracts.episode_plan import INTENTS
+        from worldstage.contracts.episode_plan import INTENTS
         for s in self.data["samples"]:
             self.assertIn(s["intent"], INTENTS)
             shot = R.shot_of(s)

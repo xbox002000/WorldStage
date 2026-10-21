@@ -6,19 +6,19 @@ import json
 import unittest
 from typing import get_args
 
-from agent.volition import VolitionDecider
-from contracts import director as cd
-from contracts import episode_plan as ep
-from contracts.base import canonical_json, to_dict
-from narrative import episode_planner as P
-from narrative.arcs import Ev, load_events
-from narrative.dramaturgy import analyse
-from producer.director import Director
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts import director as cd
+from worldstage.contracts import episode_plan as ep
+from worldstage.contracts.base import canonical_json, to_dict
+from worldstage.narrative import episode_planner as P
+from worldstage.narrative.arcs import Ev, load_events
+from worldstage.narrative.dramaturgy import analyse
+from worldstage.producer.director import Director
 from tests.test_opportunity import fingerprint
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def produced(seed=17, days=8, upto=None):
@@ -160,8 +160,8 @@ class ToTheCamera(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from narrative.scene_spec import build_scene_specs
-        from narrative.selector import Candidate
+        from worldstage.narrative.scene_spec import build_scene_specs
+        from worldstage.narrative.selector import Candidate
         cls.c = produced(17, 6)
         day = next(d for d in range(6) if P.choose_material(cls.c, d, set())[2] == "payoff")
         arc, thread, kind, payoff, steps = P.choose_material(cls.c, day, set())
@@ -170,12 +170,12 @@ class ToTheCamera(unittest.TestCase):
         cls.intents = {i: [b.intent] for b in cls.plan.beats if b.shoot for i in b.event_ids}
 
     def test_the_new_intents_become_shots(self):
-        from narrative.direction import plan_direction
+        from worldstage.narrative.direction import plan_direction
         got = {s.function for s in plan_direction(self.c, self.spec, None, set(), intents=self.intents).shots}
         self.assertTrue({"face_slap"} & got or {"payoff"} & got)
 
     def test_with_no_intents_the_plan_is_what_it_was(self):
-        from narrative.direction import plan_direction
+        from worldstage.narrative.direction import plan_direction
         a = plan_direction(self.c, self.spec, None, set())
         b = plan_direction(self.c, self.spec, None, set(), intents=None)
         self.assertEqual(a.plan_hash, b.plan_hash)
@@ -221,7 +221,7 @@ class WhatChanged(unittest.TestCase):
         self.assertTrue(all(P.real_progress(self.c, e, names) for e in duels))
 
     def test_the_voters_of_a_succession_are_its_bystanders(self):
-        from narrative import payoff as PP
+        from worldstage.narrative import payoff as PP
         votes = [p for p in PP.payoffs(self.c) if p["kind"] == "succession"]
         if not votes:
             self.skipTest("no succession in this fortnight")
@@ -328,7 +328,7 @@ class DailyJob(unittest.TestCase):
         import shutil
         import tempfile
 
-        from channel.daily import DailyConfig, run_daily
+        from worldstage.channel.daily import DailyConfig, run_daily
         tmp = tempfile.mkdtemp(prefix="dailyep_")
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         cfg = DailyConfig(world_db=os.path.join(tmp, "world.db"), prod_db=os.path.join(tmp, "prod.db"), out_dir=os.path.join(tmp, "episodes"),
@@ -365,7 +365,7 @@ class ScriptSeason(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from narrative import lint as LN
+        from worldstage.narrative import lint as LN
         cls.LN = LN
         cls.c = produced(17, cls.DAYS)
         cls.before = fingerprint(cls.c)
@@ -626,7 +626,7 @@ class MindPriority(unittest.TestCase):
             participants=[("hao", "actor"), ("tao", "target")],
             changes=[Change("person", "hao", "emotion", value=emotion("hao", "angry"))]))
         events = load_events(c)
-        from narrative.arcs import Arc
+        from worldstage.narrative.arcs import Arc
         arc = Arc((events[duel], events[template]), events[duel], "hard")
         sit = analyse(c)["situations"]
         plan = P.plan_episode(c, arc, shown=set(), day=day, kind="hard", situations=sit, options=P.SHOW, ledger=P.Ledger())

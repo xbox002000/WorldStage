@@ -11,18 +11,18 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from agent.llm import LLMClient
-from contracts.stylepack import SUSPENSE_V1
-from production import db as prod
-from production import series
-from channel.daily import DailyConfig, LLMUnavailable, run_daily
-from production.experiment import ExperimentDrift, build_config, differences, freeze
-from production.publisher import BASE_TAGS, DISCLOSURE, LocalPublisher, compose_listing
-from channel.replay import replay_check
-from world.db import connect
-from world.reader import open_world_reader
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash, world_revision
+from worldstage.agent.llm import LLMClient
+from worldstage.contracts.stylepack import SUSPENSE_V1
+from worldstage.production import db as prod
+from worldstage.production import series
+from worldstage.channel.daily import DailyConfig, LLMUnavailable, run_daily
+from worldstage.production.experiment import ExperimentDrift, build_config, differences, freeze
+from worldstage.production.publisher import BASE_TAGS, DISCLOSURE, LocalPublisher, compose_listing
+from worldstage.channel.replay import replay_check
+from worldstage.world.db import connect
+from worldstage.world.reader import open_world_reader
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash, world_revision
 
 
 class ApiError(Exception):
@@ -89,7 +89,7 @@ class DailyJobTests(Workspace):
     def test_a_day_that_fails_leaves_the_world_exactly_as_it_was(self):
         run_daily(self.cfg(days=1))
         before = self.snapshot()
-        with mock.patch("channel.daily.audit", return_value=["pretend inconsistency"]):
+        with mock.patch("worldstage.channel.daily.audit", return_value=["pretend inconsistency"]):
             with self.assertRaises(RuntimeError):
                 run_daily(self.cfg(init=False))
         self.assertEqual(self.snapshot(), before)
@@ -190,7 +190,7 @@ class ExperimentTests(Workspace):
 
 
     def test_only_the_story_is_frozen_not_the_look(self):
-        from production.experiment import check_frozen, presentation_hash, story_hash
+        from worldstage.production.experiment import check_frozen, presentation_hash, story_hash
         conn = prod.open_production_db()
         cfg = build_config(experiment_id="A", world_seed=1, active_ids={"ming"}, style=SUSPENSE_V1, models=["m"], days=7,
                            orientation="portrait", quality="looks")
@@ -223,7 +223,7 @@ class ListingTests(Workspace):
         self.assertTrue(a["hashtags"].count("#") <= 8)
 
     def test_publishing_writes_the_files_and_records_it(self):
-        from contracts.base import canonical_json
+        from worldstage.contracts.base import canonical_json
         from tests.world_fixture import build_specs, compile_all
         spec, packet = build_specs()[0], compile_all()[0]
         folder = Path(self.tmp) / "ep"

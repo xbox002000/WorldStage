@@ -7,10 +7,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contracts.packet import Camera, ShotCharacter
-from narrative.color import avatar_color, ink_for, luminance
-from render.hyperframes_backend import CLI, GSAP, FFMPEG_DIR
-from render.packet_html import (MAX_BACKGROUND, OFFSETS, ZOOM, build_plan, build_project, per_row, render_html, to_srt)
+from worldstage.contracts.packet import Camera, ShotCharacter
+from worldstage.narrative.color import avatar_color, ink_for, luminance
+from worldstage.render.hyperframes_backend import CLI, GSAP, FFMPEG_DIR
+from worldstage.render.packet_html import (MAX_BACKGROUND, OFFSETS, ZOOM, build_plan, build_project, per_row, render_html, to_srt)
 from tests.world_fixture import compile_all
 
 CROWD = [ShotCharacter(f"p{i}", f"人{i}", f"char_p{i}", "actor" if i == 0 else "target" if i == 1 else "witness",
@@ -103,7 +103,7 @@ class HtmlTests(unittest.TestCase):
             self.assertIn(cue.text, srt)
 
     def test_the_recap_appears_on_the_title_card(self):
-        from narrative.compiler import compile_packet
+        from worldstage.narrative.compiler import compile_packet
         from tests.world_fixture import build_specs
         packet = compile_packet(build_specs()[0], recap="上集：阿明當面質問阿濤")
         self.assertIn("前情提要：", render_html(packet))

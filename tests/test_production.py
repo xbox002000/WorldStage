@@ -10,25 +10,25 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.decision import SeededDecider
-from contracts.base import canonical_json
-from contracts.packet import QARequirements
-from contracts.render_request import Take
-from narrative.compiler import compile_packet
-from narrative.scene_spec import build_scene_specs, validate_spec
-from narrative.selector import select_top
-from production import db as prod
-from production.pipeline import produce
-from production.provenance import ProvenanceError, trace_take
-from production.qa import preflight
-from render.hyperframes_backend import FFMPEG_DIR
+from worldstage.agent.decision import SeededDecider
+from worldstage.contracts.base import canonical_json
+from worldstage.contracts.packet import QARequirements
+from worldstage.contracts.render_request import Take
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.scene_spec import build_scene_specs, validate_spec
+from worldstage.narrative.selector import select_top
+from worldstage.production import db as prod
+from worldstage.production.pipeline import produce
+from worldstage.production.provenance import ProvenanceError, trace_take
+from worldstage.production.qa import preflight
+from worldstage.render.hyperframes_backend import FFMPEG_DIR
 from tests.world_fixture import SEED, build_specs, compile_all, reader, world_path
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.reader import open_world_reader
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.reader import open_world_reader
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 ROOT = Path(__file__).resolve().parent.parent
 FFMPEG = FFMPEG_DIR / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
@@ -82,12 +82,12 @@ class CompilerDeterminismTests(unittest.TestCase):
 
 
 class ProductionCannotTouchTheWorldTests(unittest.TestCase):
-    FORBIDDEN = {"world.events", "world.db", "world.rules", "world.simulation", "world.seed", "world.intent"}
+    FORBIDDEN = {"worldstage.world.events", "worldstage.world.db", "worldstage.world.rules", "worldstage.world.simulation", "worldstage.world.seed", "worldstage.world.intent"}
 
     def test_production_side_modules_never_import_the_writers(self):
         offenders = []
         for folder in ("production", "render", "narrative"):
-            for path in (ROOT / folder).glob("*.py"):
+            for path in (ROOT / "worldstage" / folder).glob("*.py"):
                 for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
                     names = []
                     if isinstance(node, ast.ImportFrom) and node.module:
@@ -100,18 +100,18 @@ class ProductionCannotTouchTheWorldTests(unittest.TestCase):
     def test_only_the_production_db_module_opens_writable_sqlite_files(self):
         offenders = []
         for folder in ("production", "render", "narrative"):
-            for path in (ROOT / folder).glob("*.py"):
+            for path in (ROOT / "worldstage" / folder).glob("*.py"):
                 if "sqlite3.connect(" in path.read_text(encoding="utf-8") and path.name != "db.py":
                     offenders.append(f"{folder}/{path.name}")
         self.assertEqual(offenders, [])
 
     def test_the_channel_orchestrator_is_where_the_two_sides_meet(self):
-        text = (ROOT / "channel" / "daily.py").read_text(encoding="utf-8")
-        self.assertIn("from world.simulation import Simulation", text)  # it may write the world (on a copy)...
-        self.assertIn("from production import db as prod", text)  # ...and it is the only one that also drives production
+        text = (ROOT / "worldstage" / "channel" / "daily.py").read_text(encoding="utf-8")
+        self.assertIn("from worldstage.world.simulation import Simulation", text)  # it may write the world (on a copy)...
+        self.assertIn("from worldstage.production import db as prod", text)  # ...and it is the only one that also drives production
         for folder in ("production", "render", "narrative"):
-            for path in (ROOT / folder).glob("*.py"):
-                self.assertNotIn("from channel", path.read_text(encoding="utf-8"), path.name)  # nothing depends back on it
+            for path in (ROOT / "worldstage" / folder).glob("*.py"):
+                self.assertNotIn("from worldstage.channel", path.read_text(encoding="utf-8"), path.name)  # nothing depends back on it
 
     def test_running_the_pipeline_leaves_the_world_unchanged(self):
         r = reader()
@@ -137,7 +137,7 @@ class ProductionDbTests(unittest.TestCase):
     def test_ready_take_lookup(self):
         conn = prod.open_production_db()
         spec, packet = build_specs()[0], compile_all()[0]
-        from render.hyperframes_backend import HyperFramesBackend
+        from worldstage.render.hyperframes_backend import HyperFramesBackend
         backend = HyperFramesBackend(lambda h: packet)
         request = backend.make_request(packet)
         prod.save_scene_spec(conn, spec)

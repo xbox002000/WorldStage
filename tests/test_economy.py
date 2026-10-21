@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import unittest
 
-from contracts.director import FORBIDDEN_CUTS
-from narrative.direction import plan_direction
-from narrative.economy import cancelling_beats
+from worldstage.contracts.director import FORBIDDEN_CUTS
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.economy import cancelling_beats
 from tests.test_director_reality import dog_story
 
 
@@ -45,7 +45,7 @@ class EconomyTests(unittest.TestCase):
 
     def test_a_repeated_picture_is_merged_and_an_empty_shot_is_cut(self):
         import dataclasses
-        from narrative.economy import value_shots
+        from worldstage.narrative.economy import value_shots
         p = self.plans["C"]
         shots = list(p.shots)
         k = next(i for i, s in enumerate(shots) if s.scale == "INSERT")

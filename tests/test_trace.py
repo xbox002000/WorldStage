@@ -5,13 +5,13 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.trace import bias_keys, build
-from agent.volition import TEMPERATURE, VolitionDecider
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.trace import bias_keys, build
+from worldstage.agent.volition import TEMPERATURE, VolitionDecider
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def run(recipe: str, seed: int, days: int, trace: bool):
@@ -113,7 +113,7 @@ class Factors(unittest.TestCase):
         self.assertNotIn("factors", rec)
 
     def test_losing_control_carries_the_body_that_caused_it(self):
-        from agent.volition import seizure
+        from worldstage.agent.volition import seizure
         setvar(self.conn, "body.arousal.ming", 1.0)
         setvar(self.conn, "body.arousal_at.ming", 600)
         seized = None

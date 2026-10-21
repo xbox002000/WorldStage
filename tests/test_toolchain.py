@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from world.snapshot import snapshot_manifest
-from world.toolchain import lock_drift, simulation_toolchain, simulation_toolchain_hash
+from worldstage.world.snapshot import snapshot_manifest
+from worldstage.world.toolchain import lock_drift, simulation_toolchain, simulation_toolchain_hash
 from tests.helpers import seeded
 
 

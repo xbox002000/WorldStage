@@ -5,11 +5,11 @@ from __future__ import annotations
 import dataclasses
 import unittest
 
-from contracts.base import canonical_json, from_dict, to_dict
-from contracts.persona import Evidence, EvidenceSource, PersonaClaim, PersonaEvidence
+from worldstage.contracts.base import canonical_json, from_dict, to_dict
+from worldstage.contracts.persona import Evidence, EvidenceSource, PersonaClaim, PersonaEvidence
 from tests.test_persona import public_figure, world
-from world import persona_evidence as pe
-from world import personas
+from worldstage.world import persona_evidence as pe
+from worldstage.world import personas
 
 
 def ming():

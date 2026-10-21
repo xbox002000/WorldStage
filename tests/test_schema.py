@@ -4,7 +4,7 @@ import sqlite3
 import unittest
 
 from tests.helpers import seeded
-from world.db import mutation
+from worldstage.world.db import mutation
 
 
 def insert_event(conn, ts=10, parent=None, etype="t"):

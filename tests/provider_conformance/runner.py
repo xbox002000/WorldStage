@@ -29,14 +29,14 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from capability.registry import CapabilityRegistry
-from contracts.backends import ShotRequest
-from contracts.base import from_dict, hash_without
-from contracts.bible import Bible
-from contracts.capability import Policy, Requirement
-from contracts.render_request import Take, make_request
-from production.provenance import file_sha256
-from production.shot_qa import diagnose
+from worldstage.capability.registry import CapabilityRegistry
+from worldstage.contracts.backends import ShotRequest
+from worldstage.contracts.base import from_dict, hash_without
+from worldstage.contracts.bible import Bible
+from worldstage.contracts.capability import Policy, Requirement
+from worldstage.contracts.render_request import Take, make_request
+from worldstage.production.provenance import file_sha256
+from worldstage.production.shot_qa import diagnose
 
 HERE = Path(__file__).resolve().parent
 SAMPLES = HERE / "samples.json"
@@ -221,7 +221,7 @@ def main() -> int:
     ap.add_argument("--allow-skipped", action="store_true")
     ap.add_argument("--json", default=None, help="also write the report here")
     args = ap.parse_args()
-    from capability.defaults import default_registry
+    from worldstage.capability.defaults import default_registry
     registry = default_registry(lambda h: None)
     try:
         provider = registry.get(args.provider)
@@ -232,7 +232,7 @@ def main() -> int:
                              allow_skipped=args.allow_skipped)
     print(report.text())
     if args.json:
-        from contracts.base import to_dict
+        from worldstage.contracts.base import to_dict
         Path(args.json).write_text(json.dumps(to_dict(report), ensure_ascii=False, indent=1), encoding="utf-8")
     return 0 if report.passed else 1
 

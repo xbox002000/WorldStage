@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.decision import GeminiDecider
-from agent.llm import BudgetExceeded, LLMClient
+from worldstage.agent.decision import GeminiDecider
+from worldstage.agent.llm import BudgetExceeded, LLMClient
 from tests.helpers import seeded
 
 
@@ -72,7 +72,7 @@ class DeciderTests(unittest.TestCase):
         return GeminiDecider(c), c
 
     def test_prompt_contains_only_what_the_actor_may_know(self):
-        from agent.decision import build_prompt
+        from worldstage.agent.decision import build_prompt
 
         prompt = build_prompt(self.conn, "mary")
         self.assertIn("tom", prompt)
@@ -102,7 +102,7 @@ class DeciderTests(unittest.TestCase):
 
 class FallbackTests(unittest.TestCase):
     def chain(self, backends, cooldown=300.0, max_calls=None):
-        from agent.llm import FallbackClient
+        from worldstage.agent.llm import FallbackClient
 
         now = [0.0]
         clients = [
@@ -167,7 +167,7 @@ class OpenRouterBackendTests(unittest.TestCase):
     def call(self, reply):
         from unittest import mock
 
-        from agent import llm
+        from worldstage.agent import llm
 
         with mock.patch.object(llm, "load_api_key", return_value="k"), mock.patch("httpx.post", return_value=reply):
             return llm._openrouter_backend("some/model", True)("p", {}, 0.5)
@@ -177,7 +177,7 @@ class OpenRouterBackendTests(unittest.TestCase):
         self.assertEqual(self.call(self.Reply(200, body)), '{"a": 1}')
 
     def test_http_200_carrying_an_error_becomes_a_retryable_http_error(self):
-        from agent.llm import RETRYABLE, HttpError
+        from worldstage.agent.llm import RETRYABLE, HttpError
 
         body = {"error": {"code": 429, "message": "rate limited upstream"}}
         with self.assertRaises(HttpError) as cm:
@@ -187,7 +187,7 @@ class OpenRouterBackendTests(unittest.TestCase):
         self.assertIn(429, RETRYABLE)
 
     def test_an_answer_with_neither_choices_nor_error_code_is_a_bad_gateway(self):
-        from agent.llm import RETRYABLE, HttpError
+        from worldstage.agent.llm import RETRYABLE, HttpError
 
         with self.assertRaises(HttpError) as cm:
             self.call(self.Reply(200, {"weird": True}))
@@ -203,7 +203,7 @@ class DailyQuotaTests(unittest.TestCase):
     PER_MINUTE = "429 RESOURCE_EXHAUSTED quotaId: GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
 
     def test_only_a_per_day_429_counts_as_a_used_up_quota(self):
-        from agent.llm import _daily_quota_hit
+        from worldstage.agent.llm import _daily_quota_hit
 
         self.assertTrue(_daily_quota_hit(self.Api429(self.PER_DAY)))
         self.assertFalse(_daily_quota_hit(self.Api429(self.PER_MINUTE)))  # that one clears within a minute
@@ -216,7 +216,7 @@ class DailyQuotaTests(unittest.TestCase):
     def test_the_gemini_backend_reports_a_used_up_day_as_quota_exhausted(self):
         from unittest import mock
 
-        from agent import llm
+        from worldstage.agent import llm
 
         class Models:
             def generate_content(self, **kw):
@@ -231,7 +231,7 @@ class DailyQuotaTests(unittest.TestCase):
                 llm._gemini_backend("gemini-x")("p", {}, 0.5)
 
     def test_a_used_up_model_is_not_retried_and_stays_skipped_for_the_run(self):
-        from agent.llm import FallbackClient, QuotaExhausted
+        from worldstage.agent.llm import FallbackClient, QuotaExhausted
 
         calls = []
 
@@ -252,7 +252,7 @@ class DailyQuotaTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)  # one attempt, no retries, never asked again
 
     def test_a_comma_separated_model_names_a_chain_in_order(self):
-        from agent.llm import build_chain
+        from worldstage.agent.llm import build_chain
 
         chain = build_chain("gemini-3.5-flash, gemini-3.5-flash-lite", use_openrouter=False)
         self.assertEqual([c.model for c in chain.clients], ["gemini-3.5-flash", "gemini-3.5-flash-lite"])

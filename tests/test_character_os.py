@@ -14,11 +14,11 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 
 def _world(recipe: str, seed: int, days: int):
@@ -93,19 +93,19 @@ class InnerConflict(unittest.TestCase):
         cls.c = _world("town_life_v1", 55, 10)
 
     def test_dilemmas_are_recorded_and_come_from_the_actor_s_values(self):
-        from world.values import RECORD, dilemma
+        from worldstage.world.values import RECORD, dilemma
         rows = self.c.execute("SELECT type, truth FROM events WHERE json_extract(truth, '$.dilemma') IS NOT NULL").fetchall()
         self.assertTrue(rows)
         for etype, truth in rows:
             d = json.loads(truth)["dilemma"]
             self.assertGreaterEqual(d["tension"], RECORD)
             self.assertTrue(d["serves"] and d["costs"])
-        from world.profiles import profile
+        from worldstage.world.profiles import profile
         held = set(profile(self.c, json.loads(rows[0][1])["actor"]).values)
         self.assertLessEqual(set(json.loads(rows[0][1])["dilemma"]["costs"]), held)
 
     def test_the_director_counts_it(self):
-        from narrative.director import WEIGHTS, rank_threads
+        from worldstage.narrative.director import WEIGHTS, rank_threads
         self.assertIn("inner", WEIGHTS)
         ranked = rank_threads(self.c, 9)
         self.assertTrue(ranked)
@@ -114,7 +114,7 @@ class InnerConflict(unittest.TestCase):
 
 class Overview(unittest.TestCase):
     def test_a_life_at_a_glance_changes_nothing(self):
-        from narrative.observatory import character_overview
+        from worldstage.narrative.observatory import character_overview
         c = _world("town_life_v1", 3, 6)
         before = snapshot_hash(c)
         o = character_overview(c, "ming")
@@ -131,8 +131,8 @@ class CrossDomain(unittest.TestCase):
         cls.sect = _world("town_in_jianghu_v1", 3, 6)
 
     def test_the_same_people_but_for_their_casting(self):
-        from contracts.base import to_dict
-        from world.profiles import profile
+        from worldstage.contracts.base import to_dict
+        from worldstage.world.profiles import profile
         for (pid,) in self.town.execute("SELECT person_id FROM character_profiles ORDER BY person_id").fetchall():
             a, b = to_dict(profile(self.town, pid)), to_dict(profile(self.sect, pid))
             for k in ("occupation", "season_goal", "costume"):  # what casting gives a person in a world
@@ -144,13 +144,13 @@ class CrossDomain(unittest.TestCase):
         kinds = {r[0] for r in self.sect.execute("SELECT DISTINCT type FROM events")}
         self.assertIn("train", kinds)
         self.assertNotIn("train", {r[0] for r in self.town.execute("SELECT DISTINCT type FROM events")})
-        from world.domains.work import words
+        from worldstage.world.domains.work import words
         self.assertEqual(words(self.sect, "ming")["quit"], "離開師門")
         self.assertEqual(words(self.town, "ming")["quit"], "辭職")
 
     def test_the_director_and_the_runtime_still_work(self):
-        from narrative.director import rank_threads
-        from runtime.world_runtime import WorldRuntime
+        from worldstage.narrative.director import rank_threads
+        from worldstage.runtime.world_runtime import WorldRuntime
         self.assertTrue(rank_threads(self.sect, 5))
         rt = WorldRuntime(self.sect)
         rt.advance()
@@ -160,10 +160,10 @@ class CrossDomain(unittest.TestCase):
     def test_personality_shows_in_both_worlds(self):
         """Measured by the persona probe (exact probabilities in standard circumstances), not by counting what six
         days happened to bring: that count was noise (someone is caught in the wrong twice a month)."""
-        from cross_domain import spearman
-        from persona_probe import PROBES, probe
-        from world.db import connect, init_db
-        from world.seed import build_world
+        from labs.cross_domain import spearman
+        from labs.persona_probe import PROBES, probe
+        from worldstage.world.db import connect, init_db
+        from worldstage.world.seed import build_world
         worlds = {}
         for recipe in ("town_life_v1", "town_in_jianghu_v1"):
             c = connect()

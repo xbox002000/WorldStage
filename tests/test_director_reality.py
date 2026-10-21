@@ -10,23 +10,23 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from narrative.arcs import Arc, load_events
-from narrative.compiler import compile_packet
-from narrative.direction import plan_direction
-from narrative.scene_spec import build_scene_specs
-from narrative.selector import Candidate
-from narrative.threads import derive_threads
-from production.viewing import on_screen, viewing_profile
-from render.cast.packet_script import to_script
+from worldstage.narrative.arcs import Arc, load_events
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.scene_spec import build_scene_specs
+from worldstage.narrative.selector import Candidate
+from worldstage.narrative.threads import derive_threads
+from worldstage.production.viewing import on_screen, viewing_profile
+from worldstage.render.cast.packet_script import to_script
 from tests.test_animals import with_dog
 from tests.test_world_c import put
-from world.animals import with_senses
-from world.events import apply_event
-from world.intent import Intent
-from world.items import misplace, notice_missing
-from world.rules import resolve
+from worldstage.world.animals import with_senses
+from worldstage.world.events import apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.items import misplace, notice_missing
+from worldstage.world.rules import resolve
 
-CAST_JS = Path(__file__).resolve().parent.parent / "render" / "cast"
+CAST_JS = Path(__file__).resolve().parent.parent / "worldstage" / "render" / "cast"
 
 
 def dog_story():

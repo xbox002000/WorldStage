@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from agent.decision import SeededDecider
+from worldstage.agent.decision import SeededDecider
 from tests.helpers import dump_state
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
-from world.state import audit
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.state import audit
 
 
 def run(seed: int, days: int = 7):
@@ -57,9 +57,9 @@ class DaysAndTimeTests(unittest.TestCase):
         self.assertEqual(sim.next_day(), 2)
 
     def test_running_in_two_steps_equals_running_at_once(self):
-        from agent.decision import SeededDecider as Seeded
-        from world.db import connect as connect_db
-        from world.snapshot import snapshot_hash
+        from worldstage.agent.decision import SeededDecider as Seeded
+        from worldstage.world.db import connect as connect_db
+        from worldstage.world.snapshot import snapshot_hash
 
         def build(steps):
             conn = connect_db()
@@ -74,8 +74,8 @@ class DaysAndTimeTests(unittest.TestCase):
         self.assertEqual(build([3]), build([1, 1, 1]))
 
     def test_an_unfinished_day_cannot_be_resumed(self):
-        from world.events import Change, EventSpec, apply_event
-        from world.state import WorldError
+        from worldstage.world.events import Change, EventSpec, apply_event
+        from worldstage.world.state import WorldError
         conn, sim = run(9, 1)
         apply_event(conn, EventSpec(timestamp=1440 + 500, type="stray", trigger_type="t",
                                     changes=[Change("person", "ming", "energy", delta=-1)]))
@@ -85,7 +85,7 @@ class DaysAndTimeTests(unittest.TestCase):
     def test_people_do_not_act_on_the_dot_but_never_leave_their_slot(self):
         conn, _ = run(184729, 3)
         offsets = [(r["timestamp"] % 1440) for r in conn.execute("SELECT timestamp FROM events WHERE type='move'")]
-        from world.seed import HOME_DAY, HOME_DAY_ALT, WORKER_DAY
+        from worldstage.world.seed import HOME_DAY, HOME_DAY_ALT, WORKER_DAY
         scripted_slots = {k for day in (WORKER_DAY, HOME_DAY, HOME_DAY_ALT) for k, v in day.items() if v.startswith("move:")}
         off_the_dot = [o for o in offsets if o not in scripted_slots]
         self.assertGreater(len(off_the_dot), len(offsets) // 2)  # most moves are jittered

@@ -3,16 +3,16 @@ from __future__ import annotations
 import json
 import unittest
 
-from contracts.claim import DENY, FALSE, PARTIAL, TRUE, UNKNOWN, Claim
+from worldstage.contracts.claim import DENY, FALSE, PARTIAL, TRUE, UNKNOWN, Claim
 from tests.helpers import social_world
-from world.claims import evaluate
-from world.confront import confrontable, validate_confront
-from world.events import apply_event
-from world.intent import Intent, intent_hash, intent_sort_key, parse_intent, validate
-from world.rules import resolve
-from world.snapshot import snapshot_hash
-from world.social import BELIEF_EFFECT, classify_confrontation, listener_confidence
-from world.state import WorldError, audit
+from worldstage.world.claims import evaluate
+from worldstage.world.confront import confrontable, validate_confront
+from worldstage.world.events import apply_event
+from worldstage.world.intent import Intent, intent_hash, intent_sort_key, parse_intent, validate
+from worldstage.world.rules import resolve
+from worldstage.world.snapshot import snapshot_hash
+from worldstage.world.social import BELIEF_EFFECT, classify_confrontation, listener_confidence
+from worldstage.world.state import WorldError, audit
 
 
 def do(conn, ts, intent):

@@ -6,14 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from contracts.intervention import InterventionProposal
-from producer import showrunner as S
-from producer.intervention import COSTS, Ledger
-from world import interventions
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.producer import showrunner as S
+from worldstage.producer.intervention import COSTS, Ledger
+from worldstage.world import interventions
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def saga(seed=3):

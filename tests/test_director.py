@@ -6,14 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from producer import director as D
-from producer.intervention import Ledger
-from world import interventions
-from world.db import connect, init_db
-from world.domains.roles import role_of
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.producer import director as D
+from worldstage.producer.intervention import Ledger
+from worldstage.world import interventions
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains.roles import role_of
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 from tests.test_opportunity import duel
 
 
@@ -82,7 +82,7 @@ class Acting(unittest.TestCase):
                 self.assertTrue(d["admitted"])
 
 
-from narrative.opportunity import SURE_LOSS as O_SURE_LOSS, SURE_WIN as O_SURE_WIN  # noqa: E402
+from worldstage.narrative.opportunity import SURE_LOSS as O_SURE_LOSS, SURE_WIN as O_SURE_WIN  # noqa: E402
 
 
 class Stillness(unittest.TestCase):
@@ -116,8 +116,8 @@ class Stillness(unittest.TestCase):
         self.assertTrue(dr.threads.resting(hero, 2))
         self.assertFalse(dr.threads.resting(hero, 6))
     def test_a_story_taken_up_again_does_not_count_what_came_before(self):
-        from contracts.opportunity import Opportunity
-        from producer.arcs import Threads
+        from worldstage.contracts.opportunity import Opportunity
+        from worldstage.producer.arcs import Threads
         op = Opportunity("op-x", "reversal", "hao", ["kai"], 0, 0.3, 0.9, 0.5)
         t = Threads()
         t.take_up(op, 0)

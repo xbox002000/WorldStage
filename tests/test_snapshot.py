@@ -6,12 +6,12 @@ import tempfile
 import unittest
 
 from tests.helpers import seeded
-from world.db import SCHEMA_VERSION, connect, init_db, migrate, schema_version
-from world.events import Change, EventSpec, MemorySpec, apply_event
-from world.reader import open_world_reader
-from world.ruleset import ROOT, ruleset_hash, ruleset_manifest
-from world.snapshot import snapshot_hash, snapshot_manifest, world_revision, world_time
-from world.state import WorldError, audit
+from worldstage.world.db import SCHEMA_VERSION, connect, init_db, migrate, schema_version
+from worldstage.world.events import Change, EventSpec, MemorySpec, apply_event
+from worldstage.world.reader import open_world_reader
+from worldstage.world.ruleset import ROOT, ruleset_hash, ruleset_manifest
+from worldstage.world.snapshot import snapshot_hash, snapshot_manifest, world_revision, world_time
+from worldstage.world.state import WorldError, audit
 
 
 def some_events(conn):

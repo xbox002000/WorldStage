@@ -5,14 +5,14 @@ import functools
 import os
 import tempfile
 
-from agent.decision import SeededDecider
-from narrative.compiler import compile_packet
-from narrative.scene_spec import build_scene_specs
-from narrative.selector import select_top
-from world.db import connect, init_db
-from world.reader import open_world_reader
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.decision import SeededDecider
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.scene_spec import build_scene_specs
+from worldstage.narrative.selector import select_top
+from worldstage.world.db import connect, init_db
+from worldstage.world.reader import open_world_reader
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 SEED = 184729
 

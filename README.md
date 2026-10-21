@@ -111,17 +111,17 @@ Most AI-story projects ask a language model to *write a story*. WorldStage does 
 
 ## Quick start
 
-Requires **Python 3.12** and **Node.js + npm** (for the 3D God View assets) on Windows, macOS or Linux. **No API key needed.**
+Requires **Python 3.12** and **Node.js 22+ with npm** (for the 3D God View and video assets) on Windows, macOS or Linux. **No API key needed.**
 
 ```bash
 git clone https://github.com/xbox002000/WorldStage && cd WorldStage
 python -m venv .venv
-.venv/bin/pip install -r requirements.lock            # Windows: .venv\Scripts\pip
-(cd render && npm ci)                                  # three.js etc. for the 3D God View
+.venv/bin/pip install -r requirements.lock -e .        # Windows: .venv\Scripts\pip
+(cd worldstage/render && npm ci)                       # three.js etc. for the 3D God View
 
 # Build a 14-day wuxia drama world and open the control room
-.venv/bin/python -m channel.studio --preset drama --days 14 --out out/studio_hub
-# → http://127.0.0.1:8795/   (add --no-serve to only build the site)
+.venv/bin/worldstage-studio --preset drama --days 14 --out out/studio_hub
+# → http://127.0.0.1:8795/   (add --no-serve to only build the site; same as python -m worldstage.channel.studio)
 ```
 
 Presets: `jianghu` (sect story with a showrunner), `town` (small-town everyday life), `drama` (named cast). Building a 14-day world takes about half a minute on a laptop-class CPU.
@@ -129,10 +129,12 @@ Presets: `jianghu` (sect story with a showrunner), `town` (small-town everyday l
 Give the characters a mind (optional; the real mind uses the Gemini free tier and reads `GEMINI_API_KEY` from the environment):
 
 ```bash
-.venv/bin/python soul_lab.py --name trial --days 3 --dry          # stub mind: no network, no quota
-.venv/bin/python soul_lab.py --name trial --days 3 --tier A       # real mind, cached and quota-ledgered (needs GEMINI_API_KEY)
-.venv/bin/python -m channel.studio --mind out/soul/trial          # watch it, replayed from the cache for free
+.venv/bin/worldstage-soul --name trial --days 3 --dry           # stub mind: no network, no quota
+.venv/bin/worldstage-soul --name trial --days 3 --tier A        # real mind, cached and quota-ledgered (needs GEMINI_API_KEY)
+.venv/bin/worldstage-studio --mind out/soul/trial               # watch it, replayed from the cache for free
 ```
+
+Other entry points live in `scripts/` (`run_sim`, `daily`, `produce`, `report`, `rate`, `explain`) and experiments in `labs/`; run them from the repo root, e.g. `.venv/bin/python -m scripts.run_sim --help` or `.venv/bin/python -m labs.drama_gate --help`.
 
 Run the tests:
 
@@ -140,7 +142,7 @@ Run the tests:
 .venv/bin/python -m unittest discover -s tests -t .
 ```
 
-> Some tests need optional tooling: `render/node_modules` (run `npm ci` first) and a local ffmpeg at `tools/ffmpeg/bin/ffmpeg`. Without them those tests error or skip.
+> Some tests need optional tooling: `worldstage/render/node_modules` (run `npm ci` first; HyperFrames needs Node 22+) and a local ffmpeg at `tools/ffmpeg/bin/ffmpeg`. Without them those tests error or skip.
 
 ---
 
@@ -148,13 +150,13 @@ Run the tests:
 
 ```mermaid
 flowchart LR
-    W[("🌍 world.db<br/>events · claims · memories")]
-    A["🧠 characters<br/>rules + optional LLM mind"]
-    P["🎩 showrunner<br/>arranges situations"]
-    N["✂️ editor<br/>finds the drama, plans the episode"]
-    L["🔍 script linter"]
-    C["🎛️ control room<br/>+ 3D God View"]
-    V["🎥 shooting plan<br/>any video model"]
+    W[("🌍 worldstage/world<br/>world.db · events · claims · memories")]
+    A["🧠 worldstage/agent<br/>rules + optional LLM mind"]
+    P["🎩 worldstage/producer<br/>showrunner: arranges situations"]
+    N["✂️ worldstage/narrative<br/>editor: finds the drama, plans the episode"]
+    L["🔍 narrative/lint.py<br/>script linter"]
+    C["🎛️ worldstage/channel + render<br/>control room · 3D God View"]
+    V["🎥 worldstage/production<br/>shooting plan · any video model"]
 
     A -- intents --> W
     P -- closed vocabulary --> W
@@ -170,13 +172,15 @@ flowchart LR
 
 | Folder | What lives there |
 |---|---|
-| `world/` | the truth: schema, simulation, rules, domain packs (duels, romance, factions, impressions…), content and recipes |
-| `agent/` | decisions: the rule agent, the LLM character mind, cached LLM clients, the quota ledger |
-| `producer/` | the showrunner: opportunity detection, situation shaping, budgets |
-| `narrative/` | reading the world: episode planner, script linter, speech, narrative state, payoffs |
-| `production/` · `contracts/` | model-neutral shooting plans, the asset bible, contracts and JSON schemas |
-| `channel/` · `render/` | the control room, the 3D God View, renderers |
-| `runtime/` | spatial runtime: navigation, perception, physics, camera, Godot/Blender exports |
+| `worldstage/world/` | the truth: schema, simulation, rules, domain packs (duels, romance, factions, impressions…), content and recipes |
+| `worldstage/agent/` | decisions: the rule agent, the LLM character mind, cached LLM clients, the quota ledger |
+| `worldstage/producer/` | the showrunner: opportunity detection, situation shaping, budgets |
+| `worldstage/narrative/` | reading the world: episode planner, script linter, speech, narrative state, payoffs |
+| `worldstage/production/` · `worldstage/contracts/` | model-neutral shooting plans, the asset bible, contracts and JSON schemas |
+| `worldstage/channel/` · `worldstage/render/` | the control room, the 3D God View, renderers |
+| `worldstage/runtime/` | spatial runtime: navigation, perception, physics, camera, Godot/Blender exports |
+| `worldstage/audio/` · `worldstage/capability/` | soundtrack providers; the provider registry and MCP adapter |
+| `labs/` · `scripts/` | experiments, gates and probes; command-line entry points |
 | `docs/` | design notes and every experiment, with what did and did not hold |
 
 <p align="center">

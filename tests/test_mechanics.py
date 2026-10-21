@@ -4,18 +4,18 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
-from contracts.claim import TRUE, Claim
-from contracts.mechanic import MechanicSpec, NarrativeMechanicPack
-from world.claims import evaluate
-from world.db import connect, init_db
-from world.mechanics import recorded_pack
-from world.mechanics.base import record_pack
-from world.mechanics.rebirth import fork
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
-from world.state import audit
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.claim import TRUE, Claim
+from worldstage.contracts.mechanic import MechanicSpec, NarrativeMechanicPack
+from worldstage.world.claims import evaluate
+from worldstage.world.db import connect, init_db
+from worldstage.world.mechanics import recorded_pack
+from worldstage.world.mechanics.base import record_pack
+from worldstage.world.mechanics.rebirth import fork
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
+from worldstage.world.state import audit
 
 SEED = 260931
 

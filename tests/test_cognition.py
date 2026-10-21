@@ -6,15 +6,15 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.cognition import CharacterAgent, cognitive_state, wake_reasons
-from agent.volition import VolitionDecider
-from contracts.base import from_dict, to_dict
-from contracts.cognition import CognitiveState
-from world.db import connect, init_db
-from world.recipes import BASE, register_recipe, unregister_recipe
-from contracts.recipe import WorldRecipe
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.cognition import CharacterAgent, cognitive_state, wake_reasons
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.base import from_dict, to_dict
+from worldstage.contracts.cognition import CognitiveState
+from worldstage.world.db import connect, init_db
+from worldstage.world.recipes import BASE, register_recipe, unregister_recipe
+from worldstage.contracts.recipe import WorldRecipe
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 RECIPE = WorldRecipe(recipe_id="town_mind_test", title="town_mind_test", content="town_v1", core="everyday_life",
                      pillars=["items.ownership", "money.rent", "gossip.drift"],
@@ -93,7 +93,7 @@ class CharacterAgentTests(unittest.TestCase):
         c2, a2 = run(Broken(), days=2)
         self.assertEqual(a1.stats["agent"], 0)
         self.assertGreater(a2.stats["agent_failed"], 0)
-        from world.snapshot import table_hash
+        from worldstage.world.snapshot import table_hash
         self.assertEqual(table_hash(c1, "events"), table_hash(c2, "events"))  # the broken mind changed nothing
 
     def test_wake_points_come_from_the_person_s_life(self):

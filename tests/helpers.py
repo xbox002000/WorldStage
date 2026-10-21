@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from world.db import connect, init_db
+from worldstage.world.db import connect, init_db
 
 
 def seeded(world_seed: int = 1, john_at: str = "home", all_pairs: bool = False) -> sqlite3.Connection:

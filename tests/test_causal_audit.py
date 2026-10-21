@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
-from narrative.causal_audit import audit, experiences, interpretations, three_memories, trace
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.narrative.causal_audit import audit, experiences, interpretations, three_memories, trace
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def lived(recipe: str, seed: int, days: int):

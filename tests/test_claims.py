@@ -3,14 +3,14 @@ from __future__ import annotations
 import sqlite3
 import unittest
 
-from contracts.claim import DENY, FALSE, PARTIAL, TRUE, UNKNOWN, Claim, distort, negate
+from worldstage.contracts.claim import DENY, FALSE, PARTIAL, TRUE, UNKNOWN, Claim, distort, negate
 from tests.helpers import seeded
-from world.claims import evaluate
-from world.db import mutation
-from world.events import ClaimSpec, EventSpec, MemorySpec, apply_event
-from world.intent import Intent
-from world.rules import resolve
-from world.state import WorldError
+from worldstage.world.claims import evaluate
+from worldstage.world.db import mutation
+from worldstage.world.events import ClaimSpec, EventSpec, MemorySpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.rules import resolve
+from worldstage.world.state import WorldError
 
 
 def theft(conn, ts=5):

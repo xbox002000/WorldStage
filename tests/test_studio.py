@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from channel.studio import Studio
-from render.studio.build import HERE
+from worldstage.channel.studio import Studio
+from worldstage.render.studio.build import HERE
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -91,7 +91,7 @@ class Exporting(unittest.TestCase):
 
     # -- the script lint (narrative/lint.py): what is wrong with an episode as writing -----------------------------------------------------
     def test_each_episode_carries_its_script_lint_and_the_season_its_report(self):
-        from narrative.lint import LINT_VERSION
+        from worldstage.narrative.lint import LINT_VERSION
         total = 0
         self.assertEqual([x["day"] for x in self.doc["lint_days"]], list(range(6)))
         for x in self.doc["lint_days"]:
@@ -151,7 +151,7 @@ class Exporting(unittest.TestCase):
 
     # -- the character timeline (phase 5) ---------------------------------------------------------------------------------------------
     def test_the_timeline_has_a_row_per_person_and_a_cell_per_day(self):
-        from channel.studio import TIMELINE_KINDS, VALENCE
+        from worldstage.channel.studio import TIMELINE_KINDS, VALENCE
         tl = self.doc["timeline"]
         self.assertEqual(tl["days"], 6)
         self.assertEqual(set(tl["people"]), {p["id"] for p in self.doc["people"]})
@@ -206,7 +206,7 @@ class Exporting(unittest.TestCase):
                 self.assertEqual(t["y"] > 0, t["z"] > 0)
 
     def test_the_timeline_stays_a_small_part_of_the_file(self):
-        from contracts.base import canonical_json
+        from worldstage.contracts.base import canonical_json
         rest = {k: v for k, v in self.doc.items() if k != "timeline"}
         self.assertLessEqual(len(canonical_json(self.doc["timeline"])), 0.25 * len(canonical_json(rest)))
 
@@ -217,7 +217,7 @@ class Timeline(unittest.TestCase):
     def test_the_same_world_tells_the_same_timeline_and_the_timeline_never_writes(self):
         import sqlite3
         from unittest import mock
-        from contracts.base import canonical_json
+        from worldstage.contracts.base import canonical_json
 
         writes: list = []
         real = Studio._timeline_day
@@ -245,7 +245,7 @@ class Timeline(unittest.TestCase):
 
 class Worlds(unittest.TestCase):
     def test_a_world_is_made_from_a_preset_listed_and_the_front_door_points_at_it(self):
-        from channel.studio import Hub
+        from worldstage.channel.studio import Hub
         tmp = Path(tempfile.mkdtemp(prefix="hub_"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         hub = Hub(tmp)
@@ -260,7 +260,7 @@ class Worlds(unittest.TestCase):
         self.assertIn(f"{key}/site/index.html", (tmp / "index.html").read_text(encoding="utf-8"))
 
     def test_a_world_left_by_an_earlier_run_is_listed_but_cannot_go_on(self):
-        from channel.studio import Hub
+        from worldstage.channel.studio import Hub
         tmp = Path(tempfile.mkdtemp(prefix="hub_"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         Hub(tmp).make("town", 4, 1)
@@ -269,7 +269,7 @@ class Worlds(unittest.TestCase):
         self.assertEqual([(r["key"], r["live"]) for r in rows], [("town-4", False)])
 
     def test_an_unknown_preset_is_refused_and_the_days_are_bounded(self):
-        from channel.studio import Hub
+        from worldstage.channel.studio import Hub
         tmp = Path(tempfile.mkdtemp(prefix="hub_"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         with self.assertRaises(ValueError):
@@ -294,7 +294,7 @@ class Page(unittest.TestCase):
         self.assertNotIn("XMLHttpRequest", js)
 
     def test_the_page_has_the_timeline_and_every_kind_of_moment_has_its_word(self):
-        from channel.studio import GOAL_TO, LOVE, OUTBURSTS, TIMELINE_KINDS, TURN_FIELDS
+        from worldstage.channel.studio import GOAL_TO, LOVE, OUTBURSTS, TIMELINE_KINDS, TURN_FIELDS
         js = (HERE / "studio.js").read_text(encoding="utf-8")
         html = (HERE / "index.html").read_text(encoding="utf-8")
         self.assertIn('data-v="timeline"', html)
@@ -318,7 +318,7 @@ class Page(unittest.TestCase):
         self.assertNotIn("LLM", html)                                          # the page itself has nothing of it: only the script, from the data
 
     def test_a_blank_3d_frame_always_says_why(self):
-        from render.studio import build as B
+        from worldstage.render.studio import build as B
         html = (B.HERE / "index.html").read_text(encoding="utf-8")
         js = (B.HERE / "studio.js").read_text(encoding="utf-8")
         self.assertIn('id="worldNote"', html)
@@ -326,7 +326,7 @@ class Page(unittest.TestCase):
             self.assertIn(need, js, need)
 
     def test_the_page_speaks_the_words_of_the_planner(self):
-        from contracts.episode_plan import GRAMMAR_STEPS, INTENTS, STAGES
+        from worldstage.contracts.episode_plan import GRAMMAR_STEPS, INTENTS, STAGES
         js = (HERE / "studio.js").read_text(encoding="utf-8")
         for word in (*INTENTS, *STAGES, *GRAMMAR_STEPS):
             self.assertIn(word, js, word)
@@ -348,7 +348,7 @@ class Page(unittest.TestCase):
 
 class ForgeApi(unittest.TestCase):
     def test_preview_shape_and_locked_fields_survive_a_reroll(self):
-        from channel.studio import Hub, handle_post
+        from worldstage.channel.studio import Hub, handle_post
         tmp = Path(tempfile.mkdtemp(prefix="forge_api_"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         hub = Hub(tmp)
@@ -381,9 +381,9 @@ class ForgeApi(unittest.TestCase):
         self.assertIsNone(missing)
 
     def test_start_installs_a_world_and_returns_its_key(self):
-        from channel.studio import Hub, handle_post
-        from world.content.forged import identity_name
-        from world.recipes import unregister_recipe
+        from worldstage.channel.studio import Hub, handle_post
+        from worldstage.world.content.forged import identity_name
+        from worldstage.world.recipes import unregister_recipe
         tmp = Path(tempfile.mkdtemp(prefix="forge_start_"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         name = f"{identity_name(5, 6, 'town', None)}_d1"

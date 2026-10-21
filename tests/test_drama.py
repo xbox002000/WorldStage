@@ -11,11 +11,11 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 SEED = 260934
 
@@ -73,7 +73,7 @@ class ExchangeTests(unittest.TestCase):
         self.assertEqual(snapshot_hash(other), snapshot_hash(mine))
 
     def test_the_runtime_says_each_line_in_turn_and_its_laws_hold(self):
-        from runtime.world_runtime import WorldRuntime
+        from worldstage.runtime.world_runtime import WorldRuntime
         rt = WorldRuntime(self.c)
         rt.advance()
         for k, rows in rt.invariants().items():
@@ -96,7 +96,7 @@ class ReadModelTests(unittest.TestCase):
         cls.events = {r[0] for r in cls.c.execute("SELECT event_id FROM events")}
 
     def test_every_social_event_has_a_line(self):
-        from narrative.lines import line
+        from worldstage.narrative.lines import line
         names = {r[0]: r[1] for r in self.c.execute("SELECT id, name FROM people")}
         for eid, etype, truth in self.c.execute("SELECT event_id, type, truth FROM events WHERE type IN "
                                                 "('talk', 'tell', 'confront', 'accuse')"):
@@ -105,7 +105,7 @@ class ReadModelTests(unittest.TestCase):
             self.assertNotIn("{", got["say"])
 
     def test_scenes_are_made_of_real_events_and_start_with_an_opener(self):
-        from narrative.scenes import OPENERS, scenes
+        from worldstage.narrative.scenes import OPENERS, scenes
         found = scenes(self.c)
         self.assertTrue(found)
         for s in found:
@@ -115,7 +115,7 @@ class ReadModelTests(unittest.TestCase):
         self.assertEqual(snapshot_hash(self.c), self.before)
 
     def test_dramaturgy_only_reads_and_cites_real_events(self):
-        from narrative.dramaturgy import analyse
+        from worldstage.narrative.dramaturgy import analyse
         rep = analyse(self.c)
         self.assertTrue(rep["situations"])
         for s in rep["situations"]:
@@ -127,21 +127,21 @@ class ReadModelTests(unittest.TestCase):
 
 class CafeTests(unittest.TestCase):
     def test_a_seat_for_everyone_at_lunch(self):
-        from narrative.layouts import LAYOUTS
-        from world.seed import PEOPLE
+        from worldstage.narrative.layouts import LAYOUTS
+        from worldstage.world.seed import PEOPLE
         seats = [k for k in LAYOUTS["cafe"]["anchors"] if ".seat" in k]
         self.assertGreaterEqual(len(seats), len(PEOPLE) + 5)
 
     def test_people_talking_stand_close_enough_to_talk(self):
-        from narrative.layouts import LAYOUTS
+        from worldstage.narrative.layouts import LAYOUTS
         for loc, lay in LAYOUTS.items():
             for a, b in lay.get("pairs", []):
                 (xa, ya, _), (xb, yb, _) = lay["anchors"][a], lay["anchors"][b]
                 self.assertLessEqual(((xa - xb) ** 2 + (ya - yb) ** 2) ** 0.5, 2.0, (loc, a, b))
 
     def test_a_bar_stool_faces_the_bar(self):
-        from runtime.world_runtime import WorldRuntime
-        from narrative.layouts import LAYOUTS
+        from worldstage.runtime.world_runtime import WorldRuntime
+        from worldstage.narrative.layouts import LAYOUTS
         lay = LAYOUTS["cafe"]
         self.assertEqual(WorldRuntime._facing(lay, "cafe.counter.seat_1", *lay["anchors"]["cafe.counter.seat_1"][:2]), 90.0)
 

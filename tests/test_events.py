@@ -5,9 +5,9 @@ import sqlite3
 import unittest
 
 from tests.helpers import dump_state, seeded
-from world.db import mutation
-from world.events import Change, EventSpec, MemorySpec, apply_event
-from world.state import WorldError, audit, relationship_history
+from worldstage.world.db import mutation
+from worldstage.world.events import Change, EventSpec, MemorySpec, apply_event
+from worldstage.world.state import WorldError, audit, relationship_history
 
 
 def betray(ts: int, parent: int | None = None) -> EventSpec:

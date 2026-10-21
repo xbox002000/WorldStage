@@ -5,7 +5,7 @@ import subprocess
 import sys
 import unittest
 
-from world.rng import derive_seed, rng
+from worldstage.world.rng import derive_seed, rng
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,8 +26,8 @@ class RngTests(unittest.TestCase):
         self.assertEqual(derive_seed(184729, 5, "a", "p"), derive_seed("184729", 5, "a", "p"))
 
     def test_stable_across_processes_and_hash_seeds(self):
-        code = ("from world.rng import derive_seed; from world.seed import build_world; "
-                "from world.db import connect, init_db; c=connect(); init_db(c,7); build_world(c,7); "
+        code = ("from worldstage.world.rng import derive_seed; from worldstage.world.seed import build_world; "
+                "from worldstage.world.db import connect, init_db; c=connect(); init_db(c,7); build_world(c,7); "
                 "print(derive_seed(7,3,'ming','p'), c.execute('select sum(money_cents) from people').fetchone()[0], "
                 "c.execute('select round(sum(trust),4) from relationships').fetchone()[0])")
         outs = set()
@@ -41,10 +41,10 @@ class RngTests(unittest.TestCase):
     def test_no_builtin_hash_or_bare_random_in_engine_code(self):
         offenders = []
         for folder in ("world", "agent", "narrative"):
-            for name in os.listdir(os.path.join(ROOT, folder)):
+            for name in os.listdir(os.path.join(ROOT, "worldstage", folder)):
                 if not name.endswith(".py") or name == "rng.py":
                     continue
-                with open(os.path.join(ROOT, folder, name), encoding="utf-8") as f:
+                with open(os.path.join(ROOT, "worldstage", folder, name), encoding="utf-8") as f:
                     text = f.read()
                 if " hash(" in text or "=hash(" in text or "random.Random(" in text or "random.random(" in text:
                     offenders.append(f"{folder}/{name}")

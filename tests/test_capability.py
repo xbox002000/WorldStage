@@ -10,24 +10,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from audio.backend import SilentAudioBackend, SynthAudioBackend
-from capability.defaults import default_registry
-from capability.mcp_adapter import VISUAL_MOCK, McpVisualProvider
-from capability.mcp_client import McpError, McpStdioClient
-from capability.registry import CapabilityRegistry, NoProvider
-from contracts.backends import ShotRequest
-from contracts.base import from_dict, to_dict
-from contracts.capability import Policy, ProviderManifest, Requirement
-from contracts.render_request import Take, make_request
-from narrative.spatial import compile_spatial
-from production import db as prod
-from production.pipeline import make_episodes, produce
-from production.provenance import trace_take
-from production.shots import render_shot
-from render.mock_clip import FFMPEG_DIR, MockClipBackend
-from render.whitebox import WhiteboxSpatialBackend, raycast
+from worldstage.audio.backend import SilentAudioBackend, SynthAudioBackend
+from worldstage.capability.defaults import default_registry
+from worldstage.capability.mcp_adapter import VISUAL_MOCK, McpVisualProvider
+from worldstage.capability.mcp_client import McpError, McpStdioClient
+from worldstage.capability.registry import CapabilityRegistry, NoProvider
+from worldstage.contracts.backends import ShotRequest
+from worldstage.contracts.base import from_dict, to_dict
+from worldstage.contracts.capability import Policy, ProviderManifest, Requirement
+from worldstage.contracts.render_request import Take, make_request
+from worldstage.narrative.spatial import compile_spatial
+from worldstage.production import db as prod
+from worldstage.production.pipeline import make_episodes, produce
+from worldstage.production.provenance import trace_take
+from worldstage.production.shots import render_shot
+from worldstage.render.mock_clip import FFMPEG_DIR, MockClipBackend
+from worldstage.render.whitebox import WhiteboxSpatialBackend, raycast
 from tests.world_fixture import build_specs, compile_all, world_path
-from world.reader import open_world_reader
+from worldstage.world.reader import open_world_reader
 
 ROOT = Path(__file__).resolve().parent.parent
 HAS_FFMPEG = (FFMPEG_DIR / "ffmpeg.exe").exists() or (FFMPEG_DIR / "ffmpeg").exists()
@@ -106,8 +106,8 @@ class SelectionTests(unittest.TestCase):
 
 
 class BoundaryTests(unittest.TestCase):
-    PROVIDERS = {"render.hyperframes_backend", "render.mock_clip", "render.ffmpeg_compose", "render.whitebox",
-                 "audio.backend", "audio.synth", "capability.mcp_adapter", "capability.mcp_client"}
+    PROVIDERS = {"worldstage.render.hyperframes_backend", "worldstage.render.mock_clip", "worldstage.render.ffmpeg_compose", "worldstage.render.whitebox",
+                 "worldstage.audio.backend", "worldstage.audio.synth", "worldstage.capability.mcp_adapter", "worldstage.capability.mcp_client"}
 
     def _imports(self, path: Path) -> list[str]:
         out = []
@@ -119,18 +119,18 @@ class BoundaryTests(unittest.TestCase):
         return out
 
     def test_production_code_names_no_provider(self):
-        offenders = [f"{p.name}: {m}" for p in (ROOT / "production").glob("*.py") for m in self._imports(p)
+        offenders = [f"{p.name}: {m}" for p in (ROOT / "worldstage" / "production").glob("*.py") for m in self._imports(p)
                      if m in self.PROVIDERS]
         self.assertEqual(offenders, [])
 
     def test_contracts_and_the_world_know_nothing_of_providers_or_mcp(self):
         for folder in ("contracts", "world", "narrative"):
-            offenders = [f"{p.name}: {m}" for p in (ROOT / folder).rglob("*.py") for m in self._imports(p)
+            offenders = [f"{p.name}: {m}" for p in (ROOT / "worldstage" / folder).rglob("*.py") for m in self._imports(p)
                          if m.split(".")[0] in ("capability", "render", "audio")]
             self.assertEqual(offenders, [], folder)
 
     def test_no_provider_specific_field_in_the_render_request(self):
-        from contracts.render_request import RenderRequest
+        from worldstage.contracts.render_request import RenderRequest
         fields = {f.name for f in dataclasses.fields(RenderRequest)}
         self.assertFalse(fields & {"hyperframes", "chrome", "comfyui", "prompt"})
 
@@ -167,7 +167,7 @@ class MockClipAndDiagnoseTests(unittest.TestCase):
         return ShotRequest("s01", "a test shot", 2.0, 270, 480, 30, seed)
 
     def test_same_request_same_bytes_and_frozen_clips_are_diagnosed(self):
-        from production.shot_qa import diagnose
+        from worldstage.production.shot_qa import diagnose
         mock = MockClipBackend()
         req = make_request(kind="shot", backend=mock.name, backend_version="1", parameters={}, packet_hash="sha256:p",
                            seed=0, asset_hashes={}, toolchain=mock.toolchain())
@@ -182,7 +182,7 @@ class MockClipAndDiagnoseTests(unittest.TestCase):
         self.assertEqual(seen, {True, False})  # the sample covers both outcomes
 
     def test_a_missing_clip_is_a_provider_error(self):
-        from production.shot_qa import diagnose
+        from worldstage.production.shot_qa import diagnose
         codes = [f.code for f in diagnose(Take("h", "failed", error="HTTP 500"), self.shot(0), FFMPEG_DIR)]
         self.assertEqual(codes, ["PROVIDER_ERROR"])
 
@@ -247,13 +247,13 @@ class RepairLoopTests(unittest.TestCase):
 
     def small(self):
         """The packet at a small canvas, so the loop runs fast."""
-        from contracts.packet import Canvas, finalize
+        from worldstage.contracts.packet import Canvas, finalize
         return finalize(dataclasses.replace(self.packet, canvas=Canvas(270, 480, 30)))
 
     def test_a_frozen_take_is_diagnosed_reseeded_and_repaired(self):
         conn, packet = self.conn(), self.small()
         prod.save_packet(conn, packet)
-        from production.shots import base_seed
+        from worldstage.production.shots import base_seed
         shot = packet.shots[1]
 
         class FreezesOnFirstSeed(MockClipBackend):
@@ -351,7 +351,7 @@ class ShotsRouteTests(unittest.TestCase):
 class AudioSwapTests(unittest.TestCase):
     def test_the_composition_request_pins_whichever_audio_provider_it_was_given(self):
         packet = compile_all()[0]
-        from render.hyperframes_backend import HyperFramesBackend
+        from worldstage.render.hyperframes_backend import HyperFramesBackend
         hf = HyperFramesBackend(lambda h: packet)
         if not hf.available()[0]:
             self.skipTest("hyperframes not installed")
@@ -371,7 +371,7 @@ class ContractRoundTripTests(unittest.TestCase):
         reg = CapabilityRegistry()
         reg.register(Fake(m))
         sel = reg.select(Requirement("visual.generate", ["t2v"], 2))
-        from contracts.capability import Selection
+        from worldstage.contracts.capability import Selection
         self.assertEqual(from_dict(Selection, json.loads(json.dumps(to_dict(sel)))), sel)
 
 

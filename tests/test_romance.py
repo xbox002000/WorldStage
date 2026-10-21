@@ -6,13 +6,13 @@ import json
 import unittest
 from unittest import mock
 
-from world.db import connect, init_db
-from world.domains import active
-from world.domains import romance as R
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
-from world.state import WorldError
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active
+from worldstage.world.domains import romance as R
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
+from worldstage.world.state import WorldError
 
 
 def saga(seed: int = 3, recipe: str = "jianghu_saga_v1"):
@@ -59,7 +59,7 @@ def do(conn, action, a, b, t=None, roll=None):
     spec_ = pack(conn).actions[action]
     spec_.validate(conn, it, conn.execute("SELECT * FROM people WHERE id = ?", (a,)).fetchone())
     t = now(conn) + 1 if t is None else t
-    with mock.patch("world.domains.romance.make_rng") as rng:
+    with mock.patch("worldstage.world.domains.romance.make_rng") as rng:
         rng.return_value.random.return_value = 0.0 if roll is None else roll
         spec = spec_.resolve(conn, it, t, "decision")
     for d in active(conn):
@@ -84,7 +84,7 @@ class Who(unittest.TestCase):
         c = saga()
         self.assertTrue(R.adult(c, "ming"))
         # make a minor out of the same person in a throwaway profile
-        from world import profiles
+        from worldstage.world import profiles
         from dataclasses import replace
         real = profiles.profile
         minor = replace(real(c, "mei"), age=17)
@@ -200,8 +200,8 @@ class Triangles(unittest.TestCase):
         feel(self.c, "ning", "mei", 0.7)  # ning loves mei
         feel(self.c, "ming", "mei", 0.7)
         feel(self.c, "mei", "ming", 0.9)
-        from world.attention import noticers  # everyone there is a witness here: the place is full and the act is seen
-        with mock.patch("world.domains.romance.noticers", side_effect=lambda conn, here, now, key, loud, *ex: [p for p in ("ning", "hao") if p not in ex]):
+        from worldstage.world.attention import noticers  # everyone there is a witness here: the place is full and the act is seen
+        with mock.patch("worldstage.world.domains.romance.noticers", side_effect=lambda conn, here, now, key, loud, *ex: [p for p in ("ning", "hao") if p not in ex]):
             _, t = do(self.c, "confess", "ming", "mei")
         self.assertEqual(t["jealous"]["ning"], {"kind": "crush", "of": "ming", "over": "mei"})
         self.assertGreater(res(self.c, "ning", "ming"), 0.1)
@@ -212,7 +212,7 @@ class Triangles(unittest.TestCase):
         feel(self.c, "jun", "mei", 0.0)
         # mei is with ming, and flirted with by somebody who wants her, in front of ming
         feel(self.c, "hao", "mei", 0.7)
-        with mock.patch("world.domains.romance.noticers", side_effect=lambda conn, here, now, key, loud, *ex: [p for p in ("ming",) if p not in ex]):
+        with mock.patch("worldstage.world.domains.romance.noticers", side_effect=lambda conn, here, now, key, loud, *ex: [p for p in ("ming",) if p not in ex]):
             _, t = do(self.c, "flirt", "hao", "mei")
         self.assertEqual(t["poaching"], "ming")
         self.assertEqual(t["jealous"]["ming"], {"kind": "partner", "of": "hao", "over": "mei"})
@@ -265,7 +265,7 @@ class Reading(unittest.TestCase):
         feel(c, "ning", "mei", 0.6)  # two are drawn to mei
         kinds = {s["kind"] for s in pack(c).situations(c, {})}
         self.assertIn("love_triangle", kinds)
-        with mock.patch("world.domains.romance.noticers", return_value=[]):
+        with mock.patch("worldstage.world.domains.romance.noticers", return_value=[]):
             do(c, "confess", "ming", "mei", roll=0.0)  # nobody saw
         kinds = {s["kind"] for s in pack(c).situations(c, {})}
         self.assertIn("secret_couple", kinds)
@@ -275,7 +275,7 @@ class Reading(unittest.TestCase):
         self.assertNotIn("romance", {d.id for d in active(c)})
 
     def test_the_stage_shows_a_courtship_and_nothing_more(self):
-        from world.domains import style
+        from worldstage.world.domains import style
         for kind in ("flirt", "confession", "date", "break_up"):
             st = style(kind)
             self.assertIsNotNone(st)

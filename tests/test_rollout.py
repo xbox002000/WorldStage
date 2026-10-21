@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import unittest
 
-from agent.volition import VolitionDecider
-from contracts.intervention import InterventionProposal
-from producer.intervention import Ledger
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.producer.intervention import Ledger
 from tests.test_opportunity import fingerprint
-from world import rollout
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.world import rollout
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def clean(seed=3, days=3):

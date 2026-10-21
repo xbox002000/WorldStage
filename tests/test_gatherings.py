@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import unittest
 
-from contracts.intervention import InterventionProposal
-from producer.intervention import Ledger
-from world.db import connect, init_db
-from world.domains import active
-from world.domains import gatherings as G
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.producer.intervention import Ledger
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active
+from worldstage.world.domains import gatherings as G
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
 
 
 def saga(seed=3):
@@ -116,8 +116,8 @@ class AtATournament(unittest.TestCase):
 
     def test_a_month_with_one_has_people_walking_there_and_no_outcome_decided(self):
         import json
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
         c = saga()
 
         class Producer:
@@ -137,8 +137,8 @@ class AtATournament(unittest.TestCase):
 class Calibration(unittest.TestCase):
     def test_a_tournament_actually_starts_bouts(self):
         """Measured, not assumed: with a push of 0.7 not one of eight tournaments started a duel (talk always outscored a challenge)."""
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
         bouts = 0
         for seed in (260934, 7):
             c = connect()

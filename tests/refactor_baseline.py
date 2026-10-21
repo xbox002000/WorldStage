@@ -10,11 +10,11 @@ from __future__ import annotations
 import json
 import sys
 
-from agent.volition import VolitionDecider
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import table_hash, TABLES
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import table_hash, TABLES
 
 WORLDS = [("town_v1", 184729, 4, "synthetic_v1"), ("jianghu_v1", 7, 4, None), ("town_spatial_v1", 260934, 1, "synthetic_v1")]
 

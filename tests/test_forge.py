@@ -9,16 +9,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contracts.base import from_dict
-from contracts.character import CharacterRoster, check_roster
-from narrative.lint import MODERN_WORDS
+from worldstage.contracts.base import from_dict
+from worldstage.contracts.character import CharacterRoster, check_roster
+from worldstage.narrative.lint import MODERN_WORDS
 from tests.test_drama_content import FAMOUS as PACK_FAMOUS
-from world.forge import (
+from worldstage.world.forge import (
     ARCHETYPES, BIRTHPLACES, FAMOUS, GIVEN_FEMALE, GIVEN_MALE, GIVEN_ONE, GIVEN_TWO,
     JIANGHU_JOB_WORDS, JIANGHU_TOPICS, NEMESIS_WHY, SECRET_GENERIC, SECRET_MATCHED, SURNAMES,
     TOWN_GIVEN_FEMALE, TOWN_GIVEN_MALE, TOWN_SURNAMES, cast_text, find_modern, forge_cast,
 )
-from world.personas import lift
+from worldstage.world.personas import lift
 
 ROOT = Path(__file__).resolve().parent.parent
 ATTACHMENTS = {"secure", "anxious", "avoidant"}
@@ -67,7 +67,7 @@ class ForgeTests(unittest.TestCase):
     def test_same_bytes_across_processes(self):
         code = (
             "import hashlib\n"
-            "from world.forge import forge_cast\n"
+            "from worldstage.world.forge import forge_cast\n"
             "c = forge_cast(7, 10, 'jianghu')\n"
             "blob = (c.profiles_json + c.genomes_json + c.relations_json + c.summary).encode('utf-8')\n"
             "print(hashlib.sha256(blob).hexdigest())\n"
@@ -190,7 +190,7 @@ class ForgeTests(unittest.TestCase):
         self.assertEqual(check_roster(from_dict(CharacterRoster, cast.roster)), [])
 
     def test_the_command_writes_the_four_files(self):
-        from character_forge import main
+        from labs.character_forge import main
 
         with tempfile.TemporaryDirectory() as folder:
             code = main(["--seed", "7", "--size", "10", "--era", "jianghu", "--out", folder,

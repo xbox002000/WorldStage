@@ -5,17 +5,17 @@ import json
 import sqlite3
 import unittest
 
-from agent.volition import VolitionDecider
-from contracts.claim import Claim
-from narrative.knowledge import knowledge_of
-from narrative.threads import derive_threads
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.claim import Claim
+from worldstage.narrative.knowledge import knowledge_of
+from worldstage.narrative.threads import derive_threads
 from tests.test_world_c import act, fresh, put
-from world.events import EventSpec, apply_event
-from world.goals import find, goals_of, overnight
-from world.intent import Intent
-from world.items import misplace, notice_missing
-from world.simulation import Simulation
-from world.state import audit
+from worldstage.world.events import EventSpec, apply_event
+from worldstage.world.goals import find, goals_of, overnight
+from worldstage.world.intent import Intent
+from worldstage.world.items import misplace, notice_missing
+from worldstage.world.simulation import Simulation
+from worldstage.world.state import audit
 
 
 def goal_events(conn) -> list[dict]:
@@ -24,7 +24,7 @@ def goal_events(conn) -> list[dict]:
 
 
 def after(conn, event_id: int) -> None:
-    from world.goals import after_event
+    from worldstage.world.goals import after_event
     for spec in after_event(conn, event_id):
         apply_event(conn, spec)
 
@@ -90,7 +90,7 @@ class GoalLifecycleTests(unittest.TestCase):
     def test_revenge_cools_down(self):
         c = self.c
         act(c, Intent("tao", "talk", "jun", "neutral"), 55)
-        from world.goals import GoalWriter
+        from worldstage.world.goals import GoalWriter
         w = GoalWriter(c, 60, None)
         w.form("tao", "revenge", "jun", "", 0.6, 0, "test")
         for spec in w.out:

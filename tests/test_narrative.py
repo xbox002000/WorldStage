@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import unittest
 
-from agent.decision import SeededDecider
-from narrative.arcs import build_arcs, load_events
-from narrative.selector import rank_arcs, select_top
+from worldstage.agent.decision import SeededDecider
+from worldstage.narrative.arcs import build_arcs, load_events
+from worldstage.narrative.selector import rank_arcs, select_top
 from tests.helpers import seeded
-from world.db import connect, init_db
-from world.events import Change, EventSpec, MemorySpec, apply_event
-from world.intent import Intent
-from world.rules import last_event_between, resolve
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, MemorySpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.rules import last_event_between, resolve
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def talk(conn, ts, a, b, tone):

@@ -7,18 +7,18 @@ import dataclasses
 import json
 import unittest
 
-from contracts.base import to_dict
-from contracts.persona import IMPRESSION_FIELDS, CharacterGenome
-from contracts.recipe import WorldRecipe
-from world.db import connect, init_db
-from world.domains import active, base
-from world.domains import impression as I
-from world.domains import romance as R
-from world.events import ClaimSpec, EventSpec, MemorySpec, apply_event
-from world.intent import Intent
-from world.personas import PersonaError, extras_override, lift, stored
-from world.recipes import load_recipe, register_recipe, unregister_recipe
-from world.seed import build_world
+from worldstage.contracts.base import to_dict
+from worldstage.contracts.persona import IMPRESSION_FIELDS, CharacterGenome
+from worldstage.contracts.recipe import WorldRecipe
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active, base
+from worldstage.world.domains import impression as I
+from worldstage.world.domains import romance as R
+from worldstage.world.events import ClaimSpec, EventSpec, MemorySpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.personas import PersonaError, extras_override, lift, stored
+from worldstage.world.recipes import load_recipe, register_recipe, unregister_recipe
+from worldstage.world.seed import build_world
 
 CONTROL, TREAT = "jianghu_story_v1", "impression_test_v1"
 # genome ids as they were before the three numbers existed (computed with the contract as of HEAD, and checked equal to the
@@ -54,7 +54,7 @@ def now(conn):
 
 def put(conn, pid: str, **fields):
     """Set a relationship value (as an event, like anything in the world): put(c, 'a:b', familiarity=0.4)."""
-    from world.events import Change as Ch
+    from worldstage.world.events import Change as Ch
     changes = []
     for key, value in fields.items():
         a, b = pid.split(":")
@@ -65,7 +65,7 @@ def put(conn, pid: str, **fields):
 
 def gather(conn, *people, place="inn", others="road"):
     """These people at `place`, everybody else at `others` (so a scene has exactly this audience)."""
-    from world.events import Change
+    from worldstage.world.events import Change
     everyone = [r[0] for r in conn.execute("SELECT id FROM people ORDER BY id")]
     want = {p: (place if p in people else others) for p in everyone}
     ch = [Change("person", p, "location_id", value=loc) for p, loc in want.items()
@@ -109,14 +109,14 @@ class Derivation(unittest.TestCase):
         lo = I.derive({"honesty": 0.0, "temper": 1.0, "gossip": 0.0, "generosity": 0.0, "curiosity": 0.0})
         self.assertEqual(hi, (0.9, 0.85))   # 0.15 + 0.40 + 0.20 + 0.15 ; 0.10 + 0.40 + 0.25 + 0.10
         self.assertEqual(lo, (0.15, 0.10))
-        from contracts.character import SocialStyle
+        from worldstage.contracts.character import SocialStyle
         warm = SocialStyle(strangers="熱情", friends="熱心", intimate="大方")
         for v in I.derive({"honesty": 1.0, "temper": 0.0, "gossip": 1.0, "generosity": 1.0, "curiosity": 1.0}, warm) +                 I.derive({"honesty": 0.0, "temper": 1.0, "gossip": 0.0, "generosity": 0.0, "curiosity": 0.0},
                          SocialStyle(strangers="冷淡", friends="少", intimate="不願牽絆")):
             self.assertTrue(0.0 <= v <= 1.0)
 
     def test_style_words_move_warmth_and_talk(self):
-        from contracts.character import SocialStyle
+        from worldstage.contracts.character import SocialStyle
         traits = {"honesty": 0.6, "temper": 0.4, "gossip": 0.4, "generosity": 0.4, "curiosity": 0.4}
         plain = I.derive(traits)
         warm_talky = I.derive(traits, SocialStyle(strangers="熱情", friends="話多", intimate="大方"))
@@ -132,7 +132,7 @@ class Derivation(unittest.TestCase):
         with extras_override({"mei": {"charm": 0.85}}):          # a cast whose genome says nothing about the three numbers
             bare = world()
         v = I.values(bare, "mei")
-        from world.profiles import profile
+        from worldstage.world.profiles import profile
         self.assertEqual(v.looks, 0.85)    # the charm
         traits = json.loads(bare.execute("SELECT traits FROM personas WHERE person_id = 'mei'").fetchone()[0])
         self.assertEqual((v.warmth, v.talk), I.derive(traits, profile(bare, "mei").social))
@@ -157,7 +157,7 @@ class OutsideTheHash(unittest.TestCase):
 
     def test_setting_the_numbers_does_not_change_the_id_but_other_fields_do(self):
         c = world(CONTROL, seed=1)
-        from world.personas import genome
+        from worldstage.world.personas import genome
         g = genome(c, "mei")
         self.assertIsNone(g.looks)
         with_numbers = dataclasses.replace(g, looks=0.9, warmth=0.2, talkativeness=0.1)
@@ -182,8 +182,8 @@ class OutsideTheHash(unittest.TestCase):
                     world(TREAT)
 
     def test_the_numbers_are_in_the_evidence_graph_when_set(self):
-        from world import persona_evidence as ev
-        from world.personas import genome
+        from worldstage.world import persona_evidence as ev
+        from worldstage.world.personas import genome
         g = genome(world(TREAT), "mei")
         self.assertTrue(set(IMPRESSION_FIELDS) <= set(ev.fields(g)))
         self.assertEqual(ev.check(g, ev.authored(g)), [])
@@ -191,7 +191,7 @@ class OutsideTheHash(unittest.TestCase):
         self.assertFalse(set(IMPRESSION_FIELDS) & set(ev.fields(g0)))
 
     def test_every_content_pack_with_numbers_has_them_in_range_and_matching_its_people(self):
-        from world.personas import _file_extras
+        from worldstage.world.personas import _file_extras
         for content, cold, warm in (("town_v1", "mei", "lan"), ("jianghu_v1", "yan", "hua")):
             people = _file_extras(content)
             self.assertEqual(len(people), 10)
@@ -207,8 +207,8 @@ class OutsideTheHash(unittest.TestCase):
 
 class UntouchedWithoutIt(unittest.TestCase):
     def test_no_trace_in_a_world_that_does_not_switch_it_on(self):
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
         c = world(CONTROL, seed=5)
         d = VolitionDecider(5)
         Simulation(c, d, d, set()).run(2)
@@ -230,7 +230,7 @@ class UntouchedWithoutIt(unittest.TestCase):
         self.assertLess(R.drawn_level(new, "mei", "tao"), R.drawn_level(old, "mei", "tao"))
 
     def test_the_hook_defaults_leave_the_reply_alone(self):
-        from agent.reply import _reticence
+        from worldstage.agent.reply import _reticence
         self.assertEqual(base.Domain().reticence(None, "a", "b", 0), 0.0)
         self.assertEqual(_reticence(world(CONTROL), "mei", "ming", 0), 0.0)
 
@@ -286,8 +286,8 @@ class WhoIsNoticed(unittest.TestCase):
         self.assertEqual(self.p.shape(self.c, "mei", 0, scored), scored)
 
     def test_what_is_told_is_likelier_when_it_is_about_a_beauty(self):
-        from world.claims import claim_id
-        from contracts.claim import Claim
+        from worldstage.world.claims import claim_id
+        from worldstage.contracts.claim import Claim
         ids = {}
         for who in ("mei", "jun"):
             apply_event(self.c, EventSpec(timestamp=now(self.c), type="seed", trigger_type="rule", location_id="inn",
@@ -313,7 +313,7 @@ class Reticence(unittest.TestCase):
         self.assertLess(p.reticence(c, "hao", "ming", 0), 0.0)
 
     def test_the_replier_reads_it(self):
-        from agent.reply import Replier
+        from worldstage.agent.reply import Replier
         a, b = world(TREAT), world(CONTROL)
         out = {}
         for tag, c in (("on", a), ("off", b)):
@@ -383,7 +383,7 @@ class Misread(unittest.TestCase):
         early, _ = talk(self.c, "ming", "mei", "neutral")
         put(self.c, "ming:mei", familiarity=0.4)
         late, _ = talk(self.c, "ming", "mei", "neutral")
-        from world.state import relationship_history
+        from worldstage.world.state import relationship_history
         steps = [(r["event_id"], r["delta_value"]) for r in relationship_history(self.c, "ming", "mei", "respect")]
         self.assertLess(dict(steps)[early], 0)
         self.assertGreater(dict(steps)[late], 0)
@@ -505,15 +505,15 @@ class TalkLevel(unittest.TestCase):
         self.assertEqual(I.reply_length(c, "mei"), "short")
         self.assertEqual(I.reply_length(c, "hao"), "long")
         self.assertEqual(I.reply_length(c, "kai"), "normal")
-        from world.events import Change
+        from worldstage.world.events import Change
         apply_event(c, EventSpec(timestamp=0, type="setup", trigger_type="rule", location_id=None,
                                  changes=[Change("person", "hao", "emotion", value="hurt")]))
         self.assertLess(I.talk_level(c, "hao"), I.values(c, "hao").talk)        # upset: says less
         self.assertEqual(I.reply_length(c, "hao"), "normal")
 
     def test_the_world_var_starts_from_the_style_and_follows_the_nights(self):
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
         c = world()
         self.assertEqual(c.execute("SELECT COUNT(*) FROM world_vars WHERE key LIKE 'impression.talk.%'").fetchone()[0], 10)
         start = c.execute("SELECT value FROM world_vars WHERE key = 'impression.talk.mei'").fetchone()[0]
@@ -524,7 +524,7 @@ class TalkLevel(unittest.TestCase):
         # the change came through an event (the nightly upkeep), not around it
         ev = c.execute("SELECT e.type FROM event_deltas d JOIN events e USING (event_id) WHERE d.entity_id = 'impression.talk.mei'").fetchall()
         self.assertTrue(ev and all(r[0] == "upkeep" for r in ev))
-        from world.state import audit
+        from worldstage.world.state import audit
         self.assertEqual(audit(c), [])
         self.assertLess(after, 0.4)
         self.assertGreater(c.execute("SELECT value FROM world_vars WHERE key = 'impression.talk.hao'").fetchone()[0], 0.8)
@@ -540,19 +540,19 @@ class TalkLevel(unittest.TestCase):
 class WhatStaysTheSame(unittest.TestCase):
     def test_a_minor_is_still_not_drawn_to_anyone_and_nobody_to_them(self):
         from unittest import mock
-        from world import profiles
+        from worldstage.world import profiles
         c = world()
         real = profiles.profile
         minor = dataclasses.replace(real(c, "mei"), age=17)
-        with mock.patch("world.profiles.profile", lambda conn, pid: minor if pid == "mei" else real(conn, pid)):
+        with mock.patch("worldstage.world.profiles.profile", lambda conn, pid: minor if pid == "mei" else real(conn, pid)):
             self.assertFalse(R.drawn_to(c, "ming", "mei"))
             self.assertFalse(R.drawn_to(c, "mei", "ming"))
             self.assertEqual(R.drawn_level(c, "ming", "mei"), 0.0)
 
     def test_two_days_of_the_test_world_run_and_audit_clean(self):
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
-        from world.state import audit
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
+        from worldstage.world.state import audit
         c = world()
         d = VolitionDecider(3)
         Simulation(c, d, d, set()).run(3)

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from agent.decision import SeededDecider
-from agent.perception import candidates
-from world.db import connect, init_db
-from world.intent import Intent, intent_hash, intent_sort_key
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.agent.decision import SeededDecider
+from worldstage.agent.perception import candidates
+from worldstage.world.db import connect, init_db
+from worldstage.world.intent import Intent, intent_hash, intent_sort_key
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 
 def run(seed: int, days: int, reverse: bool):

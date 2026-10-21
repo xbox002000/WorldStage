@@ -3,9 +3,9 @@ from __future__ import annotations
 import unittest
 
 from tests.helpers import seeded
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent, parse_intent, validate
-from world.state import WorldError
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent, parse_intent, validate
+from worldstage.world.state import WorldError
 
 
 class ValidatorTests(unittest.TestCase):

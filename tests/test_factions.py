@@ -5,17 +5,17 @@ import json
 import unittest
 from unittest import mock
 
-from agent.volition import VolitionDecider
-from contracts.intervention import InterventionProposal
-from producer.intervention import Ledger
-from world.db import connect, init_db
-from world.domains import active, solidarity
-from world.domains import factions as F
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
-from world.simulation import Simulation
-from world.state import WorldError
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.producer.intervention import Ledger
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active, solidarity
+from worldstage.world.domains import factions as F
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.state import WorldError
 
 
 def saga(seed: int = 3):
@@ -74,7 +74,7 @@ def do(conn, action, a, b=None, roll=0.0):
     it = Intent(a, action, b, reason="volition")
     spec_ = pack(conn).actions[action]
     spec_.validate(conn, it, conn.execute("SELECT * FROM people WHERE id = ?", (a,)).fetchone())
-    with mock.patch("world.domains.factions.make_rng") as rng:
+    with mock.patch("worldstage.world.domains.factions.make_rng") as rng:
         rng.return_value.random.return_value = roll
         spec = spec_.resolve(conn, it, now(conn) + 1, "decision")
     for d in active(conn):
@@ -132,7 +132,7 @@ class Circles(unittest.TestCase):
 
     def test_a_bystander_takes_the_side_of_their_own(self):
         """agent/reply.py: the same quarrel, and a bystander of the victim's circle is likelier to stand by them."""
-        from agent import reply
+        from worldstage.agent import reply
         isolate(self.c)
         meet(self.c, "ming", "kai", "mei", place="qingyun")
         eid = apply_event(self.c, EventSpec(timestamp=now(self.c), type="accuse", trigger_type="decision", location_id="qingyun", importance=0.6,
@@ -157,10 +157,10 @@ class Circles(unittest.TestCase):
         self.assertAlmostEqual(after[1] - before[1], 0.8 * F.SAME_CIRCLE, places=6)   # and to turn on the one who attacked them
 
     def test_one_believes_one_of_ones_own_more_readily(self):
-        from contracts.claim import Claim
-        from world.claims import describe_claim, labels
-        from world.events import ClaimSpec, MemorySpec
-        from world.social import resolve_tell
+        from worldstage.contracts.claim import Claim
+        from worldstage.world.claims import describe_claim, labels
+        from worldstage.world.events import ClaimSpec, MemorySpec
+        from worldstage.world.social import resolve_tell
         isolate(self.c)
         meet(self.c, "kai", "ming", "mei", place="qingyun")
         claim = Claim("tao", "deceive", "jun")

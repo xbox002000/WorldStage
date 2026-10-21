@@ -6,12 +6,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from narrative.observatory import observatory
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.agent.volition import VolitionDecider
+from worldstage.narrative.observatory import observatory
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 
 class ObservatoryTests(unittest.TestCase):
@@ -45,18 +45,18 @@ class ObservatoryTests(unittest.TestCase):
         self.assertGreater(cited, 0)
 
     def test_a_thread_is_told_through_its_own_events(self):
-        from narrative.threads import derive_threads
+        from worldstage.narrative.threads import derive_threads
         threads = {t.thread_id: t for t in derive_threads(self.c)}
         self.assertEqual(set(threads), {t["id"] for t in self.obs["threads"]})
         for t in self.obs["threads"]:
             self.assertEqual([e["id"] for e in t["events"]], threads[t["id"]].event_ids)
             from typing import get_args
-            from contracts.thread import ThreadStatus
+            from worldstage.contracts.thread import ThreadStatus
             self.assertIn(t["status"], get_args(ThreadStatus) + ("revived",))  # revived: slept, then came back
             self.assertEqual(t["why"]["origin"], t["events"][0]["id"])
 
     def test_the_world_save_carries_it(self):
-        from runtime.godview import export_world
+        from worldstage.runtime.godview import export_world
         with tempfile.TemporaryDirectory() as tmp:
             doc = export_world(self.c, Path(tmp) / "world.json", 0, None)
             self.assertEqual(len(doc["observatory"]["threads"]), len(self.obs["threads"]))
