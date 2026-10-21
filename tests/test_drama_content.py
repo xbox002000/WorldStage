@@ -11,20 +11,20 @@ import json
 import unittest
 from pathlib import Path
 
-from agent.cognition import (ERA_LINES, MODERN_WORDS, PROMPT, PROMPT_V2, AnswerRejected, CharacterAgent, check_answer, cognitive_state,
+from worldstage.agent.cognition import (ERA_LINES, MODERN_WORDS, PROMPT, PROMPT_V2, AnswerRejected, CharacterAgent, check_answer, cognitive_state,
                              describe_intent, pronoun_line, world_era)
-from agent.volition import VolitionDecider
-from contracts.base import to_dict
-from contracts.character import check_roster
-from world.content import content_module
-from world.db import connect, init_db
-from world.succession import STANCES
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.profiles import load_roster, profile
-from world.recipes import compiled, load_recipe
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.base import to_dict
+from worldstage.contracts.character import check_roster
+from worldstage.world.content import content_module
+from worldstage.world.db import connect, init_db
+from worldstage.world.succession import STANCES
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.profiles import load_roster, profile
+from worldstage.world.recipes import compiled, load_recipe
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 ROOT = Path(__file__).resolve().parent.parent
 RECIPES = ("jianghu_drama_v1", "jianghu_drama_spatial_v1")
@@ -42,8 +42,8 @@ OTHER_PACKS = ("jianghu_v1", "town_v1")
 
 def pack_texts() -> list[str]:
     mod = content_module("jianghu_drama")
-    out = [(ROOT / "world/content/profiles/jianghu_drama.json").read_text(encoding="utf-8"),
-           (ROOT / "world/content/genomes/jianghu_drama.json").read_text(encoding="utf-8")]
+    out = [(ROOT / "worldstage" / "world/content/profiles/jianghu_drama.json").read_text(encoding="utf-8"),
+           (ROOT / "worldstage" / "world/content/genomes/jianghu_drama.json").read_text(encoding="utf-8")]
     out += [n + g for _, n, g in mod.PEOPLE]
     out += list(mod.PERSONAS.values()) + [o[1] for o in mod.OBJECTS] + [loc[1] for loc in mod.LOCATIONS]
     out += [f[1] + f[3] for f in mod.FACTIONS] + [s[1] for s in mod.SEATS]
@@ -217,8 +217,8 @@ class TheNightBeforeTheVote(unittest.TestCase):
         self.assertEqual([r for r in self.rows(self.old, ("campaign",)) if r[4].get("eve_of")], [])
 
     def test_the_new_events_can_be_read_by_the_story_machinery(self):
-        from narrative.dramaturgy import analyse
-        from runtime.godview import caption
+        from worldstage.narrative.dramaturgy import analyse
+        from worldstage.runtime.godview import caption
         names = {r[0]: r[1] for r in self.new.execute("SELECT id, name FROM people")}
         for _, ty, _, _, t in self.rows(self.new, ("succession_pledge", "succession_council", "succession")):
             cap = caption(ty, t, "qingyun", names)
@@ -367,7 +367,7 @@ if __name__ == "__main__":
 
 class PromptV3(unittest.TestCase):
     def test_v3_is_v2_asking_also_for_the_words_said_and_v1_v2_are_unchanged(self):
-        from agent import cognition as C
+        from worldstage.agent import cognition as C
         self.assertIn("say（你此刻開口說出的那一句話", C.PROMPT_V3)
         self.assertEqual(C.PROMPT_V3.replace("say（你此刻開口說出的那一句話，直接對著對方說，用你自己的口吻；你選的是不說話或不對人的事，就留空）、", ""), C.PROMPT_V2)
         self.assertIn("say", C.CHOICE_SCHEMA_V3["properties"])

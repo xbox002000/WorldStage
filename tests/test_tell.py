@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import unittest
 
-from contracts.base import from_dict, schema_for, to_dict
-from contracts.claim import FALSE, PARTIAL, TRUE, Claim
-from contracts.tell import TELL_MODES, TellIntent
+from worldstage.contracts.base import from_dict, schema_for, to_dict
+from worldstage.contracts.claim import FALSE, PARTIAL, TRUE, Claim
+from worldstage.contracts.tell import TELL_MODES, TellIntent
 from tests.helpers import seeded
-from world.claims import claim_id, evaluate
-from world.db import mutation
-from world.events import apply_event
-from world.intent import Intent
-from world.rules import resolve
-from world.state import WorldError
-from world.tell import asserted_claim, held_claim_ids, validate_tell
+from worldstage.world.claims import claim_id, evaluate
+from worldstage.world.db import mutation
+from worldstage.world.events import apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.rules import resolve
+from worldstage.world.state import WorldError
+from worldstage.world.tell import asserted_claim, held_claim_ids, validate_tell
 
 
 class TellTests(unittest.TestCase):

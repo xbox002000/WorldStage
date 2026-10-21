@@ -5,24 +5,24 @@ import json
 import unittest
 from pathlib import Path
 
-from contracts.base import from_dict
-from contracts.migrate import migrate_packet, migrate_request, migrate_scene_spec
-from contracts.packet import ProductionPacket
-from contracts.packet import verify as verify_packet
-from contracts.scene_spec import SceneSpec, finalize
-from contracts.scene_spec import verify as verify_spec
-from narrative.arcs import Arc, build_arcs, load_events, without
-from narrative.compiler import caption, compile_packet
-from narrative.continuity import closure, connects
-from narrative.scene_spec import build_scene_specs, validate_spec
-from narrative.selector import CONTINUITY_BONUS, rank_arcs, select_daily, select_top
-from production import db as prod
-from production import series
+from worldstage.contracts.base import from_dict
+from worldstage.contracts.migrate import migrate_packet, migrate_request, migrate_scene_spec
+from worldstage.contracts.packet import ProductionPacket
+from worldstage.contracts.packet import verify as verify_packet
+from worldstage.contracts.scene_spec import SceneSpec, finalize
+from worldstage.contracts.scene_spec import verify as verify_spec
+from worldstage.narrative.arcs import Arc, build_arcs, load_events, without
+from worldstage.narrative.compiler import caption, compile_packet
+from worldstage.narrative.continuity import closure, connects
+from worldstage.narrative.scene_spec import build_scene_specs, validate_spec
+from worldstage.narrative.selector import CONTINUITY_BONUS, rank_arcs, select_daily, select_top
+from worldstage.production import db as prod
+from worldstage.production import series
 from tests.helpers import social_world
 from tests.test_social import STOLE, cid, do, told_memory
 from tests.world_fixture import build_specs, reader
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -101,7 +101,7 @@ class ScoringTests(unittest.TestCase):
         conn, _ = lie_story()
         base = rank_arcs(conn)[0][0].score
         no_revelation = {k: (0.0 if k == "revelation" else v) for k, v in
-                         __import__("contracts.stylepack", fromlist=["SCORE_WEIGHTS_V1"]).SCORE_WEIGHTS_V1.items()}
+                         __import__("worldstage.contracts.stylepack", fromlist=["SCORE_WEIGHTS_V1"]).SCORE_WEIGHTS_V1.items()}
         self.assertLess(rank_arcs(conn, weights=no_revelation)[0][0].score, base)
 
 
@@ -187,7 +187,7 @@ class CaptionAndCompileTests(unittest.TestCase):
         self.assertTrue(verify_packet(packet))
 
     def test_every_beat_type_compiles(self):
-        from narrative.compiler import BEATS
+        from worldstage.narrative.compiler import BEATS
         for (event_type, variant) in BEATS:
             self.assertIn(event_type, ("talk", "steal", "tell", "confront", "take", "misplace", "find", "give",
                                        "notice_missing", "accuse", "lend", "repay", "parrot_speaks", "seed", "duel", "train"))
@@ -275,7 +275,7 @@ class MigrationTests(unittest.TestCase):
         data = json.loads((FIXTURES / "legacy_packet_v1.json").read_text(encoding="utf-8"))
         self.assertEqual(data["version"], 1)
         migrated = from_dict(ProductionPacket, migrate_packet(data))
-        from contracts.packet import PACKET_VERSION
+        from worldstage.contracts.packet import PACKET_VERSION
         self.assertEqual(migrated.version, PACKET_VERSION)
         self.assertEqual(migrated.direction_hash, "")
         self.assertTrue(all(s.function == "" and s.dialogue == "full" for s in migrated.shots))

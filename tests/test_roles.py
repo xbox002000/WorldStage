@@ -4,15 +4,15 @@ from __future__ import annotations
 import json
 import unittest
 
-from contracts.intervention import InterventionProposal
-from producer.intervention import Ledger
-from world import interventions
-from world.db import connect, init_db
-from world.domains import active
-from world.domains import roles as R
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.producer.intervention import Ledger
+from worldstage.world import interventions
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active
+from worldstage.world.domains import roles as R
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
 
 
 def saga(seed=3, recipe="jianghu_saga_v1"):
@@ -141,8 +141,8 @@ class Leaning(unittest.TestCase):
 
 class InTheWorld(unittest.TestCase):
     def test_the_hero_keeps_choosing_for_themselves_and_the_actor_can_lose(self):
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
         c = saga(3)
 
         class Producer:

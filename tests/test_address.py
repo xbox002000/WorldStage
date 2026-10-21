@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import unittest
 
-from contracts.base import canonical_json, to_dict
-from contracts.character import CharacterProfile
-from narrative.address import address
-from narrative.speech import _apply_kinship, _open_as_kin, in_own_words, speak
-from world.db import connect, init_db, mutation
-from world.goals import SAVE_EARNED, TEXT, describe, find, text_of
-from world.profiles import profile
-from world.seed import build_world
+from worldstage.contracts.base import canonical_json, to_dict
+from worldstage.contracts.character import CharacterProfile
+from worldstage.narrative.address import address
+from worldstage.narrative.speech import _apply_kinship, _open_as_kin, in_own_words, speak
+from worldstage.world.db import connect, init_db, mutation
+from worldstage.world.goals import SAVE_EARNED, TEXT, describe, find, text_of
+from worldstage.world.profiles import profile
+from worldstage.world.seed import build_world
 
 
 def world(recipe: str, seed: int = 1):

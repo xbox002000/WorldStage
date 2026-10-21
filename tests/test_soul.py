@@ -11,13 +11,13 @@ from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
-import soul_lab
-from agent.cognition import CharacterAgent, QuotaPause
-from agent.llm import FAILED, BudgetExceeded, LLMClient, QuotaExhausted
-from agent.llm_cache import LLMCache
-from agent.llm_ledger import Ledger, provider_day
-from agent.volition import VolitionDecider
-from world.db import connect
+from worldstage import soul_lab
+from worldstage.agent.cognition import CharacterAgent, QuotaPause
+from worldstage.agent.llm import FAILED, BudgetExceeded, LLMClient, QuotaExhausted
+from worldstage.agent.llm_cache import LLMCache
+from worldstage.agent.llm_ledger import Ledger, provider_day
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.db import connect
 
 
 class ApiError(Exception):
@@ -157,7 +157,7 @@ class Minds(unittest.TestCase):
             self.assertLessEqual(c.calls, 5)                              # five tries, not a day of them
 
     def test_tier_a_leaves_a_bad_mood_alone(self):
-        from agent.cognition import MOOD_ONLY
+        from worldstage.agent.cognition import MOOD_ONLY
         for tier, expect in (("A", True), ("AB", False)):
             with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
                 a = argparse.Namespace(seed=501, recipe="jianghu_story_v1", budget=20, tier=tier)
@@ -188,10 +188,10 @@ class Minds(unittest.TestCase):
         self.assertEqual(events[False], events[True])
 
     def test_the_engines_own_shuffle_uses_the_worlds_rng_and_maps_back_too(self):
-        from agent.cognition import option_order
-        from world.db import init_db
-        from world.seed import build_world
-        from world.simulation import Simulation
+        from worldstage.agent.cognition import option_order
+        from worldstage.world.db import init_db
+        from worldstage.world.seed import build_world
+        from worldstage.world.simulation import Simulation
         self.assertEqual(option_order(501, "kai", 100, 7), option_order(501, "kai", 100, 7))
         self.assertEqual(sorted(option_order(501, "kai", 100, 7)), list(range(7)))
         self.assertNotEqual({tuple(option_order(501, "kai", t, 7)) for t in range(0, 600, 30)}, {tuple(range(7))})
@@ -217,8 +217,8 @@ class Minds(unittest.TestCase):
 
     def test_a_choice_off_the_list_is_not_acted_on(self):
         c = connect()
-        from world.db import init_db
-        from world.seed import build_world
+        from worldstage.world.db import init_db
+        from worldstage.world.seed import build_world
         init_db(c, 501)
         build_world(c, 501, "jianghu_story_v1")
 
@@ -226,7 +226,7 @@ class Minds(unittest.TestCase):
             return json.dumps({"option": -1, "reason": "x", "inner": ""})
 
         agent = CharacterAgent(VolitionDecider(501), LLMClient("stub", backend=off_the_list, sleep=lambda s: None, min_interval=0, retries=0), tier="A")
-        from world.simulation import Simulation
+        from worldstage.world.simulation import Simulation
         Simulation(c, agent, agent, set()).run(2)
         self.assertEqual(agent.stats["agent"], 0)                         # no answer was taken, however many woke
         self.assertGreater(agent.stats["agent_failed"], 0)

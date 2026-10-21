@@ -5,14 +5,14 @@ import json
 import unittest
 from pathlib import Path
 
-from contracts.base import canonical_json, content_hash, from_dict, hash_without, schema_for, to_dict
-from contracts.generate_schemas import CONTRACTS, OUT, render_all
-from contracts.packet import ProductionPacket
-from contracts.packet import verify as verify_packet
-from contracts.render_request import RenderRequest, Toolchain, make_request
-from contracts.scene_spec import SceneSpec
-from contracts.scene_spec import verify as verify_spec
-from contracts.stylepack import SUSPENSE_V1, StylePack
+from worldstage.contracts.base import canonical_json, content_hash, from_dict, hash_without, schema_for, to_dict
+from worldstage.contracts.generate_schemas import CONTRACTS, OUT, render_all
+from worldstage.contracts.packet import ProductionPacket
+from worldstage.contracts.packet import verify as verify_packet
+from worldstage.contracts.render_request import RenderRequest, Toolchain, make_request
+from worldstage.contracts.scene_spec import SceneSpec
+from worldstage.contracts.scene_spec import verify as verify_spec
+from worldstage.contracts.stylepack import SUSPENSE_V1, StylePack
 from tests.world_fixture import build_specs, compile_all
 
 
@@ -104,7 +104,7 @@ class RenderRequestTests(unittest.TestCase):
 class StylePackTests(unittest.TestCase):
     def test_style_pack_changes_packet_and_is_recorded(self):
         spec = build_specs()[0]
-        from narrative.compiler import compile_packet
+        from worldstage.narrative.compiler import compile_packet
         base = compile_packet(spec, SUSPENSE_V1)
         slower = compile_packet(spec, dataclasses.replace(SUSPENSE_V1, version=2, duration_scale=1.5))
         self.assertNotEqual(base.packet_hash, slower.packet_hash)

@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
-from world.db import connect, init_db
-from world.domains import active
-from world.domains.progression import GAP_SHOWN, REALMS, realm
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active
+from worldstage.world.domains.progression import GAP_SHOWN, REALMS, realm
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def saga(seed: int = 3):

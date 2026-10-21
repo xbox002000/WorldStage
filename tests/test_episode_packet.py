@@ -14,14 +14,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contracts import episode_packet as cep
-from contracts.base import canonical_json, from_dict, to_dict
-from contracts.episode_plan import INTENTS
-from contracts.packet import ProductionPacket
-from narrative import episode_planner as P
-from narrative.arcs import load_events
-from narrative.dramaturgy import analyse
-from production import episode_packet as EK
+from worldstage.contracts import episode_packet as cep
+from worldstage.contracts.base import canonical_json, from_dict, to_dict
+from worldstage.contracts.episode_plan import INTENTS
+from worldstage.contracts.packet import ProductionPacket
+from worldstage.narrative import episode_planner as P
+from worldstage.narrative.arcs import load_events
+from worldstage.narrative.dramaturgy import analyse
+from worldstage.production import episode_packet as EK
 from tests.test_episode_planner import produced
 
 MODEL_WORDS = ("cinematic", "8k", "4k", "bokeh", "lens", "photorealistic", "hyperreal", "masterpiece", "unreal engine")
@@ -34,7 +34,7 @@ def setUpModule():
     """HEAD bug, worked around for the test only: the faction domain's `describe` for `succession` and `found_faction` is "{who}...",
     but a packet's caption fills {a}, {b} and {thing} (narrative/compiler.py), so a packet that holds either event raises KeyError('who').
     Two words in world/domains/factions.py fix it; this work is not allowed to touch that file, so the test patches and restores."""
-    from world.domains import all_domains
+    from worldstage.world.domains import all_domains
     for d in all_domains():
         for k, v in list(d.styles.items()):
             if "{who}" in (v.describe or ""):
@@ -238,12 +238,12 @@ class Off(unittest.TestCase):
         shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def packet_of(self, conn, cand, thread, intents=None):
-        from narrative.compiler import compile_packet
-        from narrative.direction import plan_direction
-        from narrative.performance import plan_performance
-        from narrative.scene_spec import build_scene_specs
-        from production import pipeline, series
-        from contracts.stylepack import SUSPENSE_V1
+        from worldstage.narrative.compiler import compile_packet
+        from worldstage.narrative.direction import plan_direction
+        from worldstage.narrative.performance import plan_performance
+        from worldstage.narrative.scene_spec import build_scene_specs
+        from worldstage.production import pipeline, series
+        from worldstage.contracts.stylepack import SUSPENSE_V1
         spec = build_scene_specs(self.c, [cand], ["day_01"])[0]
         recap = series.build_recap(conn, spec)
         direction = plan_direction(self.c, spec, thread, set(), intents=intents)
@@ -252,9 +252,9 @@ class Off(unittest.TestCase):
         return compile_packet(spec, SUSPENSE_V1, "portrait", recap=recap, direction=direction, performance=performance, runtime=runtime)
 
     def test_make_episodes_without_a_composition_is_the_documented_steps_and_has_no_map(self):
-        from narrative.director import select_thread
-        from production import db as prod
-        from production.pipeline import make_episodes
+        from worldstage.narrative.director import select_thread
+        from worldstage.production import db as prod
+        from worldstage.production.pipeline import make_episodes
         cand, thread, _ = select_thread(self.c, 3, set())
         self.assertIsNotNone(cand)
         conn = prod.open_production_db(os.path.join(self.tmp, "off.db"))
@@ -265,9 +265,9 @@ class Off(unittest.TestCase):
         self.assertIsNone(got.shot_map)
 
     def test_make_episodes_with_a_composition_makes_the_composed_packet_and_its_map(self):
-        from narrative.selector import Candidate
-        from production import db as prod
-        from production.pipeline import make_episodes
+        from worldstage.narrative.selector import Candidate
+        from worldstage.production import db as prod
+        from worldstage.production.pipeline import make_episodes
         day = 2
         m = P.material(self.c, day, set(), (), P.AB)
         comp = EK.compose(self.c, m, set(), day, None, P.AB, budget=1e9)
@@ -283,8 +283,8 @@ class Off(unittest.TestCase):
         self.assertEqual(got.shot_map.packet_hash, packet.packet_hash)
 
     def packet_of_hash(self, comp, m):
-        from narrative.selector import Candidate
-        from production import db as prod
+        from worldstage.narrative.selector import Candidate
+        from worldstage.production import db as prod
         conn = prod.open_production_db(os.path.join(self.tmp, "ref.db"))
         try:
             return self.packet_of(conn, Candidate(comp.arc, 0.5, {"episode_planner": 1.0}), m.thread, comp.intents).packet_hash
@@ -292,9 +292,9 @@ class Off(unittest.TestCase):
             conn.close()
 
     def test_a_composition_for_another_arc_is_refused(self):
-        from narrative.director import select_thread
-        from production import db as prod
-        from production.pipeline import make_episodes
+        from worldstage.narrative.director import select_thread
+        from worldstage.production import db as prod
+        from worldstage.production.pipeline import make_episodes
         m = P.material(self.c, 2, set(), (), P.AB)
         comp = EK.compose(self.c, m, set(), 2, None, P.AB, budget=1e9)
         cand, thread, _ = select_thread(self.c, 3, set())
@@ -314,15 +314,15 @@ class Fingerprint(unittest.TestCase):
     GOLDEN = "ab4a86644a85fd74a273763e"
 
     def test_the_thread_directors_packets_of_a_seeded_fortnight_are_unchanged(self):
-        from narrative.compiler import compile_packet
-        from narrative.direction import plan_direction
-        from narrative.director import select_thread
-        from narrative.scene_spec import build_scene_specs
-        from agent.volition import VolitionDecider
-        from producer.director import Director
-        from world.db import connect, init_db
-        from world.seed import build_world
-        from world.simulation import Simulation
+        from worldstage.narrative.compiler import compile_packet
+        from worldstage.narrative.direction import plan_direction
+        from worldstage.narrative.director import select_thread
+        from worldstage.narrative.scene_spec import build_scene_specs
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.producer.director import Director
+        from worldstage.world.db import connect, init_db
+        from worldstage.world.seed import build_world
+        from worldstage.world.simulation import Simulation
         c = connect()
         init_db(c, 17)
         build_world(c, 17, "jianghu_story_v1")
@@ -345,7 +345,7 @@ class Fingerprint(unittest.TestCase):
 
 class Daily(unittest.TestCase):
     def run_days(self, days=3, **kw):
-        from channel.daily import DailyConfig, run_daily
+        from worldstage.channel.daily import DailyConfig, run_daily
         tmp = tempfile.mkdtemp(prefix="dailyepk_")
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         cfg = DailyConfig(world_db=os.path.join(tmp, "world.db"), prod_db=os.path.join(tmp, "prod.db"), out_dir=os.path.join(tmp, "episodes"),
@@ -353,13 +353,13 @@ class Daily(unittest.TestCase):
         return tmp, run_daily(cfg)
 
     def test_it_is_off_by_default(self):
-        from channel.daily import DailyConfig
+        from worldstage.channel.daily import DailyConfig
         cfg = DailyConfig("w", "p", "o")
         self.assertFalse(cfg.episode_first)
         self.assertFalse(cfg.episode_ab)
 
     def test_the_a_b_packet_needs_the_planner_to_choose(self):
-        from channel.daily import DailyConfig, run_daily
+        from worldstage.channel.daily import DailyConfig, run_daily
         with self.assertRaises(ValueError):
             run_daily(DailyConfig("w.db", "p.db", "o", world_c=True, episode_ab=True))
         with self.assertRaises(ValueError):
@@ -392,16 +392,16 @@ class Daily(unittest.TestCase):
 
 class Schema(unittest.TestCase):
     def test_the_committed_schema_is_the_contracts(self):
-        from contracts.generate_schemas import OUT, render_all
+        from worldstage.contracts.generate_schemas import OUT, render_all
         self.assertEqual((OUT / "episode_packet_map.schema.json").read_text(encoding="utf-8"), render_all()["episode_packet_map"])
 
     def test_the_packet_contract_did_not_move(self):
         """The map is beside the packet, not inside it: the packet's schema and version are what they were."""
-        from contracts.packet import PACKET_VERSION
+        from worldstage.contracts.packet import PACKET_VERSION
         self.assertEqual(PACKET_VERSION, 5)
         fields = {f.name for f in dataclasses.fields(ProductionPacket)}
         self.assertNotIn("beat_index", fields)
-        from contracts.packet import Shot
+        from worldstage.contracts.packet import Shot
         self.assertNotIn("story", {f.name for f in dataclasses.fields(Shot)})
 
 

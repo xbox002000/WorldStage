@@ -10,15 +10,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from narrative.compiler import compile_packet
-from narrative.direction import plan_direction
-from narrative.performance import plan_performance
-from runtime.export import export, sample
-from runtime.world_runtime import WorldRuntime
+from worldstage.agent.volition import VolitionDecider
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.performance import plan_performance
+from worldstage.runtime.export import export, sample
+from worldstage.runtime.world_runtime import WorldRuntime
 from tests.test_director_reality import dog_story
 from tests.test_world_c import fresh
-from world.simulation import Simulation
+from worldstage.world.simulation import Simulation
 
 ROOT = Path(__file__).resolve().parent.parent
 GODOT = ROOT / "tools" / "godot" / "Godot_v4.7.2-stable_win64_console.exe"
@@ -96,7 +96,7 @@ class RuntimeInProductionTests(unittest.TestCase):
             if not GODOT.exists():
                 self.skipTest("Godot is not installed in tools/godot")
             out = Path(tmp) / "samples.json"
-            subprocess.run([str(GODOT), "--headless", "--path", str(ROOT / "runtime" / "godot"), "--",
+            subprocess.run([str(GODOT), "--headless", "--path", str(ROOT / "worldstage" / "runtime" / "godot"), "--",
                             f"--trace={Path(tmp) / 'trace.json'}", "--mode=verify", f"--out={out}"],
                            capture_output=True, timeout=180)
             got = json.loads(out.read_text(encoding="utf-8"))

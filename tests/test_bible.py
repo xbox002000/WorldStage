@@ -8,14 +8,14 @@ import unittest
 from pathlib import Path
 from typing import get_args
 
-from contracts import bible as cb
-from contracts.base import canonical_json, from_dict, schema_for, to_dict
-from contracts.bible import Bible, ReferenceAsset, check_bible, model_words_in
-from production import bible as pb
-from production.bible import BibleError, build_bible
+from worldstage.contracts import bible as cb
+from worldstage.contracts.base import canonical_json, from_dict, schema_for, to_dict
+from worldstage.contracts.bible import Bible, ReferenceAsset, check_bible, model_words_in
+from worldstage.production import bible as pb
+from worldstage.production.bible import BibleError, build_bible
 from tests.provider_conformance.worlds import bible_for_recipe, world_from_recipe
-from world.db import connect, init_db, save_to
-from world.personas import extras_override, genome
+from worldstage.world.db import connect, init_db, save_to
+from worldstage.world.personas import extras_override, genome
 
 RECIPES = ("jianghu_story_v1", "town_v1", "town_in_jianghu_v1")
 
@@ -62,7 +62,7 @@ class Contract(unittest.TestCase):
             b, characters={some.asset_id: dataclasses.replace(some, references=[ReferenceAsset("selfie", "p")])}, bible_hash=""))))
 
     def test_it_is_registered_with_the_versions(self):
-        from contracts.versions import VERSIONS
+        from worldstage.contracts.versions import VERSIONS
         self.assertEqual(VERSIONS["bible_contract"], cb.BIBLE_VERSION)
         self.assertEqual(cb.BIBLE_VERSION, "bible_v0.1")
 

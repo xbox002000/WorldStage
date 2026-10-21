@@ -6,18 +6,18 @@ import os
 import tempfile
 import unittest
 
-from agent.volition import VolitionDecider
-from contracts.base import canonical_json, from_dict
-from contracts.spatial import SpatialObject, SpatialPlan, verify
-from narrative.director import rank_threads, select_thread
-from narrative.scene_spec import build_scene_specs
-from narrative.spatial import LONE, blocker, compile_spatial
-from narrative.threads import derive_threads
-from world.db import connect, init_db
-from world.reader import open_world_reader
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.base import canonical_json, from_dict
+from worldstage.contracts.spatial import SpatialObject, SpatialPlan, verify
+from worldstage.narrative.director import rank_threads, select_thread
+from worldstage.narrative.scene_spec import build_scene_specs
+from worldstage.narrative.spatial import LONE, blocker, compile_spatial
+from worldstage.narrative.threads import derive_threads
+from worldstage.world.db import connect, init_db
+from worldstage.world.reader import open_world_reader
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 SEED = 260931
 
@@ -52,9 +52,9 @@ class ThreadTests(unittest.TestCase):
     def test_a_false_accusation_crosses_an_item_thread_into_a_feud(self):
         # built on purpose: whether a given random world happens to contain a crossing is a measurement, not a rule
         from tests.test_world_c import act, fresh, put
-        from world.intent import Intent
-        from world.items import misplace, notice_missing
-        from world.events import apply_event
+        from worldstage.world.intent import Intent
+        from worldstage.world.items import misplace, notice_missing
+        from worldstage.world.events import apply_event
         c = fresh()
         put(c, 10, ming="cafe", tao="cafe", jun="park")  # only Tao is around when Ming leaves the wallet
         apply_event(c, misplace(c, "ming", "wallet_ming", 20))
@@ -157,7 +157,7 @@ class SpatialTests(unittest.TestCase):
 
 class DailyWorldCTests(unittest.TestCase):
     def test_the_daily_job_follows_a_thread_and_writes_its_spatial_plan(self):
-        from channel.daily import DailyConfig, run_daily
+        from worldstage.channel.daily import DailyConfig, run_daily
         tmp = tempfile.mkdtemp(prefix="dailyc_")
         cfg = DailyConfig(world_db=os.path.join(tmp, "world.db"), prod_db=os.path.join(tmp, "prod.db"),
                           out_dir=os.path.join(tmp, "episodes"), days=2, seed=5, init=True, render=False,

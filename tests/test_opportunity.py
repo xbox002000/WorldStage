@@ -4,14 +4,14 @@ from __future__ import annotations
 import hashlib
 import unittest
 
-from contracts.intervention import InterventionProposal
-from narrative import opportunity as O
-from narrative import pacing
-from producer.intervention import Ledger
-from world.attention import var
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.seed import build_world
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.narrative import opportunity as O
+from worldstage.narrative import pacing
+from worldstage.producer.intervention import Ledger
+from worldstage.world.attention import var
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.seed import build_world
 
 
 def story(seed=3):

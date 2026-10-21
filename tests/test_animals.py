@@ -4,12 +4,12 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
+from worldstage.agent.volition import VolitionDecider
 from tests.test_world_c import act, fresh, put
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent, validate
-from world.simulation import Simulation
-from world.state import WorldError, audit
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent, validate
+from worldstage.world.simulation import Simulation
+from worldstage.world.state import WorldError, audit
 
 
 def with_dog(seed: int = 3):
@@ -39,8 +39,8 @@ class AnimalRuleTests(unittest.TestCase):
         validate(c, Intent("dog", "bark", "ming"))
 
     def test_an_animal_senses_but_never_holds_a_claim(self):
-        from world.animals import with_senses
-        from world.rules import resolve
+        from worldstage.world.animals import with_senses
+        from worldstage.world.rules import resolve
         c = with_dog()
         put(c, 10, ming="cafe", jun="cafe")
         it = Intent("ming", "talk", "jun", "hostile")
@@ -53,9 +53,9 @@ class AnimalRuleTests(unittest.TestCase):
         self.assertGreater(c.execute("SELECT fear FROM relationships WHERE actor_id = 'dog' AND target_id = 'ming'").fetchone()[0], 0)
 
     def test_a_dog_can_carry_a_thing_off_and_people_blame_each_other(self):
-        from world.animals import with_senses
-        from world.items import misplace, notice_missing
-        from world.rules import resolve
+        from worldstage.world.animals import with_senses
+        from worldstage.world.items import misplace, notice_missing
+        from worldstage.world.rules import resolve
         c = with_dog()
         put(c, 10, ming="cafe", tao="cafe")
         apply_event(c, misplace(c, "ming", "wallet_ming", 20))
@@ -80,15 +80,15 @@ class AnimalRuleTests(unittest.TestCase):
 
 class AnimalPointOfViewTests(unittest.TestCase):
     def test_the_director_tells_it_through_the_one_who_saw_but_cannot_speak(self):
-        from narrative.arcs import Arc, load_events
-        from narrative.direction import plan_direction
-        from narrative.scene_spec import build_scene_specs
-        from narrative.selector import Candidate
-        from narrative.spatial import compile_spatial
-        from narrative.threads import derive_threads
-        from world.animals import with_senses
-        from world.items import misplace, notice_missing
-        from world.rules import resolve
+        from worldstage.narrative.arcs import Arc, load_events
+        from worldstage.narrative.direction import plan_direction
+        from worldstage.narrative.scene_spec import build_scene_specs
+        from worldstage.narrative.selector import Candidate
+        from worldstage.narrative.spatial import compile_spatial
+        from worldstage.narrative.threads import derive_threads
+        from worldstage.world.animals import with_senses
+        from worldstage.world.items import misplace, notice_missing
+        from worldstage.world.rules import resolve
         c = with_dog()
         put(c, 10, ming="cafe", tao="cafe")
         apply_event(c, misplace(c, "ming", "wallet_ming", 20))

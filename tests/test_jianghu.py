@@ -4,18 +4,18 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
+from worldstage.agent.volition import VolitionDecider
 from tests.test_world_c import put
-from world.db import connect, init_db
-from world.events import apply_event
-from world.intent import Intent, validate
-from world.jianghu import rep, skill
-from world.recipes import compiled
-from world.rules import resolve
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
-from world.state import WorldError, audit
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import apply_event
+from worldstage.world.intent import Intent, validate
+from worldstage.world.jianghu import rep, skill
+from worldstage.world.recipes import compiled
+from worldstage.world.rules import resolve
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
+from worldstage.world.state import WorldError, audit
 
 
 def jianghu(seed: int = 1):
@@ -63,9 +63,9 @@ class PrimitiveTests(unittest.TestCase):
 
     def test_a_duel_is_decided_by_the_world_and_can_settle_who_holds_a_thing(self):
         c = jianghu()
-        apply_event(c, __import__("world.events", fromlist=["EventSpec"]).EventSpec(
+        apply_event(c, __import__("worldstage.world.events", fromlist=["EventSpec"]).EventSpec(
             timestamp=10, type="setup", trigger_type="rule",
-            changes=[__import__("world.events", fromlist=["Change"]).Change("person", p, "location_id", value="inn")
+            changes=[__import__("worldstage.world.events", fromlist=["Change"]).Change("person", p, "location_id", value="inn")
                      for p in ("lin", "lu")]))
         t = act(c, Intent("lin", "challenge", "lu"), 600)
         self.assertIn(t["winner"], ("lin", "lu"))
@@ -103,18 +103,18 @@ class SharedCoreTests(unittest.TestCase):
         self.assertNotEqual(rep(self.c, "lin"), 0.8)
 
     def test_the_director_sees_what_a_thread_did_to_people(self):
-        from narrative.director import score_thread
-        from narrative.threads import derive_threads
+        from worldstage.narrative.director import score_thread
+        from worldstage.narrative.threads import derive_threads
         scores = [score_thread(self.c, t, set()) for t in derive_threads(self.c)]
         self.assertTrue(all("change" in s.parts for s in scores))
         self.assertTrue(any(s.parts["change"] > 0 for s in scores))  # duels form goals: surpass, revenge
 
     def test_threads_director_spatial_plan_and_packet_run_unchanged(self):
-        from narrative.compiler import compile_packet
-        from narrative.direction import plan_direction
-        from narrative.director import select_thread
-        from narrative.scene_spec import build_scene_specs
-        from narrative.spatial import compile_spatial
+        from worldstage.narrative.compiler import compile_packet
+        from worldstage.narrative.direction import plan_direction
+        from worldstage.narrative.director import select_thread
+        from worldstage.narrative.scene_spec import build_scene_specs
+        from worldstage.narrative.spatial import compile_spatial
         shown, planned = set(), 0
         for day in range(20):
             cand, thread, _ = select_thread(self.c, day, shown)

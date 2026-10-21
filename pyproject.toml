@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "worldstage"
+version = "0.3.0"
+description = "A living world that writes its own drama: LLM characters, an AI showrunner, episodes discovered not scripted."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12,<3.13"
+# the direct dependencies of requirements.in; requirements.lock pins the whole tree
+dependencies = [
+    "google-genai",
+    "httpx",
+    "numpy==2.5.3",
+]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+Repository = "https://github.com/xbox002000/WorldStage"
+
+[project.scripts]
+worldstage-studio = "worldstage.channel.studio:main"
+worldstage-soul = "worldstage.soul_lab:main"
+
+[tool.setuptools.packages.find]
+include = ["worldstage*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"*" = ["*.sql", "*.json", "*.js", "*.mjs", "*.css", "*.html", "*.glb", "*.gd", "*.godot", "*.tscn", "*.uid",
+       "**/*.sql", "**/*.json", "**/*.js", "**/*.mjs", "**/*.css", "**/*.html", "**/*.glb"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["node_modules/**", "projects/**", "renders/**"]

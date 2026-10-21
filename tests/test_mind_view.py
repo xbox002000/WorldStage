@@ -19,10 +19,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-import soul_lab
-from agent.llm import CacheMiss, LLMClient
-from agent.llm_cache import LLMCache
-from channel.studio import IDLE, Handler, Hub, MindReplayError, ReplayMind, Studio, mind_info, open_readonly, pair_minds, replay_check
+from worldstage import soul_lab
+from worldstage.agent.llm import CacheMiss, LLMClient
+from worldstage.agent.llm_cache import LLMCache
+from worldstage.channel.studio import IDLE, Handler, Hub, MindReplayError, ReplayMind, Studio, mind_info, open_readonly, pair_minds, replay_check
 
 ROOT = Path(__file__).resolve().parent.parent
 EVENTS = "SELECT event_id, type, timestamp, location_id, truth FROM events ORDER BY event_id"

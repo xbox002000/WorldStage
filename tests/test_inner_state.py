@@ -8,10 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from narrative import inner_state as I
-from narrative import speech as S
-from world.db import connect, init_db, mutation
-from world.seed import build_world
+from worldstage.narrative import inner_state as I
+from worldstage.narrative import speech as S
+from worldstage.world.db import connect, init_db, mutation
+from worldstage.world.seed import build_world
 
 SOURCE = Path(I.__file__)
 
@@ -27,10 +27,10 @@ def _speakers(c):
 class InAWorld(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from agent.volition import VolitionDecider
-        from producer.director import Director
-        from runtime.godview import _names
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.producer.director import Director
+        from worldstage.runtime.godview import _names
+        from worldstage.world.simulation import Simulation
         cls.c = connect()
         init_db(cls.c, 612)
         build_world(cls.c, 612, "jianghu_story_v1")
@@ -57,7 +57,7 @@ class InAWorld(unittest.TestCase):
             self.assertTrue(any(e["kind"] == "event" and e["event_id"] == cause for e in st["evidence"]))
 
     def test_the_feeling_it_explains_is_the_one_the_person_has(self):
-        from narrative.audience import value_at
+        from worldstage.narrative.audience import value_at
         for eid, who, _, st in self.found:
             self.assertEqual(value_at(self.c, "person", who, "emotion", eid - 1), st["surface"])
             self.assertEqual(st["surface_zh"], I.EMOTION_ZH[st["surface"]])
@@ -68,7 +68,7 @@ class InAWorld(unittest.TestCase):
         self.assertEqual(I.ALONE_EVERY, {k: v for k, v in S.SELF_RARE.items() if k in I.ALONE})     # the lines speech leaves silent
 
     def test_a_calm_person_has_nothing_underneath(self):
-        from narrative.audience import value_at
+        from worldstage.narrative.audience import value_at
         calm = [(eid, who) for eid, _, who, _, _ in _speakers(self.c) if value_at(self.c, "person", who, "emotion", eid - 1) == "calm"]
         self.assertTrue(calm)
         for eid, who in calm[:200]:
@@ -286,7 +286,7 @@ class Reads(unittest.TestCase):
     def test_it_imports_no_write_path_of_the_world(self):
         tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
         mods = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
-        self.assertLessEqual(mods - {"__future__"}, {"narrative.audience", "world.psyche"})
+        self.assertLessEqual(mods - {"__future__"}, {"worldstage.narrative.audience", "worldstage.world.psyche"})
         names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names}
         self.assertEqual(names & {"apply_event", "mutation", "EventSpec", "Change", "Simulation"}, set())
         for node in ast.walk(tree):

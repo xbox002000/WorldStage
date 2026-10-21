@@ -4,10 +4,10 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from contracts.intervention import InterventionProposal
-from producer import director as D
-from producer import forecast
-from producer.intervention import Ledger
+from worldstage.contracts.intervention import InterventionProposal
+from worldstage.producer import director as D
+from worldstage.producer import forecast
+from worldstage.producer.intervention import Ledger
 from tests.test_opportunity import fingerprint
 from tests.test_rollout import clean
 

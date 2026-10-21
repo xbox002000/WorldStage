@@ -6,13 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from contracts.base import content_hash, to_dict
-from runtime import checkpoint
-from runtime.world_runtime import WorldRuntime
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.base import content_hash, to_dict
+from worldstage.runtime import checkpoint
+from worldstage.runtime.world_runtime import WorldRuntime
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 STATE = ("actions", "interactions", "tracks", "steps", "keys", "by_entity", "_times", "frames", "world_holder", "bodies",
          "things", "doorway", "last_event")
@@ -79,7 +79,7 @@ class Resume(unittest.TestCase):
 
 class Pipeline(unittest.TestCase):
     def test_the_production_pipeline_resumes_from_its_cache(self):
-        from production.pipeline import _runtime
+        from worldstage.production.pipeline import _runtime
         conn, _ = lived(5, 1)
         with tempfile.TemporaryDirectory() as d:
             cache = str(Path(d) / "runtime.ckpt")

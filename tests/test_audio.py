@@ -10,11 +10,11 @@ from pathlib import Path
 
 import numpy as np
 
-from audio.backend import SynthAudioBackend
-from audio.synth import CHORDS, SR, _sfx, audio_toolchain, synthesize, to_wav_bytes
-from contracts.packet import AudioCue, AudioPlan
-from narrative.audio_plan import compile_audio_plan
-from render.hyperframes_backend import FFMPEG_DIR, HyperFramesBackend
+from worldstage.audio.backend import SynthAudioBackend
+from worldstage.audio.synth import CHORDS, SR, _sfx, audio_toolchain, synthesize, to_wav_bytes
+from worldstage.contracts.packet import AudioCue, AudioPlan
+from worldstage.narrative.audio_plan import compile_audio_plan
+from worldstage.render.hyperframes_backend import FFMPEG_DIR, HyperFramesBackend
 from tests.world_fixture import compile_all
 
 FFMPEG = FFMPEG_DIR / "ffmpeg.exe"
@@ -118,13 +118,13 @@ class AudioPlanTests(unittest.TestCase):
         self.assertTrue(names & {"snatch", "glass", "reveal", "flip"})  # the fixture week has drama
 
     def test_the_plan_reacts_to_the_beat(self):
-        from contracts.scene_spec import Beat, Participant, Place
-        from narrative.compiler import BEATS  # noqa: F401
+        from worldstage.contracts.scene_spec import Beat, Participant, Place
+        from worldstage.narrative.compiler import BEATS  # noqa: F401
         beat = Beat(event_id=1, event_type="confront", variant="lie_exposed", location=Place("cafe", "Cafe", 0, 0), day=1,
                     clock="12:00", weather="rain", participants=[Participant("a", "actor"), Participant("b", "target")],
                     prop=None, thoughts=[], motivation=None, trust_flipped=True, importance=0.95)
         import dataclasses
-        from contracts.packet import Lighting
+        from worldstage.contracts.packet import Lighting
         shot = dataclasses.replace(self.packets[0].shots[0], lighting=Lighting("night", "rain"))
         p = compile_audio_plan([beat], [shot], 2.0, 10.0)
         names = [c.name for c in p.cues]

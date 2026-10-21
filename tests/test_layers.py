@@ -45,20 +45,26 @@ PRODUCER_FORBIDDEN_NAMES = {"apply_event", "mutation", "EventSpec"}
 PRODUCER_FORBIDDEN_SQL = ("INSERT ", "UPDATE ", "DELETE ", "REPLACE ")
 
 
+def _top(module: str) -> str:
+    """The layer a module belongs to: worldstage.world.db -> world."""
+    parts = module.split(".")
+    return parts[1] if parts[0] == "worldstage" and len(parts) > 1 else parts[0]
+
+
 def imports(path: Path) -> list[str]:
     out = []
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
         if isinstance(node, ast.Import):
-            out += [a.name.split(".")[0] for a in node.names]
+            out += [_top(a.name) for a in node.names]
         elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            out.append(node.module.split(".")[0])
+            out.append(_top(node.module))
     return out
 
 
 def edges() -> dict[str, dict[str, list[str]]]:
     got: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
     for pkg in PACKAGES:
-        base = ROOT / pkg
+        base = ROOT / "worldstage" / pkg
         if not base.exists():
             continue
         for f in base.rglob("*.py"):
@@ -66,7 +72,7 @@ def edges() -> dict[str, dict[str, list[str]]]:
                 continue
             for top in imports(f):
                 if top in PACKAGES and top != pkg:
-                    got[pkg][top].append(str(f.relative_to(ROOT)).replace("\\", "/"))
+                    got[pkg][top].append(str(f.relative_to(ROOT / "worldstage")).replace("\\", "/"))
     return got
 
 
@@ -98,7 +104,7 @@ class Layers(unittest.TestCase):
 
     def test_the_producer_has_one_door_into_the_world(self):
         """No apply_event, no SQL that writes: the seed layer (world/seeds.py) is the only way it changes anything."""
-        for f in (ROOT / "producer").rglob("*.py"):
+        for f in (ROOT / "worldstage" / "producer").rglob("*.py"):
             tree = ast.parse(f.read_text(encoding="utf-8"))
             names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | \
                     {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names}
@@ -110,11 +116,11 @@ class Layers(unittest.TestCase):
 
     def test_the_producer_imagines_only_through_the_rollout(self):
         """It may ask for futures under other luck (world/rollout.py); it never runs the world itself."""
-        for f in (ROOT / "producer").rglob("*.py"):
+        for f in (ROOT / "worldstage" / "producer").rglob("*.py"):
             tree = ast.parse(f.read_text(encoding="utf-8"))
             mods = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
             names = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for a in n.names} |                     {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
-            self.assertNotIn("world.simulation", mods, f.name)
+            self.assertNotIn("worldstage.world.simulation", mods, f.name)
             self.assertNotIn("Simulation", names, f.name)
 
     def test_the_seed_vocabulary_stays_closed(self):
@@ -122,7 +128,7 @@ class Layers(unittest.TestCase):
         is added here on purpose (the showrunner's, phase 2B.2), never by accident."""
         from typing import get_args
 
-        from contracts.seed import SEED_VARS, EffectOp
+        from worldstage.contracts.seed import SEED_VARS, EffectOp
         self.assertEqual(set(get_args(EffectOp)), {"set_var", "place_object", "deliver_object", "set_object_value", "news",
                                                     "animal_arrives"})
         self.assertEqual(set(SEED_VARS), {"price_food", "visibility", "job_security"})

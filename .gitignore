@@ -7,10 +7,12 @@ Other/
 *.db-wal
 *.db-shm
 tools/
-render/node_modules/
-render/projects/
-render/renders/
+worldstage/render/node_modules/
+worldstage/render/projects/
+worldstage/render/renders/
 out/
 
 # Godot editor cache (runtime/godot)
 .godot/
+*.egg-info/
+build/

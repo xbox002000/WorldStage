@@ -7,13 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contracts.intervention import InterventionProposal, WorldIntervention
-from producer.intervention import COSTS, WEEK_BUDGET, Ledger
-from world import interventions
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.seed import build_world
-from world.snapshot import table_hash
+from worldstage.contracts.intervention import InterventionProposal, WorldIntervention
+from worldstage.producer.intervention import COSTS, WEEK_BUDGET, Ledger
+from worldstage.world import interventions
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.seed import build_world
+from worldstage.world.snapshot import table_hash
 
 FORBIDDEN_WORLD_KEYS = {"purpose", "arc_id", "season_id", "budget_cost", "arc", "season", "proposal_hash"}
 OUTCOME_WORDS = ("win", "lose", "outcome", "respect", "love", "fear", "feel", "relationship", "verdict", "result")

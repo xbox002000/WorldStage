@@ -4,10 +4,10 @@ from __future__ import annotations
 import json
 import unittest
 
-from narrative import speech as S
-from narrative.lines import line
-from world.db import connect, init_db
-from world.seed import build_world
+from worldstage.narrative import speech as S
+from worldstage.narrative.lines import line
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
 
 
 def stub(**cache):
@@ -93,10 +93,10 @@ class Duels(unittest.TestCase):
 class InAWorld(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        from agent.volition import VolitionDecider
-        from producer.director import Director
-        from runtime.godview import _names
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.producer.director import Director
+        from worldstage.runtime.godview import _names
+        from worldstage.world.simulation import Simulation
         cls.c = connect()
         init_db(cls.c, 501)
         build_world(cls.c, 501, "jianghu_story_v1")
@@ -283,7 +283,7 @@ class Telling(unittest.TestCase):
 
 class Replies(unittest.TestCase):
     def test_every_reply_pool_has_at_least_twelve_lines_and_none_is_from_our_own_time(self):
-        from narrative.lint import MODERN_WORDS
+        from worldstage.narrative.lint import MODERN_WORDS
         for name, pool in S.REPLY.items():
             self.assertGreaterEqual(len(pool), 12, name)
             self.assertEqual(len({t for t, _ in pool}), len(pool), name)
@@ -291,7 +291,7 @@ class Replies(unittest.TestCase):
                 self.assertFalse(any(w in text for w in MODERN_WORDS), (name, text))
 
     def test_no_pool_of_the_martial_world_has_a_modern_word(self):
-        from narrative.lint import MODERN_WORDS
+        from worldstage.narrative.lint import MODERN_WORDS
         for pool in (*S.AFTER_DUEL.values(), *S.TELL.values(), *S.CONFRONT.values(), S.CHALLENGE, S.DUEL_WON, S.DUEL_LOST):
             for text, _ in pool:
                 self.assertFalse(any(w in text for w in MODERN_WORDS), text)
@@ -302,7 +302,7 @@ class AfterTheDuel(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        from world.events import EventSpec, apply_event
+        from worldstage.world.events import EventSpec, apply_event
         cls.c = connect()
         init_db(cls.c, 1)
         build_world(cls.c, 1, "jianghu_story_v1")

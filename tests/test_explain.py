@@ -5,8 +5,8 @@ import unittest
 from tests.helpers import social_world
 from tests.test_series import lie_story
 from tests.world_fixture import reader
-from world.events import Change, EventSpec, apply_event
-from world.explain import causes, earliest_cause, explain_event, format_explanation
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.explain import causes, earliest_cause, explain_event, format_explanation
 
 
 class ExplainTests(unittest.TestCase):

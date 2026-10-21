@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import unittest
 
-from contracts.audience import AudienceKnowledge
-from narrative import audience as A
+from worldstage.contracts.audience import AudienceKnowledge
+from worldstage.narrative import audience as A
 from tests.test_progression import duel, now, saga, setest, setvar
-from world.events import Change, EventSpec, apply_event
+from worldstage.world.events import Change, EventSpec, apply_event
 
 
 def last(conn):
@@ -115,7 +115,7 @@ class Feelings(unittest.TestCase):
         feel(self.c, "ming", "mei", 0.7)
         feel(self.c, "mei", "ming", 0.9)
         from unittest import mock
-        with mock.patch("world.domains.romance.noticers", return_value=[]):
+        with mock.patch("worldstage.world.domains.romance.noticers", return_value=[]):
             do(self.c, "confess", "ming", "mei")
         k = A.knowledge(self.c, last(self.c))
         self.assertIn(("secret_couple", ("mei", "ming")), {(x.kind, tuple(x.people)) for x in k.claims})

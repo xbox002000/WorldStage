@@ -11,21 +11,21 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
-from contracts.claim import Claim
-from contracts.recipe import MechanicPrimitive as P, WorldRecipe
-from world.attention import LOUD, noticers, var
-from world.db import connect, init_db
-from world.domains import ActionSpec, Domain, EventStyle, register, unregister
-from world.domains.base import ClaimAct
-from world.events import Change, ClaimSpec, EventSpec, MemorySpec
-from world.helpers import RelDeltas, person
-from world.intent import Intent, validate
-from world.recipes import BASE, register_recipe, unregister_recipe
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
-from world.state import WorldError
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.claim import Claim
+from worldstage.contracts.recipe import MechanicPrimitive as P, WorldRecipe
+from worldstage.world.attention import LOUD, noticers, var
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import ActionSpec, Domain, EventStyle, register, unregister
+from worldstage.world.domains.base import ClaimAct
+from worldstage.world.events import Change, ClaimSpec, EventSpec, MemorySpec
+from worldstage.world.helpers import RelDeltas, person
+from worldstage.world.intent import Intent, validate
+from worldstage.world.recipes import BASE, register_recipe, unregister_recipe
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
+from worldstage.world.state import WorldError
 
 MANA, COST = 30.0, 10.0
 
@@ -39,7 +39,7 @@ def _validate_cast(conn, it: Intent, actor) -> None:
 
 
 def _resolve_cast(conn, it: Intent, now: int, trigger: str) -> EventSpec:
-    from world.claims import describe_claim, labels
+    from worldstage.world.claims import describe_claim, labels
     a, b = it.actor, it.target
     here = person(conn, a)["location_id"]
     seen = noticers(conn, here, now, f"spell:{a}:{b}", LOUD, a, b)
@@ -131,10 +131,10 @@ class ANewPackEntersWithoutTouchingTheCore(unittest.TestCase):
         self.assertGreater(answered, 0)
 
     def test_the_stage_and_the_read_models_know_it(self):
-        from narrative.lines import line
-        from narrative.scenes import scenes
-        from runtime.godview import caption
-        from runtime.world_runtime import WorldRuntime
+        from worldstage.narrative.lines import line
+        from worldstage.narrative.scenes import scenes
+        from worldstage.runtime.godview import caption
+        from worldstage.runtime.world_runtime import WorldRuntime
         r = self.spells[0]
         t = json.loads(r["truth"])
         names = {x[0]: x[1] for x in self.c.execute("SELECT id, name FROM people")}
@@ -180,7 +180,7 @@ class BuiltInPacks(unittest.TestCase):
         self.assertEqual(snapshot_hash(_world("town_life_test", 5, 4)), snapshot_hash(self.c))
 
     def test_the_same_pack_speaks_a_sect_s_words(self):
-        from world.domains.work import superior_person, words
+        from worldstage.world.domains.work import superior_person, words
         c = connect()
         init_db(c, 3)
         build_world(c, 3, "jianghu_v1")
@@ -192,10 +192,10 @@ class BuiltInPacks(unittest.TestCase):
 
 class Profiles(unittest.TestCase):
     def test_every_roster_satisfies_the_contract_and_covers_its_cast(self):
-        from contracts.character import check_roster
-        from world.content import content_module
-        from world.profiles import load_roster
-        from world.seed import PEOPLE
+        from worldstage.contracts.character import check_roster
+        from worldstage.world.content import content_module
+        from worldstage.world.profiles import load_roster
+        from worldstage.world.seed import PEOPLE
         for content, cast in (("town_v1", [p[0] for p in PEOPLE]),
                               ("jianghu_v1", [p[0] for p in content_module("jianghu_v1").PEOPLE])):
             r = load_roster(content)
@@ -204,7 +204,7 @@ class Profiles(unittest.TestCase):
 
     def test_a_world_never_rewrites_who_someone_is(self):
         import sqlite3
-        from world.profiles import profile
+        from worldstage.world.profiles import profile
         c = connect()
         init_db(c, 3)
         build_world(c, 3, "town_v1")  # the backstory is an event: the world has begun
@@ -228,7 +228,7 @@ class PacksAreNotASecondCore(unittest.TestCase):
     def test_packs_only_declare_and_return(self):
         import ast
         from pathlib import Path
-        root = Path(__file__).resolve().parent.parent / "world" / "domains"
+        root = Path(__file__).resolve().parent.parent / "worldstage" / "world" / "domains"
         bad = []
         for path in sorted(root.glob("*.py")):
             text = path.read_text(encoding="utf-8")
@@ -239,7 +239,7 @@ class PacksAreNotASecondCore(unittest.TestCase):
                     [a.name for a in node.names] if isinstance(node, ast.Import) else []
                 names = [a.name for a in node.names] if isinstance(node, ast.ImportFrom) else []
                 for m in mods:
-                    if m.startswith("agent") or m in ("world.simulation", "world.db"):
+                    if m.startswith("worldstage.agent") or m in ("worldstage.world.simulation", "worldstage.world.db"):
                         bad.append(f"{path.name}: imports {m}")
                 if "apply_event" in names or "mutation" in names:
                     bad.append(f"{path.name}: imports {names}")

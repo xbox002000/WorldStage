@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from narrative import lint as L
+from worldstage.narrative import lint as L
 from tests.test_opportunity import fingerprint
 
 
@@ -229,8 +229,8 @@ class OnAWorld(unittest.TestCase):
 
     def test_the_lint_only_reads(self):
         before = fingerprint(self.c)
-        from narrative import episode_planner as P
-        from narrative.dramaturgy import analyse
+        from worldstage.narrative import episode_planner as P
+        from worldstage.narrative.dramaturgy import analyse
         sit = analyse(self.c)["situations"]
         shown: set[int] = set()
         plans = []
@@ -259,7 +259,7 @@ class OnAWorld(unittest.TestCase):
 
 class Captions(unittest.TestCase):
     def test_no_event_that_a_story_can_hold_is_captioned_in_the_systems_words(self):
-        from runtime.godview import caption
+        from worldstage.runtime.godview import caption
         names = {"yun": "小雲", "mei": "小美", "ring": "戒指"}
         got = {
             "backstory": caption("backstory", {"actor": "yun", "text": "很久以前，小雲拿走了小美的戒指"}, "", names),

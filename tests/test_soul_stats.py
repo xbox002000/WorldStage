@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import soul_stats as S
+from labs import soul_stats as S
 
 
 class Bootstrap(unittest.TestCase):

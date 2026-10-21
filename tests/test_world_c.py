@@ -5,19 +5,19 @@ import json
 import unittest
 from collections import Counter
 
-from agent.volition import VolitionDecider
-from contracts.seed import ExternalEvent, SeedEffect
-from world.attention import LOUD, QUIET, noticers
-from world.db import connect, init_db
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent, validate
-from world.items import misplace, notice_missing
-from world.rules import resolve
-from world.seed import build_world
-from world.seeds import SEED_VARS, adapt, check_effects, load_feed
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
-from world.state import WorldError, audit
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.seed import ExternalEvent, SeedEffect
+from worldstage.world.attention import LOUD, QUIET, noticers
+from worldstage.world.db import connect, init_db
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent, validate
+from worldstage.world.items import misplace, notice_missing
+from worldstage.world.rules import resolve
+from worldstage.world.seed import build_world
+from worldstage.world.seeds import SEED_VARS, adapt, check_effects, load_feed
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
+from worldstage.world.state import WorldError, audit
 
 
 def fresh(seed: int = 3):

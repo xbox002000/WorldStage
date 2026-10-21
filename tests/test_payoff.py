@@ -5,10 +5,10 @@ import json
 import unittest
 from unittest import mock
 
-from narrative import payoff as P
+from worldstage.narrative import payoff as P
 from tests.test_progression import now, saga, setest, setvar
-from world.domains import active
-from world.events import Change, EventSpec, apply_event
+from worldstage.world.domains import active
+from worldstage.world.events import Change, EventSpec, apply_event
 
 
 def play(conn, spec):
@@ -75,8 +75,8 @@ class Slap(unittest.TestCase):
 
     def test_what_was_practised_is_the_protagonists_and_a_gift_is_not(self):
         plain = self.payoff(practice_days=6)
-        from contracts.intervention import InterventionProposal
-        from producer.intervention import Ledger
+        from worldstage.contracts.intervention import InterventionProposal
+        from worldstage.producer.intervention import Ledger
         c = saga()
         Ledger().admit(c, InterventionProposal("p", "S", "A", "deliver_parcel", "jun", {"object": "manual_secret"}, 0, 1, "x"), 100)
         eid = underdog(c, practice_days=6, manual=True)
@@ -90,8 +90,8 @@ class Slap(unittest.TestCase):
         self.assertLess(long_shot["agency"], sure["agency"])
 
     def test_the_stage_the_producer_arranged_is_credited_to_it(self):
-        from contracts.intervention import InterventionProposal
-        from producer.intervention import Ledger
+        from worldstage.contracts.intervention import InterventionProposal
+        from worldstage.producer.intervention import Ledger
         c = saga()
         Ledger().admit(c, InterventionProposal("g", "S", "A", "announce_gathering", "", {"kind": "tournament", "place": "qingyun", "day": "9"}, 0, 2, "x"), 100)
         eid = underdog(c)
@@ -120,7 +120,7 @@ class Chosen(unittest.TestCase):
             apply_event(c, EventSpec(timestamp=at(1 + i), type="flirt", trigger_type="decision", location_id="qingyun", importance=0.3,
                                      truth={"actor": "ming", "target": "mei", "landed": True},
                                      participants=[("ming", "actor"), ("mei", "target")]))
-        with mock.patch("world.domains.romance.noticers", return_value=["hao"]):
+        with mock.patch("worldstage.world.domains.romance.noticers", return_value=["hao"]):
             eid, _ = do(c, "confess", "ming", "mei", t=at(10), roll=roll)
         return c, eid
 
@@ -150,8 +150,8 @@ class Chosen(unittest.TestCase):
 
 class Seats(unittest.TestCase):
     def election(self, favourite_wins):
-        from contracts.intervention import InterventionProposal
-        from producer.intervention import Ledger
+        from worldstage.contracts.intervention import InterventionProposal
+        from worldstage.producer.intervention import Ledger
         c = saga()
         Ledger().admit(c, InterventionProposal("s", "S", "A", "open_seat", "chief_disciple", {"day": "3"}, 0, 3, "x"), 100)
         for v in ("tao", "jun", "hao"):

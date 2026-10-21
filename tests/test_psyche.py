@@ -4,14 +4,14 @@ from __future__ import annotations
 import json
 import unittest
 
-from agent.volition import VolitionDecider
+from worldstage.agent.volition import VolitionDecider
 from tests.test_world_c import fresh, put
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from world.psyche import ADAPTIVE, reflect, trait
-from world.simulation import Simulation
-from world.state import audit
-from narrative.timelines import character_timeline, relationship_timeline, state_at, why_changed
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.psyche import ADAPTIVE, reflect, trait
+from worldstage.world.simulation import Simulation
+from worldstage.world.state import audit
+from worldstage.narrative.timelines import character_timeline, relationship_timeline, state_at, why_changed
 
 DAY = 1440
 

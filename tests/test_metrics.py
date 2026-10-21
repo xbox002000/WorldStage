@@ -5,18 +5,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from narrative.selector import rank_arcs
-from production import db as prod
-from production.metrics import (LATE_FROM_DAY, acceptance, continuity_report, decision_mix, episode_flags, episodes,
+from worldstage.narrative.selector import rank_arcs
+from worldstage.production import db as prod
+from worldstage.production.metrics import (LATE_FROM_DAY, acceptance, continuity_report, decision_mix, episode_flags, episodes,
                                 flat_episode_ratio, format_report, has_lie_chain, late_trace, llm_talk_tones,
                                 model_drama_share, strong_flip, usage, warm_tone_ratio)
-from production.pipeline import make_episodes
+from worldstage.production.pipeline import make_episodes
 from tests.helpers import social_world
 from tests.test_series import lie_story
 from tests.test_social import STOLE, cid, do, told_memory
-from world.events import Change, EventSpec, apply_event
-from world.intent import Intent
-from narrative.arcs import Ev, load_events
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.narrative.arcs import Ev, load_events
 
 
 def make(world, conn, cands):

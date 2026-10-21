@@ -11,8 +11,8 @@ import json
 import unittest
 from pathlib import Path
 
-from narrative.dramaturgy import METRIC_VERSION, analyse
-from world.reader import open_world_reader
+from worldstage.narrative.dramaturgy import METRIC_VERSION, analyse
+from worldstage.world.reader import open_world_reader
 
 HERE = Path(__file__).parent / "fixtures"
 GOLDEN = json.loads((HERE / "dramaturgy_metric_v1_golden.json").read_text(encoding="utf-8"))

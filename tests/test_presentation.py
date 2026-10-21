@@ -9,17 +9,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from narrative.compiler import compile_packet
-from narrative.direction import plan_direction
-from narrative.performance import plan_performance
-from production.dryrun import needs_model, plan
-from runtime.blender.build import canonical_glb
-from runtime.stage import export_scene
-from runtime.world_runtime import WorldRuntime
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.performance import plan_performance
+from worldstage.production.dryrun import needs_model, plan
+from worldstage.runtime.blender.build import canonical_glb
+from worldstage.runtime.stage import export_scene
+from worldstage.runtime.world_runtime import WorldRuntime
 from tests.test_director_reality import dog_story
 
 ROOT = Path(__file__).resolve().parent.parent
-ASSETS = ROOT / "render" / "presentation" / "assets"
+ASSETS = ROOT / "worldstage" / "render" / "presentation" / "assets"
 NODE = shutil.which("node")
 
 
@@ -42,7 +42,7 @@ class PresentationTests(unittest.TestCase):
         cls.tmp.cleanup()
 
     def test_a_version_builds_into_a_self_contained_project(self):
-        from render.presentation.build import build
+        from worldstage.render.presentation.build import build
         out = build(self.scene, "C", Path(self.tmp.name) / "C")
         page = (out / "index.html").read_text(encoding="utf-8")
         self.assertIn('"three": "./three/three.module.js"', page)
@@ -56,9 +56,9 @@ class PresentationTests(unittest.TestCase):
     @unittest.skipUnless(NODE, "node is not installed")
     def test_the_page_code_parses_and_the_cast_is_valid_gltf(self):
         for f in ("presentation.js", "runtime_rule.js", "verify.mjs", "validate.mjs"):
-            subprocess.run([NODE, "--check", str(ROOT / "render" / "presentation" / f)], check=True)
-        r = subprocess.run([NODE, str(ROOT / "render" / "presentation" / "validate.mjs"), str(ASSETS)],
-                           capture_output=True, text=True, cwd=ROOT / "render")
+            subprocess.run([NODE, "--check", str(ROOT / "worldstage" / "render" / "presentation" / f)], check=True)
+        r = subprocess.run([NODE, str(ROOT / "worldstage" / "render" / "presentation" / "validate.mjs"), str(ASSETS)],
+                           capture_output=True, text=True, cwd=ROOT / "worldstage" / "render")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertTrue(all(json.loads(line)["errors"] == 0 for line in r.stdout.splitlines()))
 

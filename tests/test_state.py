@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from narrative.state import STALLED_AFTER, compile_state
+from worldstage.narrative.state import STALLED_AFTER, compile_state
 from tests.test_episode_planner import produced
 from tests.test_opportunity import fingerprint
 
@@ -36,12 +36,12 @@ class Compiling(unittest.TestCase):
             self.assertGreater(x["knows"], x["expected"])
 
     def test_the_pattern_memory_counts_what_has_been_told(self):
-        from narrative import payoff
+        from worldstage.narrative import payoff
         told = len(payoff.payoffs(self.c))
         self.assertEqual(sum(self.state["patterns"]["mechanics"].values()), told)
 
     def test_the_opportunities_and_debts_are_the_ones_the_other_read_models_find(self):
-        from narrative import debt, opportunity
+        from worldstage.narrative import debt, opportunity
         self.assertEqual([o["kind"] for o in self.state["opportunities"]], [o.kind for o in opportunity.detect(self.c, 9)[:5]])
         self.assertEqual([d["person"] for d in self.state["debts"]], [r["person"] for r in debt.ledger(self.c)[:5]])
 

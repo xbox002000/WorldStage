@@ -5,15 +5,15 @@ import dataclasses
 import unittest
 from unittest import mock
 
-from agent.volition import VolitionDecider
-from contracts.recipe import LAYERS, WorldRecipe
-from world import recipes
-from world.db import connect, init_db
-from world.recipes import LIBRARY, RecipeError, compile_recipe, compiled, load_recipe
-from world.ruleset import ruleset_manifest
-from world.seed import build_world
-from world.simulation import Simulation
-from world.state import audit
+from worldstage.agent.volition import VolitionDecider
+from worldstage.contracts.recipe import LAYERS, WorldRecipe
+from worldstage.world import recipes
+from worldstage.world.db import connect, init_db
+from worldstage.world.recipes import LIBRARY, RecipeError, compile_recipe, compiled, load_recipe
+from worldstage.world.ruleset import ruleset_manifest
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.state import audit
 
 
 def recipe(**over) -> WorldRecipe:

@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import unittest
 
-from contracts.opportunity import Opportunity
-from narrative import debt, novelty
-from producer import arcs, director as D
+from worldstage.contracts.opportunity import Opportunity
+from worldstage.narrative import debt, novelty
+from worldstage.producer import arcs, director as D
 from tests.test_opportunity import duel, fingerprint, story
 
 
@@ -41,7 +41,7 @@ class Saturation(unittest.TestCase):
         self.assertEqual(m.novelty("chosen", "a|b"), 1.0)
 
     def test_the_old_metric_is_untouched(self):
-        from narrative import payoff
+        from worldstage.narrative import payoff
         self.assertTrue(payoff.METRIC_VERSION.endswith("v0.1"))
 
 
@@ -78,7 +78,7 @@ class Portfolio(unittest.TestCase):
     def test_a_repeat_is_gated_out_before_it_is_weighed(self):
         c = story()
         dr = D.Director("portfolio", 3)
-        from narrative.opportunity import detect
+        from worldstage.narrative.opportunity import detect
         ops = [o for o in detect(c, 0) if o.kind == "succession"]
         self.assertTrue(ops)
         seat = ops[0].evidence["seat"]

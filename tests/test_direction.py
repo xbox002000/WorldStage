@@ -4,21 +4,21 @@ from __future__ import annotations
 import json
 import unittest
 
-from contracts.base import canonical_json, from_dict
-from contracts.director import DirectorPlan, verify
-from narrative.direction import plan_direction
-from narrative.director import select_thread
-from narrative.scene_spec import build_scene_specs
-from narrative.threads import derive_threads
+from worldstage.contracts.base import canonical_json, from_dict
+from worldstage.contracts.director import DirectorPlan, verify
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.director import select_thread
+from worldstage.narrative.scene_spec import build_scene_specs
+from worldstage.narrative.threads import derive_threads
 from tests.test_world_c import act, fresh, put
-from world.events import apply_event
-from world.intent import Intent
-from world.items import misplace, notice_missing
-from world.snapshot import snapshot_hash
+from worldstage.world.events import apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.items import misplace, notice_missing
+from worldstage.world.snapshot import snapshot_hash
 from tests.test_threads_spatial import world_path
-from world.reader import open_world_reader
-from narrative.arcs import Arc, load_events
-from narrative.selector import Candidate
+from worldstage.world.reader import open_world_reader
+from worldstage.narrative.arcs import Arc, load_events
+from worldstage.narrative.selector import Candidate
 
 
 def lost_wallet_scene():
@@ -82,7 +82,7 @@ class DirectionTests(unittest.TestCase):
 
 class DirectedPacketTests(unittest.TestCase):
     def test_the_packet_follows_the_director(self):
-        from narrative.compiler import compile_packet
+        from worldstage.narrative.compiler import compile_packet
         c, spec, thread = lost_wallet_scene()
         plan = plan_direction(c, spec, thread)
         packet = compile_packet(spec, direction=plan)
@@ -98,14 +98,14 @@ class DirectedPacketTests(unittest.TestCase):
 
     def test_a_plan_for_another_scene_is_refused(self):
         from dataclasses import replace
-        from narrative.compiler import compile_packet
+        from worldstage.narrative.compiler import compile_packet
         c, spec, thread = lost_wallet_scene()
         plan = plan_direction(c, spec, thread)
         with self.assertRaises(ValueError):
             compile_packet(replace(spec, scene_hash="sha256:other"), direction=plan)
 
     def test_without_a_plan_the_packet_is_as_before(self):
-        from narrative.compiler import compile_packet
+        from worldstage.narrative.compiler import compile_packet
         c, spec, thread = lost_wallet_scene()
         packet = compile_packet(spec)
         self.assertEqual(len(packet.shots), len(spec.beats))

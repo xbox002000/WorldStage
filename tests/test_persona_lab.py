@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-import persona_lab as lab
+from labs import persona_lab as lab
 
 
 class Branches(unittest.TestCase):

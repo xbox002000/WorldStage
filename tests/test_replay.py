@@ -4,13 +4,13 @@ import json
 import re
 import unittest
 
-from agent.decision import GeminiDecider, SeededDecider
-from agent.llm import CacheMiss, FallbackClient, LLMClient
-from agent.llm_cache import LLMCache, canonical_request, request_hash
-from world.db import connect, init_db
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
+from worldstage.agent.decision import GeminiDecider, SeededDecider
+from worldstage.agent.llm import CacheMiss, FallbackClient, LLMClient
+from worldstage.agent.llm_cache import LLMCache, canonical_request, request_hash
+from worldstage.world.db import connect, init_db
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
 
 
 def fresh_world(seed=5):

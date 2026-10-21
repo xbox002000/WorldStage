@@ -12,24 +12,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from agent.volition import VolitionDecider
-from narrative.compiler import compile_packet
-from narrative.direction import plan_direction
-from narrative.layouts import LAYOUTS
-from narrative.performance import plan_performance
-from runtime.camera import Stage
-from runtime.nav import RADIUS, blocks, grid
-from runtime.perception import RuntimeSpace, _seg_box
-from runtime.physics import audit
-from runtime.stage import export_scene
-from runtime.world_runtime import WorldRuntime
+from worldstage.agent.volition import VolitionDecider
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.layouts import LAYOUTS
+from worldstage.narrative.performance import plan_performance
+from worldstage.runtime.camera import Stage
+from worldstage.runtime.nav import RADIUS, blocks, grid
+from worldstage.runtime.perception import RuntimeSpace, _seg_box
+from worldstage.runtime.physics import audit
+from worldstage.runtime.stage import export_scene
+from worldstage.runtime.world_runtime import WorldRuntime
 from tests.test_director_reality import dog_story
-from world.db import connect, init_db
-from world.ruleset import ruleset_manifest
-from world.seed import build_world
-from world.simulation import Simulation
-from world.snapshot import snapshot_hash
-from world.space import detach, oracle
+from worldstage.world.db import connect, init_db
+from worldstage.world.ruleset import ruleset_manifest
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
+from worldstage.world.snapshot import snapshot_hash
+from worldstage.world.space import detach, oracle
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -148,7 +148,7 @@ class RuntimeInvariantTests(unittest.TestCase):
         self.assertEqual(self.rt.check(), [])
 
     def test_the_scheduler_refuses_two_exclusive_actions_at_once(self):
-        from runtime.scheduler import ActionScheduler, SchedulingConflict
+        from worldstage.runtime.scheduler import ActionScheduler, SchedulingConflict
         s = ActionScheduler()
         s.book("ming", ("move",), 10.0, 12.0, "walk", 1)
         s.book("ming", ("voice",), 11.0, 11.5, "talk", 1)  # walk and talk: different resources
@@ -157,10 +157,10 @@ class RuntimeInvariantTests(unittest.TestCase):
         self.assertEqual(s.free("ming", "move"), 12.0)
 
     def test_a_scene_clock_only_shifts_runtime_time_never_compresses_it(self):
-        from runtime.export import timeline, to_play
+        from worldstage.runtime.export import timeline, to_play
         tl = timeline([100.0, 5000.0, 90000.0], anchor=100.0)
         self.assertAlmostEqual(to_play(90000.0, tl) - to_play(5000.0, tl), 85000.0)
-        from runtime.world_runtime import TROT, WALK
+        from worldstage.runtime.world_runtime import TROT, WALK
         for who, keys in self.rt.by_entity.items():
             for (ta, a), (tb, b) in zip(keys, keys[1:]):
                 if a.pose == "walk" and tb - ta > 0.05:
@@ -229,7 +229,7 @@ class PerceptionTests(unittest.TestCase):
 
 class GodViewTests(unittest.TestCase):
     def test_the_save_says_what_everyone_feels_wants_holds_and_does(self):
-        from runtime.godview import export_world
+        from worldstage.runtime.godview import export_world
         c, _thread, spec = dog_story()
         day = c.execute("SELECT timestamp FROM events WHERE event_id = ?", (spec.beats[2].event_id,)).fetchone()[0] // 1440
         with tempfile.TemporaryDirectory() as tmp:
@@ -240,13 +240,13 @@ class GodViewTests(unittest.TestCase):
             self.assertTrue(ming["timeline"]["emotion"] and ming["memories"])
             self.assertTrue(all(doc["t0"] - 1.0 <= k[0] for e in doc["entities"] for k in e["keys"]))
             self.assertEqual(doc["cuts"], {})  # nothing directed: the world as it is
-            from render.godview.build import build
+            from worldstage.render.godview.build import build
             site = build(Path(tmp) / "world.json", Path(tmp) / "site")
             self.assertTrue((site / "godview.js").exists() and (site / "assets" / "dog.glb").exists())
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_the_page_code_parses(self):
-        subprocess.run([shutil.which("node"), "--check", str(ROOT / "render" / "godview" / "godview.js")], check=True)
+        subprocess.run([shutil.which("node"), "--check", str(ROOT / "worldstage" / "render" / "godview" / "godview.js")], check=True)
 
 
 if __name__ == "__main__":

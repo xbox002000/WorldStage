@@ -9,12 +9,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from contracts.base import canonical_json, from_dict, to_dict
-from contracts.persona import (Belief, BranchOrigin, CharacterGenome, DecisionHabits, Formative, KnowledgeBoundary,
+from worldstage.contracts.base import canonical_json, from_dict, to_dict
+from worldstage.contracts.persona import (Belief, BranchOrigin, CharacterGenome, DecisionHabits, Formative, KnowledgeBoundary,
                                Origin, SimulationBranch)
-from world import personas
-from world.db import connect, init_db, migrate, schema_version
-from world.seed import build_world
+from worldstage.world import personas
+from worldstage.world.db import connect, init_db, migrate, schema_version
+from worldstage.world.seed import build_world
 
 RECIPES = ("town_v1", "town_life_v1", "town_in_jianghu_v1")
 
@@ -62,7 +62,7 @@ class Genomes(unittest.TestCase):
             self.assertEqual(personas.genome(a, pid).genome_id, personas.genome(b, pid).genome_id)
             self.assertEqual(personas.genome(a, pid).genome_id, personas.genome(c, pid).genome_id)
         # ...while the jianghu profile the agents read carries the disciple's job
-        from world.profiles import profile
+        from worldstage.world.profiles import profile
         self.assertEqual(profile(c, "ming").occupation.role, "弟子")
         self.assertIsNone(personas.genome(c, "ming").profile.occupation)
 
@@ -92,7 +92,7 @@ class Genomes(unittest.TestCase):
         c.execute("UPDATE meta SET value = '6' WHERE key = 'schema_version'")
         self.assertIsNone(personas.genome(c, "ming"))
         self.assertEqual((personas.instances(c), personas.problems(c)), ([], []))
-        from world.db import SCHEMA_VERSION
+        from worldstage.world.db import SCHEMA_VERSION
         self.assertEqual(migrate(c), SCHEMA_VERSION)
         self.assertEqual(schema_version(c), SCHEMA_VERSION)
 
@@ -211,12 +211,12 @@ class RealPeople(unittest.TestCase):
         self.assertEqual(personas.problems(c), [])
 
     def test_the_daily_pipeline_refuses_a_world_holding_real_people(self):
-        from channel.daily import DailyConfig, run_daily
+        from worldstage.channel.daily import DailyConfig, run_daily
         raw = public_figure()
         with tempfile.TemporaryDirectory() as d:
             live = Path(d) / "live.db"
             c = world(extras={"ming": {"origin": to_dict(raw.origin)}})
-            from world.db import save_to
+            from worldstage.world.db import save_to
             save_to(c, live)
             cfg = DailyConfig(world_db=str(live), prod_db=str(Path(d) / "prod.db"), out_dir=str(Path(d) / "out"), days=1)
             with self.assertRaises(personas.NotPublishable):
@@ -267,18 +267,18 @@ class FormativeShaping(unittest.TestCase):
         self.assertGreater(self.var(kind, "psy.mei.trust_default"), self.var(control, "psy.mei.trust_default"))
         self.assertEqual(self.var(kind, "psy.mei.self.some_are_kind"), 1.0)
         self.assertGreater(self.var(hostile, "psy.mei.aggression"), self.var(control, "psy.mei.aggression"))
-        from world.psyche import EXPERIENCES, SHAPING
+        from worldstage.world.psyche import EXPERIENCES, SHAPING
         self.assertEqual(sorted(SHAPING), sorted(EXPERIENCES))
 
     def test_the_shaping_shows_in_what_they_would_do(self):
         """Persona probe at day 0: someone betrayed early is quicker to accuse than the same person who was not."""
-        from persona_probe import probe
+        from labs.persona_probe import probe
         control, c = world(), self.shaped("betrayal")
         base, shaped = probe(control, 7)["mei"]["accuse"], probe(c, 7)["mei"]["accuse"]
         self.assertGreater(shaped, base * 1.2)
 
     def test_what_cannot_be_applied_is_left_alone(self):
-        from world.psyche import shaping_changes
+        from worldstage.world.psyche import shaping_changes
         c = world()
         self.assertEqual(shaping_changes(c, "mei", "boredom", 0.9), ([], {}))      # not an experience the psyche knows
         self.assertEqual(shaping_changes(c, "nobody", "betrayal", 0.9), ([], {}))  # nobody with a psyche here
@@ -299,7 +299,7 @@ class Looks(unittest.TestCase):
                 self.assertTrue(g.profile.costume == "", pid)  # the clothes are not in the genome
 
     def test_clothes_are_casting_so_the_same_person_dresses_for_each_world(self):
-        from world.profiles import profile
+        from worldstage.world.profiles import profile
         town, sect = world("town_life_v1"), world("town_in_jianghu_v1")
         self.assertNotEqual(profile(town, "ming").costume, profile(sect, "ming").costume)
         self.assertTrue(all(profile(sect, p).costume for p in ("ming", "mei", "lan", "yun", "ning", "rui")))

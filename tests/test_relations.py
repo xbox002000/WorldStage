@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import unittest
 
-from agent.volition import VolitionDecider
-from world.db import connect, init_db
-from world.domains import active
-from world.events import EventSpec, apply_event
-from world.intent import Intent
-from world.seed import build_world
-from world.simulation import Simulation
+from worldstage.agent.volition import VolitionDecider
+from worldstage.world.db import connect, init_db
+from worldstage.world.domains import active
+from worldstage.world.events import EventSpec, apply_event
+from worldstage.world.intent import Intent
+from worldstage.world.seed import build_world
+from worldstage.world.simulation import Simulation
 
 
 def saga(seed: int = 3):
@@ -98,7 +98,7 @@ class Decisions(unittest.TestCase):
         self.c = saga()
 
     def set_grudge(self, a, b, value):
-        from world.events import Change
+        from worldstage.world.events import Change
         apply_event(self.c, EventSpec(timestamp=1, type="setup", trigger_type="rule", location_id=None,
                                       changes=[Change("relationship", f"{a}:{b}", "resentment", delta=value)]))
 

@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import unittest
 
-from narrative.compiler import compile_packet
-from narrative.direction import plan_direction
-from narrative.performance import PROFILES, continuity_breaks, plan_performance, uncaused
-from production.shots import describe
-from render.cast.packet_script import to_script
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.performance import PROFILES, continuity_breaks, plan_performance, uncaused
+from worldstage.production.shots import describe
+from worldstage.render.cast.packet_script import to_script
 from tests.test_director_reality import dog_story
 
 

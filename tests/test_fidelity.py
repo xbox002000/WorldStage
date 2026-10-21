@@ -10,12 +10,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from narrative.compiler import compile_packet
-from narrative.direction import plan_direction
-from narrative.performance import plan_performance
-from runtime.fidelity import fidelity
-from runtime.stage import export_scene
-from runtime.world_runtime import WorldRuntime
+from worldstage.narrative.compiler import compile_packet
+from worldstage.narrative.direction import plan_direction
+from worldstage.narrative.performance import plan_performance
+from worldstage.runtime.fidelity import fidelity
+from worldstage.runtime.stage import export_scene
+from worldstage.runtime.world_runtime import WorldRuntime
 from tests.test_director_reality import dog_story
 
 

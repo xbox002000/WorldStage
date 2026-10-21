@@ -20,10 +20,10 @@ import json
 import sys
 from pathlib import Path
 
-from contracts.backends import ShotRequest
-from contracts.base import canonical_json, to_dict
-from production.bible import build_bible
-from production.shots import describe
+from worldstage.contracts.backends import ShotRequest
+from worldstage.contracts.base import canonical_json, to_dict
+from worldstage.production.bible import build_bible
+from worldstage.production.shots import describe
 from tests.provider_conformance.worlds import played_world
 
 HERE = Path(__file__).resolve().parent
@@ -46,16 +46,16 @@ KINDS = {
 
 
 def _events(conn):
-    from narrative.arcs import load_events
+    from worldstage.narrative.arcs import load_events
     return load_events(conn)
 
 
 def _pick_events(conn) -> dict[str, int]:
     """One real event per kind, found by what it is (not by a number that a different engine would shift)."""
     from tests.test_world_c import put
-    from world.events import apply_event
-    from world.intent import Intent
-    from world.rules import resolve
+    from worldstage.world.events import apply_event
+    from worldstage.world.intent import Intent
+    from worldstage.world.rules import resolve
     evs = _events(conn)
     ordered = sorted(evs.values(), key=lambda e: e.id)
 
@@ -82,12 +82,12 @@ def _pick_events(conn) -> dict[str, int]:
 
 
 def _packet(conn, event_id: int, intent: str):
-    from narrative.arcs import Arc
-    from narrative.compiler import compile_packet
-    from narrative.direction import plan_direction
-    from narrative.performance import plan_performance
-    from narrative.scene_spec import build_scene_specs
-    from narrative.selector import Candidate
+    from worldstage.narrative.arcs import Arc
+    from worldstage.narrative.compiler import compile_packet
+    from worldstage.narrative.direction import plan_direction
+    from worldstage.narrative.performance import plan_performance
+    from worldstage.narrative.scene_spec import build_scene_specs
+    from worldstage.narrative.selector import Candidate
     e = _events(conn)[event_id]
     spec = build_scene_specs(conn, [Candidate(Arc((e,), e, "thread"), 1.0, {}, 1.0)], ["conformance"])[0]
     direction = plan_direction(conn, spec, intents={event_id: [intent]})

@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import unittest
 
-from agent.volition import conflict_actions, recovery_bias, strain
-from narrative.rhythm import label_days, rhythm
+from worldstage.agent.volition import conflict_actions, recovery_bias, strain
+from worldstage.narrative.rhythm import label_days, rhythm
 from tests.test_jianghu import jianghu
 from tests.test_world_c import fresh, put
-from world.events import Change, EventSpec, apply_event
-from world.helpers import STANCE, trust_reversed
-from world.intent import Intent, validate
-from world.jianghu import INJURY_DAYS, injured
-from world.state import WorldError
+from worldstage.world.events import Change, EventSpec, apply_event
+from worldstage.world.helpers import STANCE, trust_reversed
+from worldstage.world.intent import Intent, validate
+from worldstage.world.jianghu import INJURY_DAYS, injured
+from worldstage.world.state import WorldError
 
 
 def set_trust(c, now, a, b, value):
@@ -64,8 +64,8 @@ class RecoveryTests(unittest.TestCase):
 class MeasureTests(unittest.TestCase):
     def test_a_run_is_labelled_day_by_day_for_the_world_and_for_each_life(self):
         c = jianghu()
-        from agent.volition import VolitionDecider
-        from world.simulation import Simulation
+        from worldstage.agent.volition import VolitionDecider
+        from worldstage.world.simulation import Simulation
         d = VolitionDecider(1)
         Simulation(c, d, d, set()).run(6)
         labels = label_days(c, 6)
