@@ -84,7 +84,7 @@ def prompt_for(ledger: FactLedger, card: SceneCard) -> str:
         return f"  - [{fid}] 第{ledger.facts[fid].day + 1}天：{k.belief}（{k.how}）"
     people = []
     for p in card.cast:
-        facts = card.known.get(p, [])[-12:]
+        facts = sorted(set(card.known.get(p, [])[-12:]) | (set(card.recall) if p == card.pov else set()))
         people.append(f"{ledger.name(p)}（id={p}）只知道：\n" + ("\n".join(fact_line(p, x) for x in facts) or "  （沒有）"))
     f = ledger.facts[card.anchor]
     return (
@@ -92,9 +92,11 @@ def prompt_for(ledger: FactLedger, card: SceneCard) -> str:
         f"場景：{card.location}，第{f.day + 1}天。這場真正發生的事：{f.summary}（事件 {f.fact_id}）\n"
         f"視角人物：{ledger.name(card.pov)}。懸念問題：{card.question}\n"
         f"轉折：{card.turn['before']} → {card.turn['after']}\n"
-        "每個人只能說或想自己知道的事；用到哪件事就把它的編號放進 uses。說話者只能是在場的人。\n"
+        "每個人只能說或想自己知道的事；用到哪件事就把它的編號放進 uses。說話者只能是在場的人，speaker 填括號裡的 id。\n"
         + "\n".join(people) +
-        "\n寫 4 到 8 行，繁體中文，口語、有潛台詞，最後一行要落在轉折上。"
+        ("\n前情（前幾集發生、" + ledger.name(card.pov) + "知道的事，至少回扣其中一件）："
+         + "；".join(f"[{x}] {ledger.how(card.pov, x).belief}" for x in card.recall) if card.recall else "") +
+        "\n不要讓人拿出、交出或找到事實裡沒有的東西；提到物品時，uses 要包含提到它的那件事。\n寫 4 到 8 行，繁體中文，口語、有潛台詞，最後一行要落在轉折上。"
     )
 
 
@@ -118,12 +120,19 @@ class LLMWriter:
     def __init__(self, client, fallback: OfflineWriter | None = None) -> None:
         self.client, self.fallback = client, fallback or OfflineWriter()
         self.rejected: list[dict] = []
+        self.fallbacks: list[str] = []
 
     def write(self, ledger: FactLedger, card: SceneCard, gate: KnowledgeGate) -> list[dict]:
         prompt = prompt_for(ledger, card)
         for attempt in range(2):
-            raw = self.client.generate_json(prompt, SCHEMA, temperature=0.8)
-            lines = [dict(x, uses=[int(u) for u in x.get("uses", [])]) for x in raw.get("lines", [])]
+            try:
+                raw = self.client.generate_json(prompt, SCHEMA, temperature=0.8)
+            except Exception as e:  # noqa: BLE001 - a call that fails is a scene for the offline writer
+                self.rejected.append({"scene": card.scene_id, "attempt": attempt, "why": [f"call failed: {type(e).__name__}"]})
+                break
+            by_name = {ledger.name(p): p for p in card.cast}
+            lines = [dict(x, speaker=by_name.get(x.get("speaker", ""), x.get("speaker", "")), uses=[int(u) for u in x.get("uses", [])])
+                     for x in raw.get("lines", [])]
             bad = []
             for x in lines:
                 if x["speaker"] not in card.cast:
@@ -134,4 +143,5 @@ class LLMWriter:
                 return [_narration(ledger, card)] + lines
             self.rejected.append({"scene": card.scene_id, "attempt": attempt, "why": bad})
             prompt += "\n上一版被退回，原因：" + json.dumps(bad, ensure_ascii=False) + "。請改正。"
+        self.fallbacks.append(card.scene_id)
         return self.fallback.write(ledger, card, gate)

@@ -15,6 +15,7 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from worldstage.agent import llm as LLM
 from worldstage.agent.llm import DEFAULT_MODEL, build_chain, has_api_key
 from worldstage.agent.llm_cache import LLMCache
 from worldstage.agent.volition import VolitionDecider
@@ -118,20 +119,28 @@ def main() -> int:
         if est["usd"] > a.max_usd:
             print(f"estimate US${est['usd']} is above the cap US${a.max_usd}: stopping", file=sys.stderr)
             return 3
-        cache = LLMCache(sqlite3.connect(out / "llm_cache.db", isolation_level=None))
-        writer = LLMWriter(build_chain(a.model, mode="cache", cache=cache, max_calls=4 * len(cards)))
+        cconn = sqlite3.connect(out / "llm_cache.db", isolation_level=None)
+        cconn.execute("CREATE TABLE IF NOT EXISTS llm_cache (request_hash TEXT PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL,"
+                      " request_json TEXT NOT NULL, response_json TEXT NOT NULL, created_at INTEGER NOT NULL)")
+        cache = LLMCache(cconn)
+        writer = LLMWriter(build_chain(a.model, mode="cache", cache=cache, max_calls=4 * len(cards), use_openrouter=False, retries=2))
         writer_name = f"LLM（{a.model}）"
     else:
         writer = OfflineWriter()
     write_all(ledger, eps, writer)
     binds = {bid: {"event_id": b.event_id, "episode": b.beat.episode, "must_hit": b.beat.must_hit} for bid, b in spine.bindings.items()}
     report = plot_continuity.summary(plot_continuity.check(ledger, eps, binds, EPISODE_DAYS))
+    from worldstage.narrative.dialogue import PRICES
+    pin, pout = PRICES.get(a.model, (0.30, 2.50))
+    usage = dict(LLM.USAGE, usd=round(LLM.USAGE["input_tokens"] / 1e6 * pin + LLM.USAGE["output_tokens"] / 1e6 * pout, 4))
+    print("usage", json.dumps(usage), "rejected", len(getattr(writer, "rejected", [])), "fallbacks", len(getattr(writer, "fallbacks", [])))
     meta = {"seed": a.seed, "recipe": a.recipe, "days": a.days, "writer": writer_name}
     (out / "episodes.md").write_text(to_markdown(ledger, eps, spine, report, meta), encoding="utf-8")
     (out / "episodes.json").write_text(json.dumps({"meta": meta, "estimate": est, "pulls": pulls, "beats": binds,
                                                    "episodes": [{**ep, "scenes": [asdict(c) for c in ep["scenes"]]} for ep in eps],
                                                    "continuity": report,
-                                                   "rejected": getattr(writer, "rejected", [])}, ensure_ascii=False, indent=1), encoding="utf-8")
+                                                   "rejected": getattr(writer, "rejected", []),
+                                                   "fallbacks": getattr(writer, "fallbacks", []), "usage": usage}, ensure_ascii=False, indent=1), encoding="utf-8")
     stats = [{"episode": ep["episode"], "scenes": len(ep["scenes"]), "lines": len({c.line for c in ep["scenes"]}),
               "povs": len({c.pov for c in ep["scenes"]})} for ep in eps]
     print("episodes", json.dumps(stats), "severe", report["severe"], "warn", report["warn"], "missed", spine.missed())

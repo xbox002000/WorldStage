@@ -53,6 +53,7 @@ class FactLedger:
     def __init__(self, conn: sqlite3.Connection, min_importance: float = MIN_IMPORTANCE, until: int | None = None) -> None:
         self.conn = conn
         self.names = _names(conn)
+        self.object_names = {n for (n,) in conn.execute("SELECT name FROM objects") if n and len(n) >= 2}
         self.facts: dict[int, Fact] = {}
         q = "SELECT event_id, timestamp, type, COALESCE(location_id, ''), importance, truth FROM events WHERE importance >= ?"
         args: list = [min_importance]
@@ -148,6 +149,14 @@ class KnowledgeGate:
             if words not in mine:
                 seen.add(words)
                 out.append(Violation("K3", "severe", speaker, f.fact_id, f"{L.name(speaker)} quotes what they do not know: {words}"))
+        # a thing may be named only if it is in a fact the line stands on: a line cannot hand over, find or hold what the world never gave it
+        things = [o for o in L.object_names if o in text]
+        if things:
+            stands = " ".join(f"{L.facts[u].claim_text} {L.facts[u].summary} {(L.how(speaker, u).belief if L.how(speaker, u) else '')}"
+                              for u in uses if u in L.facts)
+            for o in things:
+                if o not in stands:
+                    out.append(Violation("K6", "severe", speaker, 0, f"{L.name(speaker)} names {o}, which is in none of the facts the line stands on"))
         return out
 
     def check_act(self, actor: str, fact: Fact) -> list[Violation]:

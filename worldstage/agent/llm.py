@@ -58,6 +58,9 @@ def has_api_key(*names: str) -> bool:
         return False
 
 
+USAGE = {"calls": 0, "input_tokens": 0, "output_tokens": 0}   # what live Gemini calls in this process were billed for (usage_metadata)
+
+
 def _gemini_backend(model: str) -> Callable[[str, dict, float], str]:
     from google import genai
     from google.genai import types
@@ -77,6 +80,11 @@ def _gemini_backend(model: str) -> Callable[[str, dict, float], str]:
             if _daily_quota_hit(e):
                 raise QuotaExhausted(f"{model}: the free daily quota is used up") from e
             raise
+        u = getattr(resp, "usage_metadata", None)
+        USAGE["calls"] += 1
+        if u is not None:
+            USAGE["input_tokens"] += u.prompt_token_count or 0
+            USAGE["output_tokens"] += (u.candidates_token_count or 0) + (getattr(u, "thoughts_token_count", 0) or 0)
         return resp.text
 
     return call

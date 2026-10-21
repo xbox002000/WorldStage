@@ -42,10 +42,10 @@ BEATS: tuple[MainBeat, ...] = (
     MainBeat("E1-B", 1, "B", "trigger", True, ("flirt", "confession"), "triangle", "somebody reaches out to somebody"),
     MainBeat("E2-A", 2, "A", "escalation", True, ("confront", "accuse", "shove", "duel", "tell"), "reversal",
              "the grievance is said aloud, or spreads"),
-    MainBeat("E2-B", 2, "B", "midpoint", True, ("flirt", "confession", "praise", "regret", "confront"), "triangle",
+    MainBeat("E2-B", 2, "B", "midpoint", True, ("flirt", "confession", "regret"), "triangle",
              "the feeling is tested: answered, refused or seen by the wrong person"),
     MainBeat("E3-A", 3, "A", "climax", True, GRIEVANCE + ("regret",), "reversal", "it comes to a head in front of others"),
-    MainBeat("E3-B", 3, "B", "aftermath", False, HEART + ("talk",), "", "what the feeling has cost, and who is left with it"),
+    MainBeat("E3-B", 3, "B", "aftermath", False, ("flirt", "confession", "decline_offer"), "triangle", "what the feeling has cost, and who is left with it"),
 )
 
 

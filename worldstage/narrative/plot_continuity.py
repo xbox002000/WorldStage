@@ -7,6 +7,7 @@
   T1 severe  scenes out of time order within an episode, or an episode reaching back before the one it follows
   P1 severe  somebody speaks in a scene they are not in
   K1-K3      a line stands on, or quotes, a fact its speaker does not know at that time, or one from later (ledger.KnowledgeGate)
+  K6 severe  a line names an object that is in none of the facts it stands on (a prop the world never gave the scene)
   K4 severe  a scene's anchor act stood on something its actor did not know
   K5 severe  a line or a thought calls a fact back as known before its speaker came to know it in an earlier scene's time
   X1 warn    an episode after the first calls back nothing from the ones before

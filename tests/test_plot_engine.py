@@ -85,6 +85,15 @@ class PlotEngine(unittest.TestCase):
         self.assertIn("K3", [v.code for v in g.check_line(outsider, f"你知道嗎？{f.claim_text}。", [], at)])
         self.assertEqual(g.check_line(f.actor, f"你知道嗎？{f.claim_text}。", [f.fact_id], at), [])
 
+    def test_a_line_cannot_name_a_thing_none_of_its_facts_holds(self):
+        L, g = self.ledger, self.gate
+        f = next(x for x in L.facts.values() if x.actor and not any(o in x.summary + x.claim_text for o in L.object_names))
+        thing = sorted(L.object_names)[0]
+        self.assertIn("K6", [v.code for v in g.check_line(f.actor, f"這{thing}你收下。", [f.fact_id], f.ts)])
+        holder = next((x for x in L.facts.values() if x.actor and thing in x.summary + x.claim_text), None)
+        if holder is not None:
+            self.assertNotIn("K6", [v.code for v in g.check_line(holder.actor, f"那{thing}的事。", [holder.fact_id], holder.ts)])
+
     def test_every_act_of_the_world_stood_on_what_its_actor_knew(self):
         bad = [v for f in self.ledger.facts.values() if f.actor for v in self.gate.check_act(f.actor, f)]
         self.assertEqual(bad, [])
