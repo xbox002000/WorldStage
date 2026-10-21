@@ -131,7 +131,7 @@ Give the characters a mind (optional; the real mind uses the Gemini free tier an
 ```bash
 .venv/bin/worldstage-soul --name trial --days 3 --dry           # stub mind: no network, no quota
 .venv/bin/worldstage-soul --name trial --days 3 --tier A        # real mind, cached and quota-ledgered (needs GEMINI_API_KEY)
-.venv/bin/worldstage-studio --mind out/soul/trial               # watch it, replayed from the cache for free
+.venv/bin/worldstage-studio --mind out/soul/trial               # watch a real (--tier A) run, replayed from the cache for free; a --dry run records no answers to replay
 ```
 
 Other entry points live in `scripts/` (`run_sim`, `daily`, `produce`, `report`, `rate`, `explain`) and experiments in `labs/`; run them from the repo root, e.g. `.venv/bin/python -m scripts.run_sim --help` or `.venv/bin/python -m labs.drama_gate --help`.
