@@ -7,7 +7,18 @@
 **但我們還沒有拍過一秒真正的影片。** 到目前為止，「影片」只是鏡頭單（ProductionPacket）和 dry-run。這是最大的缺口，也是這個專案存在的理由。
 
 ## 真正的目標
-不是「AI 寫故事」，而是：**一個真的發生過的世界，被剪成觀眾想看的影片。** 因果是真的，所以戲是掙來的。請守住這一點：任何捷徑（叫 LLM 直接編劇情、為了好看改世界）都會毀掉它。
+不是「AI 寫故事」，而是：**一個真的發生過的世界，被剪成觀眾想看的影片。** 因果是真的，所以戲是掙來的。請守住這一點：為了好看改世界、或讓 LLM 憑空編出沒發生的事，都會毀掉它。
+
+**2026-10-21 放寬（使用者核可）：** 原本「AI 不可編劇」放寬為「主線拉著世界走，但不強迫世界」。可以有一張主線節拍表（每集必中／彈性節拍），製作人用既有的世界內手段（同一個 shaper、封閉詞彙、`Ledger.admit`）把世界往節拍拉；**每個節拍都必須由 world.db 裡真的發生過的事件來兌現**，拉不到就記為未達成，不准造假。LLM 可以寫台詞，但只能用說話者當下知道的事實，寫完先過知識閘門與連戲檢查才算數。
+
+## 劇情引擎 Phase 1（2026-10-21，分支 `plot-engine-p1`）
+- 主線節拍表與拉力：`worldstage/producer/spine.py`（`BEATS`、`fulfil`、`SpineDirector`：只改 Director 看機會的先後，不新增手段）。
+- 事實帳與每個角色的知識：`worldstage/narrative/ledger.py`（`FactLedger` 由 events／memories 推導；`KnowledgeGate` 在寫場景時擋知識洩漏）。
+- 場景卡（POV、懸念問題、轉折）：`worldstage/narrative/scene_cards.py`；分集與交織：`worldstage/producer/plot.py`。
+- 台詞：`worldstage/narrative/dialogue.py`。`LLMWriter` 依場景卡＋各人可知事實寫，過閘門才收，失敗重問一次再退回 `OfflineWriter`（決定性、離線，給測試與 `--dry`）。
+- 連戲檢查：`worldstage/narrative/plot_continuity.py`（節拍對事件、時序、在場、知識前後、跨集回扣）。
+- 指令：`python -m scripts.plot_p1 --dry`／`--estimate`／`--llm --max-usd 2`；輸出 `out/plot_p1/episodes.md`。
+- 狀態：seed 701 三集已產出（離線寫手），每集 2 條線、≥3 個 POV，連戲嚴重錯誤 0，6 個節拍全部對到真實事件。**LLM 台詞尚未實跑**（box 沒有 `GEMINI_API_KEY`；估價約 US$0.03／三集）。下一步：有金鑰後跑 `--llm`，再請使用者用 `episodes.md` 末尾的評分表打分。
 
 ## 接下來的路（依序）
 1. **先拍出第一支 30 秒短片，品質不重要，管線要通。**
